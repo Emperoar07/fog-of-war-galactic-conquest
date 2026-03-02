@@ -1,0 +1,8 @@
+target/
+node_modules/
+.anchor/
+.tmp-arcium-examples/
+test-ledger/
+.DS_Store
+*.log
+
