@@ -991,7 +991,7 @@ function MatchPageInner() {
 
       <div className="grid grid-cols-1 gap-3 sm:gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)] xl:items-start">
         <div id="tutorial-board" className="flex justify-center self-start">
-          <div className="w-full max-w-[48rem] space-y-2">
+          <div className="w-full max-w-[42rem] space-y-2">
             <GameBoard
               revealedSectorOwner={match.revealedSectorOwner}
               selectedCell={selectedCell}
