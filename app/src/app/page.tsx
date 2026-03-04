@@ -59,7 +59,7 @@ export default function Home() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="how-to-play-title"
-            className="max-h-[88vh] w-full max-w-4xl overflow-y-auto border border-[#0c6d1f] bg-[#030d03] p-6 shadow-[0_0_40px_rgba(0,255,65,0.08)]"
+            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto border border-[#0c6d1f] bg-[#030d03] p-3 shadow-[0_0_40px_rgba(0,255,65,0.08)] sm:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -232,14 +232,14 @@ export default function Home() {
         </div>
       )}
 
-      <section className="border border-[#0e2a0e] bg-[#030d03] px-5 py-8 sm:px-8">
+      <section className="border border-[#0e2a0e] bg-[#030d03] px-3 py-5 sm:px-5 sm:py-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_260px] lg:items-center">
           <div className="space-y-5">
             <div className="space-y-2">
-              <p className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.22em] text-[#00ff41] sm:text-5xl">
+              <p className="font-[family-name:var(--font-vt323)] text-2xl tracking-[0.22em] text-[#00ff41] sm:text-5xl">
                 FOG OF WAR
               </p>
-              <h1 className="font-[family-name:var(--font-vt323)] text-4xl tracking-[0.16em] text-[#ffb000] sm:text-6xl">
+              <h1 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.16em] text-[#ffb000] sm:text-6xl">
                 GALACTIC CONQUEST
               </h1>
             </div>

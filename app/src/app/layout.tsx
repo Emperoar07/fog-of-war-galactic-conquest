@@ -19,7 +19,27 @@ const vt323 = VT323({
 
 export const metadata: Metadata = {
   title: "Fog of War: Galactic Conquest",
-  description: "Encrypted on-chain strategy game powered by Solana and Arcium",
+  description:
+    "Turn-based encrypted strategy game on Solana. Hidden moves, private computation via Arcium MPC, and fog-of-war mechanics — all settled on-chain.",
+  metadataBase: new URL("https://fog-of-war-mauve.vercel.app"),
+  openGraph: {
+    title: "Fog of War: Galactic Conquest",
+    description:
+      "Hidden information meets on-chain strategy. Command fleets, encrypt orders, and conquer the galaxy on Solana.",
+    siteName: "Fog of War: Galactic Conquest",
+    type: "website",
+    images: ["/opengraph-image"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Fog of War: Galactic Conquest",
+    description:
+      "Hidden information meets on-chain strategy. Powered by Solana + Arcium MPC.",
+    images: ["/opengraph-image"],
+  },
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

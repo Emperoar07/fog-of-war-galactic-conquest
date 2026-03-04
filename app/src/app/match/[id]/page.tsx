@@ -15,12 +15,16 @@ import BattleSummary from "@/components/BattleSummary";
 import Toast from "@/components/Toast";
 import VisibilityPanel from "@/components/VisibilityPanel";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
+import TutorialOverlay from "@/components/TutorialOverlay";
+import DemoReplay from "@/components/DemoReplay";
 import {
   advanceDemoTurn,
   buildDemoVisibilityReport,
   DEMO_MODE_ENABLED,
   isDemoMatchId,
   markDemoOrdersSubmitted,
+  saveDemoSnapshot,
+  type DemoSnapshot,
 } from "@/lib/demo";
 import {
   MatchStatus,
@@ -69,6 +73,7 @@ function MatchPageInner() {
     null | "join" | "orders" | "resolve" | "visibility" | "refresh"
   >(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
+  const [tutorialHighlight, setTutorialHighlight] = useState<string | null>(null);
   const playerSlot =
     demoMode
       ? 0
@@ -77,6 +82,13 @@ function MatchPageInner() {
       : null;
   const isPlayer = playerSlot !== null;
   const isBusy = pendingAction !== null;
+
+  // Save demo snapshots for replay
+  useEffect(() => {
+    if (demoMode && match) {
+      saveDemoSnapshot(match);
+    }
+  }, [demoMode, match]);
 
   const appendActivity = useCallback(
     (message: string, tone: "info" | "success" | "error" = "info") => {
@@ -282,26 +294,26 @@ function MatchPageInner() {
       const emptySlot = match.players.findIndex(
         (p) => p.toBase58() === "11111111111111111111111111111111",
       );
-        if (emptySlot < 0) {
-          playSound("error");
-          showStatus("No empty slots available.", "error");
-          return;
-        }
-        showStatus(`Joining player slot ${emptySlot + 1}...`, "info", true);
-        playSound("uplink");
-        await client.registerPlayer(matchPDA, emptySlot);
-        updateMatch((current) => {
-          const players = [...current.players];
-          players[emptySlot] = publicKey;
-          return { ...current, players };
-        });
-        playSound("success");
-        showStatus(`Joined as Player ${emptySlot + 1}.`, "success", true);
-      } catch (err: unknown) {
+      if (emptySlot < 0) {
         playSound("error");
-        showStatus(
-          `Failed to join: ${err instanceof Error ? err.message : "Unknown error"}`,
-          "error",
+        showStatus("No empty slots available.", "error");
+        return;
+      }
+      showStatus(`Joining player slot ${emptySlot + 1}...`, "info", true);
+      playSound("uplink");
+      await client.registerPlayer(matchPDA, emptySlot);
+      updateMatch((current) => {
+        const players = [...current.players];
+        players[emptySlot] = publicKey;
+        return { ...current, players };
+      });
+      playSound("success");
+      showStatus(`Joined as Player ${emptySlot + 1}.`, "success", true);
+    } catch (err: unknown) {
+      playSound("error");
+      showStatus(
+        `Failed to join: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
         true,
       );
     } finally {
@@ -318,37 +330,37 @@ function MatchPageInner() {
         true,
       );
       updateMatch((current) => markDemoOrdersSubmitted(current));
-        appendActivity(
-          `Enemy commander mirrors your move toward sector (${order.targetX}, ${order.targetY}).`,
-          "info",
-        );
-        playSound("success");
-        showStatus("Demo orders locked in. Resolve the turn to continue.", "success");
-        return;
-      }
+      appendActivity(
+        `Enemy commander mirrors your move toward sector (${order.targetX}, ${order.targetY}).`,
+        "info",
+      );
+      playSound("success");
+      showStatus("Demo orders locked in. Resolve the turn to continue.", "success");
+      return;
+    }
 
     if (!client || !matchPDA || playerSlot === null) return;
     setActionMessage(null);
-      setPendingAction("orders");
-      try {
-        const keys = ensureKeys();
-        playSound("uplink");
-        const result = await client.submitOrders(
-          matchPDA,
-          playerSlot,
+    setPendingAction("orders");
+    try {
+      const keys = ensureKeys();
+      playSound("uplink");
+      const result = await client.submitOrders(
+        matchPDA,
+        playerSlot,
         order,
         keys.privateKey,
-        );
-        showStatus("Order queued. Waiting for MPC computation...", "info", true);
-        await client.awaitComputation(result.computationOffset);
-        playSound("success");
-        showStatus("Order callback confirmed.", "success");
-        appendActivity("Orders accepted for this turn.", "success");
-      } catch (err: unknown) {
-        playSound("error");
-        showStatus(
-          `Failed to submit order: ${err instanceof Error ? err.message : "Unknown error"}`,
-          "error",
+      );
+      showStatus("Order queued. Waiting for MPC computation...", "info", true);
+      await client.awaitComputation(result.computationOffset);
+      playSound("success");
+      showStatus("Order callback confirmed.", "success");
+      appendActivity("Orders accepted for this turn.", "success");
+    } catch (err: unknown) {
+      playSound("error");
+      showStatus(
+        `Failed to submit order: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
         true,
       );
     } finally {
@@ -430,7 +442,7 @@ function MatchPageInner() {
         updatedMatch,
         keys.privateKey,
       );
-        setVisibilityReport(report);
+      setVisibilityReport(report);
       playSound("success");
       showStatus("Visibility report decrypted.", "success");
       appendActivity(
@@ -439,15 +451,15 @@ function MatchPageInner() {
           : `Visibility report reveals ${report.units.length} enemy unit(s).`,
         "success",
       );
-      } catch (err: unknown) {
-        setVisibilityReport(null);
-        setVisibilityError(
-          err instanceof Error ? err.message : "Failed to decrypt visibility report",
-        );
-        playSound("error");
-        showStatus(
-          `Failed: ${err instanceof Error ? err.message : "Unknown error"}`,
-          "error",
+    } catch (err: unknown) {
+      setVisibilityReport(null);
+      setVisibilityError(
+        err instanceof Error ? err.message : "Failed to decrypt visibility report",
+      );
+      playSound("error");
+      showStatus(
+        `Failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
         true,
       );
     } finally {
@@ -464,6 +476,17 @@ function MatchPageInner() {
     }
   };
 
+  const handleReplaySnapshot = (snapshot: DemoSnapshot) => {
+    playSound("uiTap");
+    updateMatch((current) => ({
+      ...current,
+      turn: snapshot.turn,
+      revealedSectorOwner: snapshot.revealedSectorOwner,
+      battleSummary: snapshot.battleSummary,
+    }));
+    appendActivity(`Replaying archived turn ${snapshot.turn}.`, "info");
+  };
+
   const canJoin =
     !demoMode &&
     match.status === MatchStatus.WaitingForPlayers &&
@@ -475,13 +498,18 @@ function MatchPageInner() {
     match.status === MatchStatus.Active && client?.allOrdersSubmitted(match);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Toast
         message={actionTone === "error" ? actionMessage : visibilityError}
         tone="error"
       />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-[family-name:var(--font-vt323)] text-4xl tracking-[0.14em] text-[#00ff41]">
+
+      {demoMode && (
+        <TutorialOverlay onHighlight={(area) => setTutorialHighlight(area ?? null)} />
+      )}
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <h2 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.14em] text-[#00ff41] sm:text-4xl">
           Match #{matchId?.toString()}
         </h2>
         <button
@@ -497,43 +525,43 @@ function MatchPageInner() {
         </button>
       </div>
 
-      <div className="grid gap-2 border border-[#0e2a0e] bg-[#030d03] px-4 py-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 border border-[#0e2a0e] bg-[#030d03] px-3 py-2 sm:grid-cols-4 sm:px-4 sm:py-3">
         <div>
-          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+          <div className="text-[7px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[8px]">
             Mode
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#ffb000]">
+          <div className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#ffb000] sm:text-[10px]">
             {demoMode ? "Demo Channel" : "Live Devnet"}
           </div>
         </div>
         <div>
-          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+          <div className="text-[7px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[8px]">
             Commander
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#00ff41]">
+          <div className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#00ff41] sm:text-[10px]">
             {isPlayer && playerSlot !== null ? `Player ${playerSlot + 1}` : "Observer"}
           </div>
         </div>
         <div>
-          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+          <div className="text-[7px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[8px]">
             Turn Phase
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#00e5cc]">
+          <div className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#00e5cc] sm:text-[10px]">
             {match.status === MatchStatus.Active ? "Battle Phase" : "Standby"}
           </div>
         </div>
         <div>
-          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+          <div className="text-[7px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[8px]">
             Session Link
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#00aa2a]">
+          <div className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#00aa2a] sm:text-[10px]">
             Secure MPC Uplink
           </div>
         </div>
       </div>
 
       {demoMode ? (
-        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-4 py-3 text-[10px] uppercase tracking-[0.16em] text-[#00e5cc]">
+        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-[#00e5cc] sm:px-4 sm:py-3 sm:text-[10px]">
           Demo mode is active. The battlefield runs on simulated state so you can test the full UI loop without MXE.
         </div>
       ) : (
@@ -543,7 +571,7 @@ function MatchPageInner() {
 
       {actionMessage && (
         <div
-          className={`border px-4 py-3 text-[10px] uppercase tracking-[0.16em] ${
+          className={`border px-3 py-2 text-[9px] uppercase tracking-[0.16em] sm:px-4 sm:py-3 sm:text-[10px] ${
             actionTone === "success"
               ? "bg-[rgba(0,229,204,0.03)] border-[#005f52] text-[#00e5cc]"
               : actionTone === "error"
@@ -556,7 +584,7 @@ function MatchPageInner() {
       )}
 
       {isBusy && (
-        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-4 py-3 text-[10px] uppercase tracking-[0.16em] text-[#00e5cc]">
+        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-[#00e5cc] sm:px-4 sm:py-3 sm:text-[10px]">
           Uplink active: {pendingAction === "orders"
             ? "submitting encrypted orders"
             : pendingAction === "resolve"
@@ -570,16 +598,17 @@ function MatchPageInner() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)]">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)]">
         <div className="flex justify-center">
           <GameBoard
             revealedSectorOwner={match.revealedSectorOwner}
             selectedCell={selectedCell}
             onCellClick={(x, y) => setSelectedCell({ x, y })}
+            highlightBoard={tutorialHighlight === "board"}
           />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {canJoin && (
             <button
               onClick={handleJoin}
@@ -591,20 +620,24 @@ function MatchPageInner() {
           )}
 
           {canSubmitOrders && (
-            <OrderPanel
-              match={match}
-              playerSlot={playerSlot}
-              selectedCell={selectedCell}
-              onSubmit={handleSubmitOrder}
-              disabled={!client || isBusy}
-            />
+            <div className={tutorialHighlight === "orders" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""}>
+              <OrderPanel
+                match={match}
+                playerSlot={playerSlot}
+                selectedCell={selectedCell}
+                onSubmit={handleSubmitOrder}
+                disabled={!client || isBusy}
+              />
+            </div>
           )}
 
           {canResolve && (
             <button
               onClick={handleResolveTurn}
               disabled={isBusy}
-              className="w-full border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
+              className={`w-full border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)] ${
+                tutorialHighlight === "resolve" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""
+              }`}
             >
               {pendingAction === "resolve" ? "Resolving..." : "Resolve Turn"}
             </button>
@@ -614,7 +647,9 @@ function MatchPageInner() {
             <button
               onClick={handleVisibility}
               disabled={isBusy}
-              className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)]"
+              className={`w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] ${
+                tutorialHighlight === "visibility" ? "ring-1 ring-[#00e5cc] ring-offset-1 ring-offset-[#010801]" : ""
+              }`}
             >
               {pendingAction === "visibility"
                 ? "Requesting Visibility..."
@@ -633,15 +668,19 @@ function MatchPageInner() {
           <BattleSummary match={match} summary={summary} />
           <ActivityLog entries={activityLog} />
 
-          <div className="border border-[#0e2a0e] bg-[#030d03] p-4 space-y-2">
-            <h3 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.14em] text-[#00ff41]">
+          {demoMode && (
+            <DemoReplay onApplySnapshot={handleReplaySnapshot} />
+          )}
+
+          <div className="border border-[#0e2a0e] bg-[#030d03] p-3 space-y-2 sm:p-4">
+            <h3 className="font-[family-name:var(--font-vt323)] text-2xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
               PLAYERS
             </h3>
             {match.players.map((p, i) => {
               const isEmpty = p.toBase58() === "11111111111111111111111111111111";
               if (i >= match.playerCount) return null;
               return (
-                <div key={i} className="flex justify-between text-xs uppercase tracking-[0.14em]">
+                <div key={i} className="flex justify-between text-[10px] uppercase tracking-[0.14em] sm:text-xs">
                   <span className="text-[#0c6d1f]">
                     Player {i + 1}
                     {publicKey && p.toBase58() === publicKey.toBase58()
