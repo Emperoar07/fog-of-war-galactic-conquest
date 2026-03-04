@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MatchStatus, NO_WINNER, OrderAction } from "@sdk";
 import {
+  applyDemoAiResponse,
   advanceDemoTurn,
   getAiProfile,
   getQuickMatchDifficulty,
@@ -106,4 +107,15 @@ test("easy AI is more conservative than hard AI near player territory", () => {
   const easyContested = easy.revealedSectorOwner.filter((tile) => tile === 3).length;
   const hardContested = hard.revealedSectorOwner.filter((tile) => tile === 3).length;
   assert.ok(hardContested >= easyContested);
+});
+
+test("quick-match AI response applies when enemy lock step runs", () => {
+  const match = markDemoOrdersSubmitted(createDemoMatch(), undefined, "hard");
+  const responded = applyDemoAiResponse(
+    match,
+    { targetX: 2, targetY: 2, action: OrderAction.Attack },
+    "hard",
+  );
+
+  assert.notDeepEqual(responded.revealedSectorOwner, match.revealedSectorOwner);
 });

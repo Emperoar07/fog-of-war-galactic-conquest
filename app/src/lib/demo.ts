@@ -412,6 +412,43 @@ export function markDemoOrdersSubmitted(
   };
 }
 
+export function applyDemoAiResponse(
+  match: GalaxyMatch,
+  playerOrder: { targetX: number; targetY: number; action: number },
+  aiDifficulty: AiDifficulty | null = null,
+): GalaxyMatch {
+  const profile = aiDifficulty ? getAiProfile(aiDifficulty) : null;
+  const rand = seededRandom(
+    match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
+  );
+  const map = profile
+    ? applyAiTurnByDifficulty(
+        [...match.revealedSectorOwner],
+        profile,
+        playerOrder,
+        rand,
+      )
+    : [...match.revealedSectorOwner];
+
+  if (!profile) {
+    const targetIdx = playerOrder.targetY * MAP_SIZE + playerOrder.targetX;
+    const adjacent = neighbors(targetIdx);
+    const pick = adjacent[Math.floor(rand() * adjacent.length)];
+    if (pick !== undefined && map[pick] === 0) {
+      map[pick] = 2;
+    }
+  }
+
+  // Ensure bases stay
+  map[0] = 1;
+  map[map.length - 1] = 2;
+
+  return {
+    ...match,
+    revealedSectorOwner: map,
+  };
+}
+
 export function markDemoOpponentSubmitted(match: GalaxyMatch): GalaxyMatch {
   return {
     ...match,

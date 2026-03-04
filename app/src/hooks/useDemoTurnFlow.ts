@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
 import {
+  applyDemoAiResponse,
   advanceDemoTurn,
   getAiProfile,
   markDemoOpponentSubmitted,
@@ -41,12 +42,14 @@ export function useDemoTurnFlow(args: {
     playSound,
   } = args;
   const demoOpponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingQuickOrderRef = useRef<OrderParams | null>(null);
 
   const clearPendingLock = useCallback(() => {
     if (demoOpponentTimeoutRef.current) {
       clearTimeout(demoOpponentTimeoutRef.current);
       demoOpponentTimeoutRef.current = null;
     }
+    pendingQuickOrderRef.current = null;
   }, []);
 
   useEffect(() => clearPendingLock, [clearPendingLock]);
@@ -62,13 +65,22 @@ export function useDemoTurnFlow(args: {
         "info",
         true,
       );
-      updateMatch((current) =>
-        markDemoOrdersSubmitted(current, {
-          targetX: order.targetX,
-          targetY: order.targetY,
-          action: order.action,
-        }, aiDifficulty),
-      );
+      if (aiDifficulty) {
+        pendingQuickOrderRef.current = order;
+        updateMatch((current) => markDemoOrdersSubmitted(current));
+      } else {
+        updateMatch((current) =>
+          markDemoOrdersSubmitted(
+            current,
+            {
+              targetX: order.targetX,
+              targetY: order.targetY,
+              action: order.action,
+            },
+            aiDifficulty,
+          ),
+        );
+      }
       onQueued?.();
       appendActivity(
         `Your order is staged for sector (${order.targetX}, ${order.targetY}).`,
@@ -87,7 +99,22 @@ export function useDemoTurnFlow(args: {
         : "Demo";
 
       demoOpponentTimeoutRef.current = setTimeout(() => {
-        updateMatch((current) => markDemoOpponentSubmitted(current));
+        updateMatch((current) => {
+          const withAiMove =
+            aiDifficulty && pendingQuickOrderRef.current
+              ? applyDemoAiResponse(
+                  current,
+                  {
+                    targetX: pendingQuickOrderRef.current.targetX,
+                    targetY: pendingQuickOrderRef.current.targetY,
+                    action: pendingQuickOrderRef.current.action,
+                  },
+                  aiDifficulty,
+                )
+              : current;
+          return markDemoOpponentSubmitted(withAiMove);
+        });
+        pendingQuickOrderRef.current = null;
         appendActivity(
           `${difficultyLabel} enemy commander has locked in a response.`,
           "success",
