@@ -13,7 +13,8 @@ export function useGameClient(): GameClient | null {
   return useMemo(() => {
     if (!wallet) return null;
     const provider = new AnchorProvider(connection, wallet, {
-      commitment: "confirmed",
+      commitment: "processed",
+      preflightCommitment: "processed",
     });
     return new GameClient(provider, CLUSTER_OFFSET);
   }, [connection, wallet]);

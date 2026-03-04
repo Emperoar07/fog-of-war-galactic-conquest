@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMatch } from "@/hooks/useMatch";
@@ -28,6 +28,21 @@ import {
 } from "@sdk";
 
 export default function MatchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col items-center gap-3 py-16 text-center text-slate-400">
+          <span className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+          <span>Loading...</span>
+        </div>
+      }
+    >
+      <MatchPageInner />
+    </Suspense>
+  );
+}
+
+function MatchPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const matchId = params.id ? BigInt(params.id as string) : null;

@@ -17,8 +17,17 @@ export default function WalletProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const connectionConfig = useMemo(
+    () => ({
+      commitment: "processed" as const,
+      wsEndpoint: RPC_URL.replace("https://", "wss://").replace("http://", "ws://"),
+      confirmTransactionInitialTimeout: 30_000,
+    }),
+    [],
+  );
+
   return (
-    <ConnectionProvider endpoint={RPC_URL}>
+    <ConnectionProvider endpoint={RPC_URL} config={connectionConfig}>
       <SolanaWalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>{children}</WalletModalProvider>
       </SolanaWalletProvider>

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { MatchStatus, NO_WINNER, type GalaxyMatch } from "@sdk";
 
@@ -21,7 +22,7 @@ function statusLabel(status: number): string {
   }
 }
 
-export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
+export default memo(function TurnStatus({ match, walletKey }: TurnStatusProps) {
   const winner = match.battleSummary[0];
   const hasWinner = winner !== NO_WINNER;
   const registeredPlayers = match.players.filter(
@@ -79,4 +80,4 @@ export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
       )}
     </div>
   );
-}
+})

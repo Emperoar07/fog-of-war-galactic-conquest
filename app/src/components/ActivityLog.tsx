@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 type ActivityTone = "info" | "success" | "error";
 
 export interface ActivityLogEntry {
@@ -19,7 +21,7 @@ const TONE_STYLES: Record<ActivityTone, string> = {
   error: "border-red-200 text-red-600",
 };
 
-export default function ActivityLog({ entries }: ActivityLogProps) {
+export default memo(function ActivityLog({ entries }: ActivityLogProps) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
       <div className="flex items-center justify-between">
@@ -53,4 +55,4 @@ export default function ActivityLog({ entries }: ActivityLogProps) {
       )}
     </div>
   );
-}
+})

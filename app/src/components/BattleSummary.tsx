@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { NO_WINNER, type GalaxyMatch, type BattleSummary as BattleSummaryType } from "@sdk";
 
 interface BattleSummaryProps {
@@ -7,7 +8,7 @@ interface BattleSummaryProps {
   summary: BattleSummaryType;
 }
 
-export default function BattleSummary({ match, summary }: BattleSummaryProps) {
+export default memo(function BattleSummary({ match, summary }: BattleSummaryProps) {
   const hasData = match.turn > 0 || summary.winner !== NO_WINNER;
 
   if (!hasData) {
@@ -46,4 +47,4 @@ export default function BattleSummary({ match, summary }: BattleSummaryProps) {
       </div>
     </div>
   );
-}
+})

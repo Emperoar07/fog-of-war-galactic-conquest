@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { MAP_SIZE } from "@sdk";
 
 interface GameBoardProps {
@@ -16,7 +17,7 @@ const CELL_COLORS: Record<number, string> = {
   4: "bg-amber-50 hover:bg-amber-100 border-amber-200",
 };
 
-export default function GameBoard({
+export default memo(function GameBoard({
   revealedSectorOwner,
   selectedCell,
   onCellClick,
@@ -69,4 +70,4 @@ export default function GameBoard({
       </div>
     </div>
   );
-}
+})

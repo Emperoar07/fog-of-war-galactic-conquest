@@ -1,10 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
-import Lobby from "@/components/Lobby";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
 import { DEMO_MATCH_ID } from "@/lib/demo";
+
+const Lobby = dynamic(() => import("@/components/Lobby"), {
+  loading: () => (
+    <div className="text-center py-8 text-slate-400 text-sm">Loading lobby...</div>
+  ),
+});
 
 export default function Home() {
   const { connected } = useWallet();

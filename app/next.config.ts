@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  reactStrictMode: true,
+  compress: true,
+  poweredByHeader: false,
   turbopack: {
     resolveAlias: {
       fs: { browser: "./src/lib/empty-module.ts" },
@@ -19,6 +22,20 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  headers: async () => [
+    {
+      source: "/:path*",
+      headers: [
+        { key: "X-DNS-Prefetch-Control", value: "on" },
+      ],
+    },
+    {
+      source: "/match/:id*",
+      headers: [
+        { key: "Cache-Control", value: "no-store" },
+      ],
+    },
+  ],
 };
 
 export default nextConfig;
