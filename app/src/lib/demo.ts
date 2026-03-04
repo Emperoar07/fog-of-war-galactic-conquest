@@ -95,40 +95,159 @@ function neighbors(index: number): number[] {
   ].filter((i) => i >= 0);
 }
 
-function scoreAiTarget(
-  map: number[],
-  index: number,
-  profile: AiProfile,
-  playerOrder: { targetX: number; targetY: number; action: number },
-): number {
-  const tile = map[index];
-  const adjacent = neighbors(index).map((i) => map[i]);
-  const nearPlayerPressure = adjacent.filter((n) => n === 1 || n === 3).length;
-  const nearAiPresence = adjacent.filter((n) => n === 2 || n === 3).length;
-  const isContested = tile === 3;
-  const isNeutral = tile === 0;
-  const isEnemy = tile === 1;
-  const targetIndex = toIndex(playerOrder.targetX, playerOrder.targetY);
-  const distanceToPlayerOrder = Math.abs(index - targetIndex);
+// ---------------------------------------------------------------------------
+// Board analysis helpers
+// ---------------------------------------------------------------------------
 
-  let score = 0;
-  if (isEnemy) score += 1.5 + profile.aggression * 2.2;
-  if (isNeutral) score += 0.8 + profile.aggression;
-  if (isContested) score += profile.contestedPushChance * 2;
-  score += nearPlayerPressure * (0.5 + profile.aggression);
-  score += nearAiPresence * (0.35 + profile.caution * 0.4);
-  score += Math.max(0, 8 - Math.min(8, distanceToPlayerOrder)) * 0.05;
+interface BoardAnalysis {
+  aiTiles: number[];       // indices owned by AI (owner=2)
+  playerTiles: number[];   // indices owned by player (owner=1)
+  contested: number[];     // indices that are contested (owner=3)
+  neutral: number[];       // indices that are empty (owner=0)
+  aiFrontier: number[];    // neutral/player/contested tiles adjacent to AI territory
+  playerFrontier: number[];// neutral/AI/contested tiles adjacent to player territory
+  aiTerritory: number;
+  playerTerritory: number;
+  borderPressure: Map<number, number>; // index → count of enemy-adjacent edges
+}
 
-  if (playerOrder.action === 2) {
-    score += nearPlayerPressure * (0.5 + profile.aggression);
-  } else if (playerOrder.action === 1) {
-    score += isContested ? 0.8 : 0;
-  } else {
-    score += nearAiPresence * 0.4;
+function analyzeBoard(map: number[]): BoardAnalysis {
+  const aiTiles: number[] = [];
+  const playerTiles: number[] = [];
+  const contested: number[] = [];
+  const neutral: number[] = [];
+  const aiFrontierSet = new Set<number>();
+  const playerFrontierSet = new Set<number>();
+  const borderPressure = new Map<number, number>();
+
+  for (let i = 0; i < map.length; i++) {
+    switch (map[i]) {
+      case 1: playerTiles.push(i); break;
+      case 2: aiTiles.push(i); break;
+      case 3: contested.push(i); break;
+      case 0: neutral.push(i); break;
+    }
   }
 
-  return score;
+  // Build frontiers: tiles reachable from each side's territory
+  for (const idx of aiTiles) {
+    for (const n of neighbors(idx)) {
+      if (map[n] !== 2 && map[n] !== 4) aiFrontierSet.add(n);
+    }
+  }
+  for (const idx of playerTiles) {
+    for (const n of neighbors(idx)) {
+      if (map[n] !== 1 && map[n] !== 4) playerFrontierSet.add(n);
+    }
+  }
+
+  // Border pressure: how many enemy neighbors each AI tile has
+  for (const idx of aiTiles) {
+    const enemyNeighbors = neighbors(idx).filter((n) => map[n] === 1 || map[n] === 3).length;
+    if (enemyNeighbors > 0) borderPressure.set(idx, enemyNeighbors);
+  }
+
+  return {
+    aiTiles,
+    playerTiles,
+    contested,
+    neutral,
+    aiFrontier: Array.from(aiFrontierSet),
+    playerFrontier: Array.from(playerFrontierSet),
+    aiTerritory: aiTiles.length,
+    playerTerritory: playerTiles.length,
+    borderPressure,
+  };
 }
+
+// ---------------------------------------------------------------------------
+// Move types and scoring
+// ---------------------------------------------------------------------------
+
+interface AiMove {
+  index: number;
+  newOwner: number;  // what the tile becomes (2=AI, 3=contested)
+  score: number;
+  type: "expand" | "contest" | "capture" | "defend";
+}
+
+function generateMoves(
+  map: number[],
+  analysis: BoardAnalysis,
+  profile: AiProfile,
+  playerOrder: { targetX: number; targetY: number; action: number },
+): AiMove[] {
+  const moves: AiMove[] = [];
+  const playerTarget = toIndex(playerOrder.targetX, playerOrder.targetY);
+
+  for (const idx of analysis.aiFrontier) {
+    const tile = map[idx];
+    if (tile === 4) continue; // skip destroyed
+
+    const adj = neighbors(idx);
+    const aiAdj = adj.filter((n) => map[n] === 2).length;
+    const playerAdj = adj.filter((n) => map[n] === 1).length;
+    const dist = gridDistance(idx, playerTarget);
+
+    if (tile === 0) {
+      // Expand into neutral
+      let score = 1.0 + aiAdj * 0.6;
+      // Prefer tiles that block player expansion
+      if (analysis.playerFrontier.includes(idx)) score += 1.2;
+      // Slight preference for center tiles
+      const { x, y } = fromIndex(idx);
+      const cx = Math.abs(x - (MAP_SIZE - 1) / 2);
+      const cy = Math.abs(y - (MAP_SIZE - 1) / 2);
+      score += Math.max(0, 2 - (cx + cy) * 0.3);
+      moves.push({ index: idx, newOwner: 2, score, type: "expand" });
+    }
+
+    if (tile === 1) {
+      // Capture enemy territory
+      let score = 2.0 + profile.aggression * 2.5;
+      score += aiAdj * 0.8; // backed by AI territory
+      score -= playerAdj * 0.5 * profile.caution; // risk from player presence
+      // React to player's attack: counter near their target
+      if (playerOrder.action === 2 && dist <= 2) score += 1.5;
+      moves.push({ index: idx, newOwner: 2, score, type: "capture" });
+    }
+
+    if (tile === 3) {
+      // Resolve contested in AI's favor
+      let score = 1.8 + profile.aggression * 1.5;
+      score += aiAdj * 0.5;
+      moves.push({ index: idx, newOwner: 2, score, type: "contest" });
+    }
+  }
+
+  // Defensive moves: contest tiles where player is pushing into AI territory
+  for (const [idx, pressure] of analysis.borderPressure) {
+    if (pressure >= 2) {
+      // Reinforce threatened border by contesting adjacent enemy tiles
+      for (const n of neighbors(idx)) {
+        if (map[n] === 1) {
+          let score = 1.5 + pressure * 0.8 + profile.caution * 2.0;
+          // Higher priority if player is actively attacking nearby
+          const dist = gridDistance(n, playerTarget);
+          if (playerOrder.action === 2 && dist <= 2) score += 2.0;
+          moves.push({ index: n, newOwner: 3, score, type: "defend" });
+        }
+      }
+    }
+  }
+
+  return moves;
+}
+
+function gridDistance(a: number, b: number): number {
+  const pa = fromIndex(a);
+  const pb = fromIndex(b);
+  return Math.abs(pa.x - pb.x) + Math.abs(pa.y - pb.y);
+}
+
+// ---------------------------------------------------------------------------
+// Difficulty-specific move selection
+// ---------------------------------------------------------------------------
 
 function applyAiTurnByDifficulty(
   map: number[],
@@ -137,53 +256,93 @@ function applyAiTurnByDifficulty(
   rand: () => number,
 ): number[] {
   const next = [...map];
-  const targetIndex = toIndex(playerOrder.targetX, playerOrder.targetY);
-  const frontier = new Set<number>([targetIndex, ...neighbors(targetIndex)]);
+  const analysis = analyzeBoard(next);
+  const allMoves = generateMoves(next, analysis, profile, playerOrder);
 
-  // Strict difficulty behavior:
-  // - Easy: mostly reinforce and avoid heavy conversion.
-  // - Medium: mix reinforcements and selective pushes.
-  // - Hard: evaluate and push contested/enemy lanes aggressively.
+  if (allMoves.length === 0) return next;
+
+  // Sort moves by score descending
+  allMoves.sort((a, b) => b.score - a.score);
+
+  const usedIndices = new Set<number>();
+  let budget: number;
+
   if (profile.label === "Easy") {
-    for (const idx of frontier) {
-      if (next[idx] === 0 && rand() < 0.55) {
-        next[idx] = 2;
-      } else if (next[idx] === 1 && rand() < 0.15) {
-        next[idx] = 3;
+    // Easy: pick 1-2 random moves from all candidates, ignoring score
+    budget = 1 + (rand() < 0.3 ? 1 : 0);
+    // Shuffle the moves randomly instead of using score order
+    for (let i = allMoves.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [allMoves[i], allMoves[j]] = [allMoves[j], allMoves[i]];
+    }
+    // Easy rarely captures — filter out captures most of the time
+    const filtered = allMoves.filter((m) => {
+      if (m.type === "capture") return rand() < 0.15;
+      if (m.type === "contest") return rand() < 0.35;
+      return true;
+    });
+    const pool = filtered.length > 0 ? filtered : allMoves;
+    for (const move of pool) {
+      if (usedIndices.size >= budget) break;
+      if (usedIndices.has(move.index)) continue;
+      next[move.index] = move.newOwner;
+      usedIndices.add(move.index);
+    }
+  } else if (profile.label === "Medium") {
+    // Medium: pick from top ~60% of moves, apply 2-4 changes
+    budget = 2 + (rand() < 0.5 ? 1 : 0) + (rand() < 0.25 ? 1 : 0);
+    const topCount = Math.max(3, Math.ceil(allMoves.length * 0.6));
+    const pool = allMoves.slice(0, topCount);
+    // Slight shuffle within the top pool
+    for (let i = pool.length - 1; i > 0; i--) {
+      if (rand() < 0.4) {
+        const j = Math.floor(rand() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
       }
     }
-    return next;
-  }
+    for (const move of pool) {
+      if (usedIndices.size >= budget) break;
+      if (usedIndices.has(move.index)) continue;
+      next[move.index] = move.newOwner;
+      usedIndices.add(move.index);
+    }
+  } else {
+    // Hard: pick the top-scoring moves optimally, apply 3-5 changes
+    budget = 3 + (rand() < 0.6 ? 1 : 0) + (rand() < 0.3 ? 1 : 0);
 
-  const candidateIndexes = Array.from({ length: next.length }, (_, i) => i)
-    .filter((i) => next[i] !== 4)
-    .sort((a, b) =>
-      scoreAiTarget(next, b, profile, playerOrder) -
-      scoreAiTarget(next, a, profile, playerOrder),
-    );
-
-  const steps = Math.max(1, profile.tacticalDepth + profile.reinforcementBurst);
-  let applied = 0;
-  for (const idx of candidateIndexes) {
-    if (applied >= steps) break;
-    const tile = next[idx];
-
-    if (tile === 0 && rand() < profile.expansionChance + profile.aggression * 0.3) {
-      next[idx] = 2;
-      applied++;
-      continue;
+    // Hard AI also reacts to player's action type
+    if (playerOrder.action === 2) {
+      // Player attacked — boost defensive/counter moves near target
+      const playerTarget = toIndex(playerOrder.targetX, playerOrder.targetY);
+      for (const move of allMoves) {
+        if (gridDistance(move.index, playerTarget) <= 2) {
+          move.score += 1.5;
+        }
+      }
+      allMoves.sort((a, b) => b.score - a.score);
+    } else if (playerOrder.action === 1) {
+      // Player scouted — push into contested/enemy zones while they gather info
+      for (const move of allMoves) {
+        if (move.type === "capture" || move.type === "contest") {
+          move.score += 0.8;
+        }
+      }
+      allMoves.sort((a, b) => b.score - a.score);
     }
 
-    if (tile === 1 && rand() < 0.2 + profile.aggression * 0.45) {
-      next[idx] = rand() < profile.contestedPushChance ? 3 : 2;
-      applied++;
-      continue;
+    // Try to cut off player expansion paths
+    for (const move of allMoves) {
+      if (analysis.playerFrontier.includes(move.index) && move.type === "expand") {
+        move.score += 1.0; // bonus for blocking
+      }
     }
+    allMoves.sort((a, b) => b.score - a.score);
 
-    if (tile === 3 && rand() < profile.contestedPushChance) {
-      next[idx] = 2;
-      applied++;
-      continue;
+    for (const move of allMoves) {
+      if (usedIndices.size >= budget) break;
+      if (usedIndices.has(move.index)) continue;
+      next[move.index] = move.newOwner;
+      usedIndices.add(move.index);
     }
   }
 
