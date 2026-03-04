@@ -88,8 +88,7 @@ cd app && npm install
 cd app
 npm run dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) and connect a Solana wallet (Phantom, Solflare).
+You are to connect a Solana wallet (Phantom, Solflare).
 
 ### Run Tests
 
