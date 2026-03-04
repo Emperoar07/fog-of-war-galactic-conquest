@@ -76,6 +76,7 @@ export default function Home() {
               </div>
               <button
                 ref={closeGuideButtonRef}
+                data-sound-manual="true"
                 onClick={closeGuide}
                 className="border border-[#0e2a0e] bg-[#021202] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00aa2a] hover:border-[#0c6d1f] hover:text-[#00ff41]"
               >
@@ -152,6 +153,10 @@ export default function Home() {
                     the tactical assistant will suggest a move you can load
                     into Fire Control before you confirm it.
                   </li>
+                  <li>
+                    9. Use the audio toggle in the header if you want ambient
+                    command-deck audio and action cues while you play.
+                  </li>
                 </ol>
               </div>
 
@@ -186,6 +191,10 @@ export default function Home() {
                   <li>
                     8. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
                     want a local tactical suggestion before you submit an order.
+                  </li>
+                  <li>
+                    9. Keep the audio toggle on if you want live ambient audio,
+                    action effects, and victory confirmation cues.
                   </li>
                 </ol>
               </div>
@@ -271,6 +280,7 @@ export default function Home() {
                 Launch Demo
               </Link>
               <button
+                data-sound-manual="true"
                 onClick={() => {
                   playSound("modal");
                   setShowGuide(true);

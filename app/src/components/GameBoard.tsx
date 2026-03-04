@@ -176,12 +176,9 @@ export default function GameBoard({
           : "border-[#0e2a0e]"
       }`}
     >
-      <div className="mb-2 flex items-center justify-between border-b border-[#0e2a0e] pb-2 sm:mb-3">
+      <div className="mb-2 border-b border-[#0e2a0e] pb-2 sm:mb-3">
         <div className="text-[8px] uppercase tracking-[0.34em] text-[#0c6d1f] sm:text-[9px]">
           Battlefield Grid
-        </div>
-        <div className="text-[8px] uppercase tracking-[0.24em] text-[#ffb000] sm:text-[9px]">
-          7x7 Tactical View
         </div>
       </div>
       <div

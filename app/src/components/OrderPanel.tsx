@@ -162,6 +162,7 @@ export default function OrderPanel({
       </div>
 
       <button
+        data-sound-manual="true"
         onClick={handleSubmit}
         disabled={isDisabled}
         className="mt-4 w-full border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"

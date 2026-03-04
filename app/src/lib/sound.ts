@@ -56,6 +56,12 @@ const CUE_MAP: Record<SoundCue, CueStep[]> = {
 
 export class TacticalSoundEngine {
   private context: AudioContext | null = null;
+  private ambientNodes:
+    | {
+        oscillators: OscillatorNode[];
+        gains: GainNode[];
+      }
+    | null = null;
 
   private ensureContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -100,5 +106,62 @@ export class TacticalSoundEngine {
 
       offset += step.duration + 0.012;
     }
+  }
+
+  setAmbient(enabled: boolean): void {
+    const context = this.ensureContext();
+    if (!context) return;
+
+    if (!enabled) {
+      this.stopAmbient();
+      return;
+    }
+
+    if (this.ambientNodes) return;
+
+    const primaryOsc = context.createOscillator();
+    const shimmerOsc = context.createOscillator();
+    const primaryGain = context.createGain();
+    const shimmerGain = context.createGain();
+
+    primaryOsc.type = "triangle";
+    primaryOsc.frequency.setValueAtTime(92, context.currentTime);
+    shimmerOsc.type = "sine";
+    shimmerOsc.frequency.setValueAtTime(184, context.currentTime);
+
+    primaryGain.gain.setValueAtTime(0.0001, context.currentTime);
+    primaryGain.gain.linearRampToValueAtTime(0.0045, context.currentTime + 0.4);
+    shimmerGain.gain.setValueAtTime(0.0001, context.currentTime);
+    shimmerGain.gain.linearRampToValueAtTime(0.0025, context.currentTime + 0.45);
+
+    primaryOsc.connect(primaryGain);
+    shimmerOsc.connect(shimmerGain);
+    primaryGain.connect(context.destination);
+    shimmerGain.connect(context.destination);
+
+    primaryOsc.start();
+    shimmerOsc.start();
+
+    this.ambientNodes = {
+      oscillators: [primaryOsc, shimmerOsc],
+      gains: [primaryGain, shimmerGain],
+    };
+  }
+
+  stopAmbient(): void {
+    if (!this.context || !this.ambientNodes) return;
+
+    const now = this.context.currentTime;
+    for (const gain of this.ambientNodes.gains) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    }
+
+    for (const oscillator of this.ambientNodes.oscillators) {
+      oscillator.stop(now + 0.2);
+    }
+
+    this.ambientNodes = null;
   }
 }

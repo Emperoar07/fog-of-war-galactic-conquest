@@ -32,6 +32,7 @@ export default function NavBar() {
           {/* Mobile-only compact controls */}
           <div className="flex items-center gap-2 lg:hidden">
             <button
+              data-sound-ignore="true"
               onClick={() => {
                 const enablingAudio = !audioEnabled;
                 toggleAudio();
@@ -87,6 +88,7 @@ export default function NavBar() {
               Arcium MPC
             </span>
             <button
+              data-sound-ignore="true"
               onClick={() => {
                 const enablingAudio = !audioEnabled;
                 toggleAudio();

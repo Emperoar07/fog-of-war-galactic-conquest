@@ -85,6 +85,7 @@ export default function CreateMatchModal({
 
         <div className="mt-5 flex gap-3">
           <button
+            data-sound-manual="true"
             onClick={() => {
               playSound("uiTap");
               onClose();
@@ -95,6 +96,7 @@ export default function CreateMatchModal({
             Cancel
           </button>
           <button
+            data-sound-manual="true"
             onClick={handleCreate}
             disabled={creating || !client}
             className="flex-1 border border-[#996800] bg-[rgba(255,176,0,0.04)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#ffb000] disabled:opacity-40"

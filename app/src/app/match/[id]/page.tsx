@@ -787,6 +787,7 @@ function MatchPageInner() {
         </h2>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
+            data-sound-manual="true"
             onClick={handleShareLink}
             className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] sm:w-auto"
             title="Copy match link to clipboard"
@@ -794,6 +795,7 @@ function MatchPageInner() {
             Share Link
           </button>
           <button
+            data-sound-manual="true"
             onClick={handleRefresh}
             disabled={isBusy}
             className="w-full border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)] sm:w-auto"
@@ -923,19 +925,20 @@ function MatchPageInner() {
 
         <div className="space-y-2.5 sm:space-y-4">
           {canSubmitOrders && (
-            <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+            <div className="border border-[#0e2a0e] bg-[#030d03] p-2.5 sm:p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[9px]">
                     Companion Mode
                   </div>
-                  <div className="mt-1 font-[family-name:var(--font-vt323)] text-2xl tracking-[0.14em] text-[#00e5cc] sm:text-3xl">
+                  <div className="mt-1 font-[family-name:var(--font-vt323)] text-xl tracking-[0.12em] text-[#00e5cc] sm:text-2xl">
                     Tactical Assistant
                   </div>
                 </div>
                 <button
+                  data-sound-manual="true"
                   onClick={() => setCompanionEnabled((current) => !current)}
-                  className={`border px-3 py-1.5 text-[9px] uppercase tracking-[0.22em] sm:text-[10px] ${
+                  className={`border px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] sm:px-3 sm:py-1.5 sm:text-[9px] ${
                     companionEnabled
                       ? "border-[#005f52] bg-[rgba(0,229,204,0.03)] text-[#00e5cc]"
                       : "border-[#0e2a0e] bg-[#021202] text-[#0c6d1f]"
@@ -945,30 +948,31 @@ function MatchPageInner() {
                 </button>
               </div>
 
-              <div className="mt-3 border border-[#0e2a0e] bg-[#021202] px-3 py-3">
+              <div className="mt-2.5 border border-[#0e2a0e] bg-[#021202] px-2.5 py-2.5 sm:px-3 sm:py-3">
                 {companionEnabled && companionSuggestion ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <div>
                       <div className="text-[8px] uppercase tracking-[0.24em] text-[#ffb000] sm:text-[9px]">
                         Recommended Move
                       </div>
-                      <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#00ff41] sm:text-xs">
+                      <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[#00ff41] sm:text-[11px]">
                         {companionSuggestion.title}
                       </div>
                     </div>
-                    <div className="text-xs leading-6 text-[#00cc33]">
+                    <div className="text-[11px] leading-5 text-[#00cc33] sm:text-xs sm:leading-6">
                       {companionSuggestion.reason}
                     </div>
                     <button
+                      data-sound-manual="true"
                       onClick={handleApplyCompanionSuggestion}
                       disabled={isBusy}
-                      className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-40"
+                      className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-40"
                     >
                       Apply Suggestion
                     </button>
                   </div>
                 ) : (
-                  <div className="text-xs leading-6 text-[#0c6d1f]">
+                  <div className="text-[11px] leading-5 text-[#0c6d1f] sm:text-xs sm:leading-6">
                     Companion Mode is off. Turn it on when you want a tactical recommendation. It will not suggest or apply moves until you enable it.
                   </div>
                 )}
@@ -978,6 +982,7 @@ function MatchPageInner() {
 
           {canJoin && (
             <button
+              data-sound-manual="true"
               onClick={handleJoin}
               disabled={isBusy}
               className="w-full border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
@@ -1000,13 +1005,14 @@ function MatchPageInner() {
             </div>
           )}
 
-          {canResolve && (
+          {isPlayer && match.status === MatchStatus.Active && (
             <button
+              data-sound-manual="true"
               onClick={handleResolveTurn}
-              disabled={isBusy}
+              disabled={isBusy || !canResolve}
               className={`w-full border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)] ${
                 tutorialHighlight === "resolve" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""
-              }`}
+              } disabled:opacity-35`}
             >
               {pendingAction === "resolve" ? "Resolving..." : "Resolve Turn"}
             </button>
@@ -1014,6 +1020,7 @@ function MatchPageInner() {
 
           {isPlayer && match.status === MatchStatus.Active && (
             <button
+              data-sound-manual="true"
               onClick={handleVisibility}
               disabled={isBusy}
               className={`w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] ${

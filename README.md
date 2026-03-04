@@ -101,6 +101,7 @@ Yes, you can use the project today in two ways:
    - resolve a simulated turn
    - request a simulated visibility report
    - optionally turn Companion Mode on to load a suggested move into Fire Control
+   - use the Audio toggle for ambient command-deck audio, action cues, and victory signals
 4. Watch the activity log and battle panels update locally.
 
 The demo does not require a wallet and does not depend on live MXE encryption.
@@ -115,6 +116,7 @@ The demo does not require a wallet and does not depend on live MXE encryption.
    - request visibility when needed
    - resolve the turn after all players have submitted
    - optionally turn Companion Mode on for a local tactical suggestion before you commit
+   - use the Audio toggle if you want live ambient audio plus button, action, and victory effects
 
 Important:
 
@@ -134,7 +136,7 @@ Important:
    - the demo path for a guaranteed playable UI loop
    - wallet-connected devnet mode for live network interaction
 
-### What “Playing” Means Right Now
+### What "Playing" Means Right Now
 
 Today, the most reliable fully playable experience is the frontend demo mode.
 
