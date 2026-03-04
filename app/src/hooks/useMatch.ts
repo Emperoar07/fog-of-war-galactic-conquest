@@ -5,8 +5,9 @@ import { PublicKey } from "@solana/web3.js";
 import type { GalaxyMatch } from "@sdk";
 import { useGameClient } from "./useGameClient";
 import { getMatchPDA } from "@sdk";
+import { createDemoMatch } from "@/lib/demo";
 
-export function useMatch(matchId: bigint | null) {
+export function useMatch(matchId: bigint | null, demoMode = false) {
   const client = useGameClient();
   const [match, setMatch] = useState<GalaxyMatch | null>(null);
   const [matchPDA, setMatchPDA] = useState<PublicKey | null>(null);
@@ -14,12 +15,34 @@ export function useMatch(matchId: bigint | null) {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!client || matchId === null) return;
+    if (matchId === null) {
+      setLoading(false);
+      setMatch(null);
+      setMatchPDA(null);
+      return;
+    }
+
+    const [pda] = getMatchPDA(matchId);
+    setMatchPDA(pda);
+
+    if (demoMode) {
+      setLoading(true);
+      setError(null);
+      setMatch(createDemoMatch(matchId));
+      setLoading(false);
+      return;
+    }
+
+    if (!client) {
+      setLoading(false);
+      setError("Connect a wallet to load live match state.");
+      setMatch(null);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
-      const [pda] = getMatchPDA(matchId);
-      setMatchPDA(pda);
       const data = await client.fetchMatch(pda);
       setMatch(data);
     } catch (err: unknown) {
@@ -28,7 +51,7 @@ export function useMatch(matchId: bigint | null) {
     } finally {
       setLoading(false);
     }
-  }, [client, matchId]);
+  }, [client, demoMode, matchId]);
 
   // Initial fetch
   useEffect(() => {
@@ -37,6 +60,7 @@ export function useMatch(matchId: bigint | null) {
 
   // Subscribe to account changes
   useEffect(() => {
+    if (demoMode) return;
     if (!client || !matchPDA) return;
     const subId = client.onMatchAccountChange(matchPDA, (updated) => {
       setMatch(updated);
@@ -44,7 +68,14 @@ export function useMatch(matchId: bigint | null) {
     return () => {
       client.removeAccountChangeListener(subId);
     };
-  }, [client, matchPDA]);
+  }, [client, demoMode, matchPDA]);
 
-  return { match, matchPDA, loading, error, refresh };
+  const updateMatch = useCallback(
+    (updater: (current: GalaxyMatch) => GalaxyMatch) => {
+      setMatch((current) => (current ? updater(current) : current));
+    },
+    [],
+  );
+
+  return { match, matchPDA, loading, error, refresh, updateMatch };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMatch } from "@/hooks/useMatch";
 import { useGameClient } from "@/hooks/useGameClient";
@@ -11,8 +11,16 @@ import GameBoard from "@/components/GameBoard";
 import TurnStatus from "@/components/TurnStatus";
 import OrderPanel from "@/components/OrderPanel";
 import BattleSummary from "@/components/BattleSummary";
+import Toast from "@/components/Toast";
 import VisibilityPanel from "@/components/VisibilityPanel";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
+import {
+  advanceDemoTurn,
+  buildDemoVisibilityReport,
+  DEMO_MODE_ENABLED,
+  isDemoMatchId,
+  markDemoOrdersSubmitted,
+} from "@/lib/demo";
 import {
   MatchStatus,
   type DecodedVisibilityReport,
@@ -21,10 +29,17 @@ import {
 
 export default function MatchPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const matchId = params.id ? BigInt(params.id as string) : null;
+  const demoMode =
+    searchParams.get("demo") === "1" ||
+    (DEMO_MODE_ENABLED && isDemoMatchId(matchId));
   const { publicKey } = useWallet();
   const client = useGameClient();
-  const { match, matchPDA, loading, error, refresh } = useMatch(matchId);
+  const { match, matchPDA, loading, error, refresh, updateMatch } = useMatch(
+    matchId,
+    demoMode,
+  );
   const { keys, ensureKeys } = usePlayerKeys();
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -35,7 +50,9 @@ export default function MatchPage() {
   const [decryptingVisibility, setDecryptingVisibility] = useState(false);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const playerSlot =
-    publicKey && client && match
+    demoMode
+      ? 0
+      : publicKey && client && match
       ? client.getPlayerSlot(match, publicKey) ?? null
       : null;
   const isPlayer = playerSlot !== null;
@@ -73,9 +90,29 @@ export default function MatchPage() {
   );
 
   useEffect(() => {
+    if (!demoMode) return;
+    setActionMessage("Demo mode is active. No MXE or wallet is required.");
+    setActionTone("info");
+    setActivityLog((current) =>
+      current.length > 0
+        ? current
+        : [
+            {
+              id: "demo-mode",
+              message:
+                "Running with simulated state. Orders, visibility, and turn resolution are mocked locally.",
+              time: "Demo",
+              tone: "info",
+            },
+          ],
+    );
+  }, [demoMode]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function syncVisibility() {
+      if (demoMode) return;
       if (!client || !match || !keys || !isPlayer) {
         if (!cancelled) {
           setVisibilityReport(null);
@@ -124,9 +161,10 @@ export default function MatchPage() {
     return () => {
       cancelled = true;
     };
-  }, [client, isPlayer, keys, match]);
+  }, [client, demoMode, isPlayer, keys, match]);
 
   useEffect(() => {
+    if (demoMode) return;
     if (!client || matchId === null) return;
 
     const matchIdText = matchId.toString();
@@ -173,12 +211,13 @@ export default function MatchPage() {
         void client.removeListener(id);
       }
     };
-  }, [appendActivity, client, matchId, playerSlot, refresh, showStatus]);
+  }, [appendActivity, client, demoMode, matchId, playerSlot, refresh, showStatus]);
 
   if (loading) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        Loading match {matchId?.toString()}...
+      <div className="flex flex-col items-center gap-3 py-16 text-center text-gray-400">
+        <span className="h-10 w-10 animate-spin rounded-full border-2 border-gray-700 border-t-cyan-300" />
+        <span>Loading match {matchId?.toString()}...</span>
       </div>
     );
   }
@@ -213,6 +252,10 @@ export default function MatchPage() {
   };
 
   const handleJoin = async () => {
+    if (demoMode) {
+      showStatus("Demo crews are already locked in for this showcase.", "info", true);
+      return;
+    }
     if (!client || !matchPDA || !publicKey) return;
     setActionMessage(null);
     try {
@@ -238,6 +281,21 @@ export default function MatchPage() {
   };
 
   const handleSubmitOrder = async (order: OrderParams) => {
+    if (demoMode) {
+      showStatus(
+        `Simulating ${order.action === 2 ? "attack" : "maneuver"} from unit ${order.unitSlot + 1}...`,
+        "info",
+        true,
+      );
+      updateMatch((current) => markDemoOrdersSubmitted(current));
+      appendActivity(
+        `Enemy commander mirrors your move toward sector (${order.targetX}, ${order.targetY}).`,
+        "info",
+      );
+      showStatus("Demo orders locked in. Resolve the turn to continue.", "success");
+      return;
+    }
+
     if (!client || !matchPDA || playerSlot === null) return;
     setActionMessage(null);
     try {
@@ -263,6 +321,14 @@ export default function MatchPage() {
   };
 
   const handleResolveTurn = async () => {
+    if (demoMode) {
+      showStatus("Resolving simulated turn...", "info", true);
+      updateMatch((current) => advanceDemoTurn(current));
+      appendActivity("Recon updates and battle results refreshed locally.", "success");
+      showStatus("Demo turn resolved.", "success");
+      return;
+    }
+
     if (!client || !matchPDA) return;
     setActionMessage(null);
     try {
@@ -286,6 +352,19 @@ export default function MatchPage() {
   };
 
   const handleVisibility = async () => {
+    if (demoMode) {
+      if (!match) return;
+      const report = buildDemoVisibilityReport(match.turn);
+      setVisibilityError(null);
+      setVisibilityReport(report);
+      showStatus("Simulated scout report generated.", "success", true);
+      appendActivity(
+        `Scout drones tagged ${report.units.length} hostile contact(s).`,
+        "success",
+      );
+      return;
+    }
+
     if (!client || !matchPDA) return;
     setActionMessage(null);
     setVisibilityError(null);
@@ -326,7 +405,10 @@ export default function MatchPage() {
   };
 
   const canJoin =
-    match.status === MatchStatus.WaitingForPlayers && !isPlayer && publicKey;
+    !demoMode &&
+    match.status === MatchStatus.WaitingForPlayers &&
+    !isPlayer &&
+    publicKey;
   const canSubmitOrders =
     match.status === MatchStatus.Active && isPlayer && playerSlot !== null;
   const canResolve =
@@ -334,6 +416,10 @@ export default function MatchPage() {
 
   return (
     <div className="space-y-6">
+      <Toast
+        message={actionTone === "error" ? actionMessage : visibilityError}
+        tone="error"
+      />
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white">
           Match #{matchId?.toString()}
@@ -342,11 +428,17 @@ export default function MatchPage() {
           onClick={refresh}
           className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
         >
-          Refresh
+          {demoMode ? "Reset Demo" : "Refresh"}
         </button>
       </div>
 
-      <MXEStatusBanner />
+      {demoMode ? (
+        <div className="rounded-2xl border border-cyan-800 bg-cyan-950/60 px-4 py-3 text-sm text-cyan-200">
+          Demo mode is active. The battlefield runs on simulated state so you can test the full UI loop without MXE.
+        </div>
+      ) : (
+        <MXEStatusBanner />
+      )}
       <TurnStatus match={match} walletKey={publicKey} />
 
       {actionMessage && (
@@ -363,9 +455,9 @@ export default function MatchPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)]">
         {/* Game board */}
-        <div className="lg:col-span-2 flex justify-center">
+        <div className="flex justify-center">
           <GameBoard
             revealedSectorOwner={match.revealedSectorOwner}
             selectedCell={selectedCell}

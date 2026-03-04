@@ -10,3 +10,5 @@ export const CLUSTER_OFFSET = Number(
 export const NETWORK = (process.env.NEXT_PUBLIC_NETWORK || "devnet") as
   | "devnet"
   | "mainnet-beta";
+
+export const DEMO_MODE_ENABLED = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
