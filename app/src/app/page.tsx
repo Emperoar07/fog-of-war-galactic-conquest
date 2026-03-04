@@ -10,11 +10,12 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2 py-8">
-        <h1 className="text-4xl font-bold">Galactic Conquest</h1>
+        <h1 className="text-4xl font-bold">Fog of War: Galactic Conquest</h1>
         <p className="text-gray-400 max-w-lg mx-auto">
           Two-player encrypted strategy game on Solana. Hidden fleet positions,
           simultaneous turns, powered by Arcium MPC.
         </p>
+        <p className="text-gray-600 text-xs mt-2">Devnet</p>
       </div>
 
       {connected ? (
