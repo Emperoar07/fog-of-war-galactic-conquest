@@ -1,4 +1,11 @@
-import { MatchStatus, OrderAction, type DecodedVisibilityReport, type GalaxyMatch, type OrderParams } from "@sdk";
+import {
+  MatchStatus,
+  OrderAction,
+  UnitType,
+  type DecodedVisibilityReport,
+  type GalaxyMatch,
+  type OrderParams,
+} from "@sdk";
 
 export type CompanionSuggestion = {
   order: OrderParams;
@@ -20,6 +27,57 @@ export type CompanionHistoryEntry = {
 type CompanionCandidate = CompanionSuggestion & {
   score: number;
 };
+
+function slotToUnitType(slot: number): UnitType {
+  const localSlot = slot % 4;
+  if (localSlot === 0) return UnitType.Command;
+  if (localSlot === 1) return UnitType.Scout;
+  return UnitType.Fighter;
+}
+
+function getUnitLabel(slot: number): string {
+  const localSlot = slot % 4;
+  if (localSlot === 0) return "Command Fleet";
+  if (localSlot === 1) return "Scout Wing";
+  return `Fighter Wing ${localSlot - 1}`;
+}
+
+function getActionLabel(action: OrderAction): string {
+  switch (action) {
+    case OrderAction.Move:
+      return "Move";
+    case OrderAction.Scout:
+      return "Scout";
+    case OrderAction.Attack:
+      return "Attack";
+    default:
+      return "Act";
+  }
+}
+
+function getCapabilityBonus(order: OrderParams, reasonKey: string): number {
+  const unitType = slotToUnitType(order.unitSlot);
+
+  if (order.action === OrderAction.Attack && unitType === UnitType.Fighter) return 8;
+  if (order.action === OrderAction.Scout && unitType === UnitType.Scout) return 10;
+  if (
+    order.action === OrderAction.Move &&
+    unitType === UnitType.Command &&
+    reasonKey === "protect-command"
+  ) {
+    return 8;
+  }
+  if (order.action === OrderAction.Move && unitType === UnitType.Fighter) return 5;
+  if (order.action === OrderAction.Move && unitType === UnitType.Command) return -6;
+  if (order.action === OrderAction.Attack && unitType === UnitType.Command) return -18;
+  if (order.action === OrderAction.Scout && unitType === UnitType.Command) return -10;
+
+  return 0;
+}
+
+function buildSuggestionTitle(order: OrderParams, sectorText: string): string {
+  return `Use ${getUnitLabel(order.unitSlot)}: ${getActionLabel(order.action)} ${sectorText}`;
+}
 
 function buildMemoryKey(order: OrderParams, reasonKey: string): string {
   return `${order.unitSlot}-${order.action}-${order.targetX}-${order.targetY}-${reasonKey}`;
@@ -89,18 +147,18 @@ export function buildCompanionSuggestion(args: {
 
   const addCandidate = (
     order: OrderParams,
-    title: string,
+    sectorText: string,
     reason: string,
     reasonKey: string,
     baseScore: number,
   ) => {
     const candidate: CompanionCandidate = {
       order,
-      title,
+      title: buildSuggestionTitle(order, sectorText),
       reason,
       reasonKey,
       memoryKey: buildMemoryKey(order, reasonKey),
-      score: baseScore,
+      score: baseScore + getCapabilityBonus(order, reasonKey),
     };
     candidate.score = applyRepeatPenalty(candidate, history);
     candidates.push(candidate);
@@ -124,8 +182,8 @@ export function buildCompanionSuggestion(args: {
           targetX: target.x,
           targetY: target.y,
         },
-        `Attack sector (${target.x}, ${target.y})`,
-        "Attack the clearest hostile contact before it can reposition.",
+        `sector (${target.x}, ${target.y})`,
+        "A fighter is the best finisher here because this is the clearest hostile contact on the board.",
         "attack-visible",
         96 - distanceFromCenter * 3,
       );
@@ -137,18 +195,18 @@ export function buildCompanionSuggestion(args: {
       tiles
         .filter((tile) => tile.owner === 1)
         .sort((a, b) => a.score - b.score)[0] ?? { x: 1, y: 1, score: 0 };
-    addCandidate(
-      {
-        unitSlot: 2,
-        action: OrderAction.Move,
-        targetX: fallbackTile.x,
-        targetY: fallbackTile.y,
-      },
-      `Reposition command to (${fallbackTile.x}, ${fallbackTile.y})`,
-      "Enemy pressure is near your base, so preserving the command fleet takes priority.",
-      "protect-command",
-      82,
-    );
+      addCandidate(
+        {
+          unitSlot: 0,
+          action: OrderAction.Move,
+          targetX: fallbackTile.x,
+          targetY: fallbackTile.y,
+        },
+        `to sector (${fallbackTile.x}, ${fallbackTile.y})`,
+        "Move the command fleet now because enemy pressure is close enough that preserving it matters more than expanding.",
+        "protect-command",
+        82,
+      );
   }
 
   for (const contested of tiles
@@ -156,17 +214,17 @@ export function buildCompanionSuggestion(args: {
     .sort((a, b) => a.score - b.score)
     .slice(0, 2)) {
     addCandidate(
-      {
-        unitSlot: 1,
-        action: OrderAction.Scout,
-        targetX: contested.x,
-        targetY: contested.y,
-      },
-      `Scout sector (${contested.x}, ${contested.y})`,
-      "Scout the contested center to expand vision before committing heavier units.",
-      "scout-contested",
-      76 - contested.score * 4,
-    );
+        {
+          unitSlot: 1,
+          action: OrderAction.Scout,
+          targetX: contested.x,
+          targetY: contested.y,
+        },
+        `sector (${contested.x}, ${contested.y})`,
+        "The scout wing is best here because the center is contested and fresh vision is worth more than blind damage.",
+        "scout-contested",
+        76 - contested.score * 4,
+      );
   }
 
   for (const neutral of tiles
@@ -174,17 +232,17 @@ export function buildCompanionSuggestion(args: {
     .sort((a, b) => a.score - b.score)
     .slice(0, 2)) {
     addCandidate(
-      {
-        unitSlot: 0,
-        action: OrderAction.Move,
-        targetX: neutral.x,
-        targetY: neutral.y,
-      },
-      `Advance to sector (${neutral.x}, ${neutral.y})`,
-      "Advance into open space to improve board control without overextending.",
-      "expand-neutral",
-      62 - neutral.score * 3,
-    );
+        {
+          unitSlot: 3,
+          action: OrderAction.Move,
+          targetX: neutral.x,
+          targetY: neutral.y,
+        },
+        `to sector (${neutral.x}, ${neutral.y})`,
+        "A fighter should take this lane so you gain board control without exposing the command fleet.",
+        "expand-neutral",
+        62 - neutral.score * 3,
+      );
   }
 
   if (selectedCell) {
@@ -195,8 +253,8 @@ export function buildCompanionSuggestion(args: {
         targetX: selectedCell.x,
         targetY: selectedCell.y,
       },
-      `Probe sector (${selectedCell.x}, ${selectedCell.y})`,
-      "Your selected sector is a good probe point if you want to test this lane next.",
+      `sector (${selectedCell.x}, ${selectedCell.y})`,
+      "The scout wing is the safest way to test your selected lane before you commit a fighter to it.",
       "probe-selected",
       58,
     );
@@ -210,8 +268,8 @@ export function buildCompanionSuggestion(args: {
         targetX: 0,
         targetY: 0,
       },
-      "Scout sector (0, 0)",
-      "No strong signal is visible, so a cautious scout keeps the initiative without overcommitting.",
+      "sector (0, 0)",
+      "No strong target is visible, so a scout is the best default because it keeps initiative without overcommitting.",
       "fallback-scout",
       48,
     );

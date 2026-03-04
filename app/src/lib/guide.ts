@@ -74,6 +74,19 @@ export const GUIDE_DETAILS: GuideList[] = [
       "Dim green: idle, waiting, hidden, or inactive interface states.",
     ],
   },
+  {
+    title: "Unit And Action Guide",
+    tone: "amber",
+    items: [
+      "Command Fleet: your anchor unit. Use it to hold safe sectors, stabilize your line, and only move it when your side is under pressure or the center is already secure.",
+      "Scout Wing: your vision unit. Use it when you need information, when the center is contested, or when you are unsure whether an attack lane is safe.",
+      "Fighter Wings: your pressure units. Use them to attack confirmed threats, push into neutral ground, and cover lanes after your scout reveals a target.",
+      "Move: reposition into safer or more useful sectors. Best when you need spacing, board control, or command safety.",
+      "Scout: spend the turn gathering information. Best when enemy positions are unclear or the center is contested.",
+      "Attack: commit force to a hostile sector. Best when visibility already shows a target or enemy pressure is building.",
+      "Switch units when the board changes: scout first when information is weak, shift to fighters when a target is confirmed, and fall back to the command fleet only when your side needs to stabilize.",
+    ],
+  },
 ];
 
 export const GUIDE_NOTE = [

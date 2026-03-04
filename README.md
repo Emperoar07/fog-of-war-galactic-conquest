@@ -88,6 +88,35 @@ Important:
 - **Red**: danger, damage, failed actions, or destroyed battle zones
 - **Dim green**: idle, waiting, hidden, or inactive interface states
 
+### Unit And Action Guide
+
+- **Command Fleet**
+  - Your anchor unit.
+  - Best used to hold safe sectors and stabilize your side of the map.
+  - Only move it when your side is under pressure or the center is already secure.
+- **Scout Wing**
+  - Your information unit.
+  - Best used when enemy positions are unclear, when the center is contested, or before you commit a fighter.
+- **Fighter Wings**
+  - Your pressure units.
+  - Best used to attack confirmed threats, push into neutral sectors, and hold lanes after scouting.
+- **Move**
+  - Reposition into safer or more useful sectors.
+  - Use it for spacing, board control, or to protect the command fleet.
+- **Scout**
+  - Spend the turn gathering information.
+  - Use it when visibility is weak or when you need to test a risky lane first.
+- **Attack**
+  - Commit force to a hostile sector.
+  - Use it after visibility confirms a likely target or when enemy pressure is building.
+
+### When To Switch
+
+- Start with the **Scout Wing** when you do not have enough information.
+- Switch to a **Fighter Wing** after a target is confirmed or when you need to pressure the map.
+- Fall back to the **Command Fleet** only when your side needs to stabilize or retreat.
+- If the board changes quickly, scout again before repeating the same attack lane.
+
 ### What "Playing" Means Right Now
 
 Today, the most reliable fully playable experience is still demo mode.
