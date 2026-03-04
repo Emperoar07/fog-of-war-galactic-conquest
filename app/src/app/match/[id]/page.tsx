@@ -11,7 +11,7 @@ import TurnStatus from "@/components/TurnStatus";
 import OrderPanel from "@/components/OrderPanel";
 import BattleSummary from "@/components/BattleSummary";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
-import { MatchStatus, OrderAction, type OrderParams } from "@sdk";
+import { MatchStatus, type OrderParams } from "@sdk";
 
 export default function MatchPage() {
   const params = useParams();
@@ -77,28 +77,48 @@ export default function MatchPage() {
       await client.registerPlayer(matchPDA, emptySlot);
       setActionMessage(`Joined as Player ${emptySlot + 1}!`);
       refresh();
-    } catch (err: any) {
-      setActionMessage(`Failed to join: ${err.message}`);
+    } catch (err: unknown) {
+      setActionMessage(
+        `Failed to join: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   };
 
   const handleSubmitOrder = async (order: OrderParams) => {
     if (!client || !matchPDA || playerSlot === null) return;
-    const keys = ensureKeys();
-    await client.submitOrders(matchPDA, playerSlot, order, keys.privateKey);
-    setActionMessage("Order submitted!");
-    refresh();
+    setActionMessage(null);
+    try {
+      const keys = ensureKeys();
+      const result = await client.submitOrders(
+        matchPDA,
+        playerSlot,
+        order,
+        keys.privateKey,
+      );
+      setActionMessage("Order queued. Waiting for MPC computation...");
+      await client.awaitComputation(result.computationOffset);
+      setActionMessage("Order submitted!");
+      await refresh();
+    } catch (err: unknown) {
+      setActionMessage(
+        `Failed to submit order: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
+    }
   };
 
   const handleResolveTurn = async () => {
     if (!client || !matchPDA) return;
     setActionMessage(null);
     try {
-      await client.resolveTurn(matchPDA);
+      const result = await client.resolveTurn(matchPDA);
       setActionMessage("Turn resolution queued. Waiting for MPC computation...");
-      refresh();
-    } catch (err: any) {
-      setActionMessage(`Failed to resolve: ${err.message}`);
+      await client.awaitComputation(result.computationOffset);
+      setActionMessage("Turn resolved.");
+      await refresh();
+    } catch (err: unknown) {
+      setActionMessage(
+        `Failed to resolve: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   };
 
@@ -107,11 +127,15 @@ export default function MatchPage() {
     setActionMessage(null);
     try {
       const keys = ensureKeys();
-      await client.requestVisibility(matchPDA, keys.privateKey);
+      const result = await client.requestVisibility(matchPDA, keys.privateKey);
       setActionMessage("Visibility check queued. Waiting for MPC computation...");
-      refresh();
-    } catch (err: any) {
-      setActionMessage(`Failed: ${err.message}`);
+      await client.awaitComputation(result.computationOffset);
+      setActionMessage("Visibility report updated.");
+      await refresh();
+    } catch (err: unknown) {
+      setActionMessage(
+        `Failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     }
   };
 

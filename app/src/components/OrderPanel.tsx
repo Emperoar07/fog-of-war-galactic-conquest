@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { OrderAction, UnitType, MAP_SIZE, type GalaxyMatch } from "@sdk";
 
 interface OrderPanelProps {
@@ -23,10 +23,9 @@ const ACTION_LABELS: Record<OrderAction, string> = {
 };
 
 const UNIT_LABELS: Record<number, string> = {
-  [UnitType.Command]: "Command Fleet",
+  [UnitType.Fighter]: "Fighter",
   [UnitType.Scout]: "Scout",
-  [UnitType.Frigate]: "Frigate",
-  [UnitType.Destroyer]: "Destroyer",
+  [UnitType.Command]: "Command Fleet",
 };
 
 export default function OrderPanel({
@@ -45,19 +44,19 @@ export default function OrderPanel({
 
   const alreadySubmitted = match.submittedOrders[playerSlot] !== 0;
 
-  // Sync target from clicked cell
-  if (selectedCell && (selectedCell.x !== targetX || selectedCell.y !== targetY)) {
+  useEffect(() => {
+    if (!selectedCell) return;
     setTargetX(selectedCell.x);
     setTargetY(selectedCell.y);
-  }
+  }, [selectedCell]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
     try {
       await onSubmit({ unitSlot, action, targetX, targetY });
-    } catch (err: any) {
-      setError(err.message || "Failed to submit order");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to submit order");
     } finally {
       setSubmitting(false);
     }

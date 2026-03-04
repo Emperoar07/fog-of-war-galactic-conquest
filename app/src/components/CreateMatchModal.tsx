@@ -29,10 +29,11 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
         2,
         BigInt(mapSeed || "42"),
       );
+      await client.awaitComputation(result.computationOffset);
       router.push(`/match/${matchId.toString()}`);
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to create match");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create match");
     } finally {
       setCreating(false);
     }

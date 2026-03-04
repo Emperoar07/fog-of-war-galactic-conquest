@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
-import { PROGRAM_ID, MatchStatus, NO_WINNER } from "@sdk";
+import { PROGRAM_ID, MatchStatus } from "@sdk";
 import CreateMatchModal from "./CreateMatchModal";
 import { useGameClient } from "@/hooks/useGameClient";
 
@@ -24,12 +23,7 @@ export default function Lobby() {
   const [showCreate, setShowCreate] = useState(false);
   const [manualId, setManualId] = useState("");
 
-  useEffect(() => {
-    if (!connection) return;
-    loadMatches();
-  }, [connection]);
-
-  const loadMatches = async () => {
+  const loadMatches = useCallback(async () => {
     setLoading(true);
     try {
       const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
@@ -81,7 +75,11 @@ export default function Lobby() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [connection]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
 
   const statusBadge = (status: number) => {
     switch (status) {

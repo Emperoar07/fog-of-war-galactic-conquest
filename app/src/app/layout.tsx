@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import WalletProvider from "@/components/WalletProvider";
@@ -23,9 +24,9 @@ export default function RootLayout({
       <body className={`${geistMono.variable} font-mono antialiased bg-black text-white min-h-screen`}>
         <WalletProvider>
           <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-            <a href="/" className="text-xl font-bold text-white hover:text-gray-300 transition-colors">
+            <Link href="/" className="text-xl font-bold text-white hover:text-gray-300 transition-colors">
               Fog of War: Galactic Conquest
-            </a>
+            </Link>
             <div className="flex items-center gap-4">
               <span className="text-xs text-gray-500">devnet</span>
               <WalletButton />

@@ -22,8 +22,8 @@ export function useMatch(matchId: bigint | null) {
       setMatchPDA(pda);
       const data = await client.fetchMatch(pda);
       setMatch(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch match");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to fetch match");
       setMatch(null);
     } finally {
       setLoading(false);

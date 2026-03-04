@@ -628,3 +628,45 @@ Use it to capture:
   - Contact Arcium team about devnet cluster status
   - Try a different cluster offset
   - Set up a local Arcium test environment via `arcium test` with Docker
+
+## 2026-03-04
+
+### SDK and frontend contract fixes
+
+- Aligned `sdk/constants.ts` unit semantics with the live encrypted program:
+  `Fighter = 0`, `Scout = 1`, `Command = 2`. Removed the mismatched client-only
+  `Frigate` / `Destroyer` mapping from the exported enum and `UNIT_STATS`.
+- Updated `sdk/client.ts` queued instruction helpers to return computation metadata:
+  `createMatch` now returns `computationOffset`, and `submitOrders`, `requestVisibility`,
+  and `resolveTurn` now return queued-operation results instead of only a tx signature.
+- Fixed `requestVisibility()` so it uses the caller's supplied private key to derive the
+  request public key, and returns the nonce/public key context needed for later decrypt flow.
+- Patched `GameClient` construction so a supplied `programId` also rewrites the IDL address
+  used by the Anchor `Program` instance, preventing PDA/program mismatches when overriding IDs.
+
+### Frontend async flow fixes
+
+- `app/src/components/CreateMatchModal.tsx` now waits for the queued `createMatch`
+  computation to finalize before routing into the match page.
+- `app/src/app/match/[id]/page.tsx` now waits for finalization after `submitOrders`,
+  `resolveTurn`, and `requestVisibility` before refreshing match state.
+- This avoids stale immediate reads after queue submission and makes the UI behavior match the
+  actual callback-driven program lifecycle.
+
+### Repo hygiene fixes
+
+- Replaced the default `create-next-app` boilerplate in `app/README.md` with a project-specific
+  frontend README.
+- Added `.claude/`, `.vscode/`, and `NUL` to `.gitignore` so local tooling noise is not surfaced
+  as commit-worthy repo changes.
+
+### Frontend lint cleanup
+
+- Fixed the Next.js navigation lint issue in `app/src/app/layout.tsx` by replacing the raw
+  home-page `<a>` tag with `next/link`.
+- Removed unused imports and replaced `catch (err: any)` with typed `unknown` handling in the
+  app components/hooks touched during the SDK integration pass.
+- Updated `app/src/components/OrderPanel.tsx` to use the aligned SDK unit labels
+  (`Fighter`, `Scout`, `Command Fleet`) and moved the selected-cell sync out of render-time
+  state writes into a `useEffect`.
+- Ran `npm --prefix app run lint` successfully after these fixes.
