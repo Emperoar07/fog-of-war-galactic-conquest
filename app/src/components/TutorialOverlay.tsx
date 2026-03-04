@@ -24,6 +24,10 @@ export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
     }
   }, [step, onHighlight]);
 
+  const goBack = useCallback(() => {
+    if (step > 0) setStep(step - 1);
+  }, [step]);
+
   const advance = useCallback(() => {
     const next = step + 1;
     if (next >= TUTORIAL_STEPS.length) {
@@ -69,7 +73,18 @@ export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
         <p className="mt-3 text-xs leading-6 text-[#00cc33]">
           {current.message}
         </p>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            onClick={goBack}
+            disabled={step === 0}
+            className={`border border-[#0e2a0e] bg-[#021202] px-4 py-2 text-[10px] uppercase tracking-[0.24em] ${
+              step === 0
+                ? "cursor-not-allowed text-[#062a06]"
+                : "text-[#0c6d1f] hover:border-[#0c6d1f] hover:text-[#00aa2a]"
+            }`}
+          >
+            Back
+          </button>
           <button
             onClick={advance}
             className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.05)] px-5 py-2 text-[10px] uppercase tracking-[0.24em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.1)]"
