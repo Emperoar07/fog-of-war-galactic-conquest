@@ -46,10 +46,11 @@ You can use the project today in two ways:
 2. Click **Launch Demo** on the landing page, or open the demo match directly.
 3. Use the demo battlefield to:
    - select a target sector
-   - queue a mock order
+   - use Fire Control to queue a mock order
    - optionally turn Companion Mode on for a suggested move
-   - resolve a simulated turn
-   - request a simulated visibility report
+   - replace that queued order any time before the turn resolves
+   - resolve a simulated turn from the same panel
+   - request a simulated visibility report from the same panel
    - use the Audio toggle for ambient sound and action cues
 4. Watch the board, battle panels, and activity log update locally.
 
@@ -61,9 +62,9 @@ The demo does not require a wallet and does not depend on live MXE encryption.
 2. Browse existing matches in the lobby, or create a new one.
 3. Join a match if a player slot is open.
 4. Once the match is active:
-   - submit one encrypted order per turn
+   - submit one encrypted order per turn from Fire Control
    - optionally turn Companion Mode on for a local tactical suggestion
-   - request visibility when needed
+   - request visibility when needed from the same panel
    - resolve the turn after all players have submitted
    - use the Audio toggle if you want ambient sound plus button, action, and victory effects
 

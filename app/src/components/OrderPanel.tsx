@@ -7,6 +7,17 @@ interface OrderPanelProps {
   match: GalaxyMatch;
   playerSlot: number;
   selectedCell: { x: number; y: number } | null;
+  allowReplaceSubmitted?: boolean;
+  showResolve?: boolean;
+  resolveDisabled?: boolean;
+  resolveLabel?: string;
+  onResolve?: () => void;
+  showVisibility?: boolean;
+  visibilityDisabled?: boolean;
+  visibilityLabel?: string;
+  onVisibility?: () => void;
+  highlightResolve?: boolean;
+  highlightVisibility?: boolean;
   prefillOrder?: {
     unitSlot: number;
     action: OrderAction;
@@ -39,6 +50,17 @@ export default function OrderPanel({
   match,
   playerSlot,
   selectedCell,
+  allowReplaceSubmitted = false,
+  showResolve = false,
+  resolveDisabled = false,
+  resolveLabel = "Resolve Turn",
+  onResolve,
+  showVisibility = false,
+  visibilityDisabled = false,
+  visibilityLabel = "Request Visibility Report",
+  onVisibility,
+  highlightResolve = false,
+  highlightVisibility = false,
   prefillOrder,
   prefillNonce,
   onSubmit,
@@ -79,7 +101,15 @@ export default function OrderPanel({
     }
   };
 
-  const isDisabled = disabled || submitting || alreadySubmitted;
+  const isLocked = alreadySubmitted && !allowReplaceSubmitted;
+  const isDisabled = disabled || submitting || isLocked;
+  const submitLabel = submitting
+    ? "Transmitting..."
+    : alreadySubmitted
+      ? allowReplaceSubmitted
+        ? "Replace Queued Order"
+        : "Orders Locked"
+      : "Queue Order";
 
   return (
     <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
@@ -89,7 +119,9 @@ export default function OrderPanel({
 
       {alreadySubmitted && (
         <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-[#00e5cc]">
-          Orders transmitted. Awaiting opposing commander.
+          {allowReplaceSubmitted
+            ? "Order queued. You can still replace it before resolving the turn."
+            : "Orders transmitted. Awaiting opposing commander."}
         </div>
       )}
 
@@ -161,18 +193,54 @@ export default function OrderPanel({
         </div>
       </div>
 
-      <button
-        data-sound-manual="true"
-        onClick={handleSubmit}
-        disabled={isDisabled}
-        className="mt-4 w-full border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"
-      >
-        {submitting
-          ? "Transmitting..."
-          : alreadySubmitted
-            ? "Orders Locked"
-            : "Queue Order"}
-      </button>
+      {showResolve ? (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button
+            data-sound-manual="true"
+            onClick={handleSubmit}
+            disabled={isDisabled}
+            className="border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.2em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"
+          >
+            {submitLabel}
+          </button>
+          <button
+            data-sound-manual="true"
+            onClick={onResolve}
+            disabled={resolveDisabled}
+            className={`border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.2em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)] disabled:opacity-35 ${
+              highlightResolve
+                ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]"
+                : ""
+            }`}
+          >
+            {resolveLabel}
+          </button>
+        </div>
+      ) : (
+        <button
+          data-sound-manual="true"
+          onClick={handleSubmit}
+          disabled={isDisabled}
+          className="mt-4 w-full border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"
+        >
+          {submitLabel}
+        </button>
+      )}
+
+      {showVisibility && (
+        <button
+          data-sound-manual="true"
+          onClick={onVisibility}
+          disabled={visibilityDisabled}
+          className={`mt-3 w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.2em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-35 ${
+            highlightVisibility
+              ? "ring-1 ring-[#00e5cc] ring-offset-1 ring-offset-[#010801]"
+              : ""
+          }`}
+        >
+          {visibilityLabel}
+        </button>
+      )}
 
       {error && (
         <div className="mt-3 text-[10px] uppercase tracking-[0.16em] text-[#ff3333]">

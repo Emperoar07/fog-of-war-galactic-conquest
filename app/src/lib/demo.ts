@@ -198,11 +198,18 @@ export function markDemoOrdersSubmitted(
 
     return {
       ...match,
-      submittedOrders: [1, 1, 0, 0],
+      submittedOrders: [1, 0, 0, 0],
       revealedSectorOwner: map,
     };
   }
 
+  return {
+    ...match,
+    submittedOrders: [1, 0, 0, 0],
+  };
+}
+
+export function markDemoOpponentSubmitted(match: GalaxyMatch): GalaxyMatch {
   return {
     ...match,
     submittedOrders: [1, 1, 0, 0],

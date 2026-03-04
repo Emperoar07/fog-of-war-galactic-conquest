@@ -30,7 +30,7 @@ export default memo(function TurnStatus({ match, walletKey }: TurnStatusProps) {
   ).length;
 
   return (
-    <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[152px]">
+    <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[176px]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div>
           <div className="text-[8px] uppercase tracking-[0.3em] text-[#0c6d1f] sm:text-[9px]">

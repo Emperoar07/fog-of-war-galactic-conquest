@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -19,6 +19,7 @@ import {
   DEMO_MODE_ENABLED,
   getDemoUnitPositions,
   isDemoMatchId,
+  markDemoOpponentSubmitted,
   markDemoOrdersSubmitted,
   saveDemoSnapshot,
   type DemoSnapshot,
@@ -139,6 +140,7 @@ function MatchPageInner() {
   });
   const [orderPrefill, setOrderPrefill] = useState<OrderParams | null>(null);
   const [orderPrefillNonce, setOrderPrefillNonce] = useState(0);
+  const demoOpponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playerSlot =
     demoMode
       ? 0
@@ -155,6 +157,14 @@ function MatchPageInner() {
       companionEnabled ? "1" : "0",
     );
   }, [companionEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (demoOpponentTimeoutRef.current) {
+        clearTimeout(demoOpponentTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Analytics: track match view
   useEffect(() => {
@@ -542,6 +552,9 @@ function MatchPageInner() {
 
   const handleSubmitOrder = async (order: OrderParams) => {
     if (demoMode) {
+      if (demoOpponentTimeoutRef.current) {
+        clearTimeout(demoOpponentTimeoutRef.current);
+      }
       playSound("uplink");
       showStatus(
         `Simulating ${order.action === 2 ? "attack" : "maneuver"} from unit ${order.unitSlot + 1}...`,
@@ -556,12 +569,22 @@ function MatchPageInner() {
         }),
       );
       appendActivity(
-        `Enemy commander mirrors your move toward sector (${order.targetX}, ${order.targetY}).`,
+        `Your order is staged for sector (${order.targetX}, ${order.targetY}).`,
         "info",
       );
       trackEvent("ordersSubmitted");
       playSound("success");
-      showStatus("Demo orders locked in. Resolve the turn to continue.", "success");
+      showStatus(
+        "Order queued. Demo AI is locking in. You can still replace this order before resolve.",
+        "success",
+      );
+      demoOpponentTimeoutRef.current = setTimeout(() => {
+        updateMatch((current) => markDemoOpponentSubmitted(current));
+        appendActivity("Enemy commander has locked in a response.", "success");
+        playSound("success");
+        showStatus("Both orders are locked. Resolve the turn when ready.", "success");
+        demoOpponentTimeoutRef.current = null;
+      }, 900);
       return;
     }
 
@@ -597,6 +620,10 @@ function MatchPageInner() {
 
   const handleResolveTurn = async () => {
     if (demoMode) {
+      if (demoOpponentTimeoutRef.current) {
+        clearTimeout(demoOpponentTimeoutRef.current);
+        demoOpponentTimeoutRef.current = null;
+      }
       playSound("resolve");
       showStatus("Resolving simulated turn...", "info", true);
       updateMatch((current) => advanceDemoTurn(current));
@@ -701,6 +728,10 @@ function MatchPageInner() {
   const handleRefresh = async () => {
     setPendingAction("refresh");
     try {
+      if (demoOpponentTimeoutRef.current) {
+        clearTimeout(demoOpponentTimeoutRef.current);
+        demoOpponentTimeoutRef.current = null;
+      }
       await refresh();
       if (demoMode) {
         setSelectedCell(null);
@@ -737,8 +768,12 @@ function MatchPageInner() {
     publicKey;
   const canSubmitOrders =
     match.status === MatchStatus.Active && isPlayer && playerSlot !== null;
+  const allOrdersReady = match.submittedOrders
+    .slice(0, match.playerCount)
+    .every((submitted) => submitted !== 0);
   const canResolve =
-    match.status === MatchStatus.Active && client?.allOrdersSubmitted(match);
+    match.status === MatchStatus.Active &&
+    (demoMode ? allOrdersReady : Boolean(client?.allOrdersSubmitted(match)));
 
   return (
     <div className="space-y-3 sm:space-y-5">
@@ -854,7 +889,7 @@ function MatchPageInner() {
       <div className="grid grid-cols-1 gap-2 sm:gap-3 xl:grid-cols-[minmax(0,0.4fr)_minmax(240px,0.3fr)_minmax(240px,0.3fr)] xl:items-start">
         <TurnStatus match={match} walletKey={publicKey} />
 
-        <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[152px]">
+        <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[176px]">
           <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
             PLAYERS
           </h3>
@@ -997,40 +1032,33 @@ function MatchPageInner() {
                 match={match}
                 playerSlot={playerSlot}
                 selectedCell={selectedCell}
+                allowReplaceSubmitted={demoMode}
+                showResolve
+                resolveDisabled={isBusy || !canResolve}
+                resolveLabel={
+                  pendingAction === "resolve"
+                    ? "Resolving..."
+                    : canResolve
+                      ? "Resolve Turn"
+                      : "Ready After Both Orders Lock"
+                }
+                onResolve={handleResolveTurn}
+                showVisibility={isPlayer && match.status === MatchStatus.Active}
+                visibilityDisabled={isBusy}
+                visibilityLabel={
+                  pendingAction === "visibility"
+                    ? "Requesting Visibility..."
+                    : "Request Visibility Report"
+                }
+                onVisibility={handleVisibility}
+                highlightResolve={tutorialHighlight === "resolve"}
+                highlightVisibility={tutorialHighlight === "visibility"}
                 prefillOrder={orderPrefill}
                 prefillNonce={orderPrefillNonce}
                 onSubmit={handleSubmitOrder}
-                disabled={!client || isBusy}
+                disabled={isBusy || (!demoMode && !client)}
               />
             </div>
-          )}
-
-          {isPlayer && match.status === MatchStatus.Active && (
-            <button
-              data-sound-manual="true"
-              onClick={handleResolveTurn}
-              disabled={isBusy || !canResolve}
-              className={`w-full border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)] ${
-                tutorialHighlight === "resolve" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""
-              } disabled:opacity-35`}
-            >
-              {pendingAction === "resolve" ? "Resolving..." : "Resolve Turn"}
-            </button>
-          )}
-
-          {isPlayer && match.status === MatchStatus.Active && (
-            <button
-              data-sound-manual="true"
-              onClick={handleVisibility}
-              disabled={isBusy}
-              className={`w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] ${
-                tutorialHighlight === "visibility" ? "ring-1 ring-[#00e5cc] ring-offset-1 ring-offset-[#010801]" : ""
-              }`}
-            >
-              {pendingAction === "visibility"
-                ? "Requesting Visibility..."
-                : "Request Visibility Report"}
-            </button>
           )}
 
           {isPlayer && (

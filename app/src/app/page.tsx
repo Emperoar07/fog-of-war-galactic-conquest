@@ -120,29 +120,35 @@ export default function Home() {
                     3. Click a board sector to choose your target.
                   </li>
                   <li>
-                    4. Use Fire Control to queue an order.
+                    4. Use Fire Control to queue an order, resolve the turn,
+                    and request visibility from one place.
                   </li>
                   <li>
                     5. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
                     want a suggested move before you commit.
                   </li>
                   <li>
-                    6. Click <span className="text-[#ffb000]">Resolve Turn</span> to advance
-                    the battle.
+                    6. After you queue an order, the demo AI locks in shortly
+                    after. You can still replace your queued order before the
+                    turn is resolved.
                   </li>
                   <li>
-                    7. Click{" "}
+                    7. Click <span className="text-[#ffb000]">Resolve Turn</span> when both
+                    orders are locked to advance the battle.
+                  </li>
+                  <li>
+                    8. Click{" "}
                     <span className="text-[#00e5cc]">
                       Request Visibility Report
                     </span>{" "}
                     to simulate a scout update.
                   </li>
                   <li>
-                    8. Watch the board, battle logic, and activity log to see
+                    9. Watch the board, battle logic, and activity log to see
                     what changed.
                   </li>
                   <li>
-                    9. Use the audio toggle if you want ambient sound and
+                    10. Use the audio toggle if you want ambient sound and
                     action cues.
                   </li>
                 </ol>
@@ -160,8 +166,8 @@ export default function Home() {
                     2. Create a match or join an open one.
                   </li>
                   <li>
-                    3. When the match is active, select a sector and choose an
-                    action.
+                    3. When the match is active, select a sector and use Fire
+                    Control to choose an action.
                   </li>
                   <li>
                     4. Submit one encrypted order for the turn.
@@ -173,7 +179,8 @@ export default function Home() {
                     6. Resolve the turn when both sides are ready.
                   </li>
                   <li>
-                    7. Request visibility when you need a scouting update.
+                    7. Request visibility from Fire Control when you need a
+                    scouting update.
                   </li>
                   <li>
                     8. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
