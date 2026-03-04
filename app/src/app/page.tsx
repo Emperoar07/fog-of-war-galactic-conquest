@@ -7,6 +7,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useSound } from "@/components/SoundProvider";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
 import { DEMO_MATCH_ID } from "@/lib/demo";
+import { GUIDE_CARDS, GUIDE_DETAILS, GUIDE_NOTE } from "@/lib/guide";
 
 const Lobby = dynamic(() => import("@/components/Lobby"), {
   loading: () => (
@@ -87,187 +88,59 @@ export default function Home() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-3">
-              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
-                <div className="text-[9px] uppercase tracking-[0.24em] text-[#ffb000]">
-                  What This Game Is
+              {GUIDE_CARDS.map((card) => (
+                <div key={card.eyebrow} className="border border-[#0e2a0e] bg-[#021202] p-4">
+                  <div
+                    className={`text-[9px] uppercase tracking-[0.24em] ${
+                      card.tone === "amber"
+                        ? "text-[#ffb000]"
+                        : card.tone === "cyan"
+                          ? "text-[#00e5cc]"
+                          : "text-[#00ff41]"
+                    }`}
+                  >
+                    {card.eyebrow}
+                  </div>
+                  <div className="mt-3 text-[11px] uppercase tracking-[0.12em] text-[#b8ffc8]">
+                    {card.title}
+                  </div>
+                  <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
+                    {card.items.map((item, index) => (
+                      <li key={item}>
+                        {index + 1}. {item}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
-                <div className="mt-3 space-y-3 text-xs leading-6 text-[#00cc33]">
-                  <p>
-                    Fog of War is a turn-based strategy game. Pick a unit, pick
-                    a target, submit a turn, then read the result.
-                  </p>
-                  <p>
-                    Some information stays hidden. Orders and visibility are
-                    meant to stay private until the rules allow a reveal.
-                  </p>
-                  <p>
-                    If you are new, start in demo mode first. It teaches the
-                    full loop without needing a wallet.
-                  </p>
-                </div>
-              </div>
-
-              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
-                <div className="text-[9px] uppercase tracking-[0.24em] text-[#00e5cc]">
-                  Demo Mode Walkthrough
-                </div>
-                <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>
-                    1. Click <span className="text-[#ffb000]">Launch Demo</span>.
-                  </li>
-                  <li>
-                    2. The demo opens instantly. No wallet is required.
-                  </li>
-                  <li>
-                    3. Click a board sector to choose your target.
-                  </li>
-                  <li>
-                    4. Use Fire Control to queue an order, resolve the turn,
-                    and request visibility from one place.
-                  </li>
-                  <li>
-                    5. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
-                    want a smarter suggested move before you commit.
-                  </li>
-                  <li>
-                    6. After you queue an order, the demo AI locks in shortly
-                    after. You can still replace your queued order before the
-                    turn is resolved.
-                  </li>
-                  <li>
-                    7. Click <span className="text-[#ffb000]">Resolve Turn</span> when both
-                    orders are locked to advance the battle.
-                  </li>
-                  <li>
-                    8. Click{" "}
-                    <span className="text-[#00e5cc]">
-                      Request Visibility Report
-                    </span>{" "}
-                    to simulate a scout update.
-                  </li>
-                  <li>
-                    9. Watch the board, battle logic, and activity log to see
-                    what changed.
-                  </li>
-                  <li>
-                    10. Use the audio toggle if you want ambient sound and
-                    action cues.
-                  </li>
-                </ol>
-              </div>
-
-              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
-                <div className="text-[9px] uppercase tracking-[0.24em] text-[#00ff41]">
-                  Live Devnet Walkthrough
-                </div>
-                <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>
-                    1. Connect a Solana wallet.
-                  </li>
-                  <li>
-                    2. Create a match or join an open one.
-                  </li>
-                  <li>
-                    3. When the match is active, select a sector and use Fire
-                    Control to choose an action.
-                  </li>
-                  <li>
-                    4. Submit one encrypted order for the turn.
-                  </li>
-                  <li>
-                    5. Wait for the other player to submit.
-                  </li>
-                  <li>
-                    6. Resolve the turn when both sides are ready.
-                  </li>
-                  <li>
-                    7. Request visibility from Fire Control when you need a
-                    scouting update.
-                  </li>
-                  <li>
-                    8. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
-                    want a local tactical suggestion before you commit.
-                  </li>
-                  <li>
-                    9. Keep audio on if you want ambient sound and result cues.
-                  </li>
-                </ol>
-              </div>
+              ))}
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
-                <div className="text-[9px] uppercase tracking-[0.24em] text-[#ffb000]">
-                  What To Watch While Playing
+              {GUIDE_DETAILS.map((list) => (
+                <div key={list.title} className="border border-[#0e2a0e] bg-[#021202] p-4">
+                  <div
+                    className={`text-[9px] uppercase tracking-[0.24em] ${
+                      list.tone === "amber" ? "text-[#ffb000]" : "text-[#00ff41]"
+                    }`}
+                  >
+                    {list.title}
+                  </div>
+                  <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
+                    {list.items.map((item) => (
+                      <li key={item}>- {item}</li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>
-                    - The board shows known, contested, and updated sectors.
-                  </li>
-                  <li>
-                    - The status rail tells you if you are in demo, live
-                    devnet, or waiting.
-                  </li>
-                  <li>
-                    - The activity log records submissions, visibility updates,
-                    and turn resolution.
-                  </li>
-                  <li>
-                    - Companion Mode only suggests; you still choose whether to
-                    apply and submit, and it avoids repeating the same advice
-                    unless the board still demands it.
-                  </li>
-                  <li>
-                    - Battle Logic gives the fastest snapshot of who is ahead.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
-                <div className="text-[9px] uppercase tracking-[0.24em] text-[#00ff41]">
-                  Color Guide
-                </div>
-                <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>
-                    - <span className="text-[#00ff41]">Green</span>: your
-                    controlled sectors and friendly presence.
-                  </li>
-                  <li>
-                    - <span className="text-[#ffb000]">Amber</span>: enemy
-                    controlled sectors or enemy pressure.
-                  </li>
-                  <li>
-                    - <span className="text-[#00e5cc]">Cyan</span>: contested
-                    sectors, visibility intel, and shared tactical updates.
-                  </li>
-                  <li>
-                    - <span className="text-[#ff3333]">Red</span>: danger,
-                    damage, failed actions, or destroyed battle zones.
-                  </li>
-                  <li>
-                    - <span className="text-[#0c6d1f]">Dim green</span>: idle,
-                    waiting, hidden, or inactive interface states.
-                  </li>
-                </ul>
-              </div>
+              ))}
 
               <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] p-4 text-xs leading-6 text-[#00e5cc]">
                 <div className="text-[9px] uppercase tracking-[0.24em] text-[#00e5cc]">
                   Important Note
                 </div>
                 <div className="mt-3 space-y-3">
-                  <p>
-                    Demo mode is the easiest place to learn because it is fully
-                    playable right now.
-                  </p>
-                  <p>
-                    Live devnet uses the real network flow, but encrypted
-                    actions still depend on Arcium MXE readiness.
-                  </p>
-                  <p>
-                    If you are unsure where to start, learn the loop in demo
-                    mode first, then try live devnet.
-                  </p>
+                  {GUIDE_NOTE.map((note) => (
+                    <p key={note}>{note}</p>
+                  ))}
                 </div>
               </div>
             </div>

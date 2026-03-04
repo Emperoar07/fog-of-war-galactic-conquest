@@ -1,15 +1,9 @@
 "use client";
 
 import { memo } from "react";
+import type { ActivityLogEntry } from "@/lib/activity";
 
 type ActivityTone = "info" | "success" | "error";
-
-export interface ActivityLogEntry {
-  id: string;
-  message: string;
-  time: string;
-  tone: ActivityTone;
-}
 
 interface ActivityLogProps {
   entries: ActivityLogEntry[];

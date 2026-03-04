@@ -30,43 +30,37 @@ The result is a verifiable game loop where hidden information remains hidden unt
 
 ## How To Play
 
-You can use the project today in two ways:
+Use the app in one of two ways:
 
 - **Demo mode**
-  - The full frontend loop works with simulated game state.
-  - This is the best way to explore the UI, match flow, and turn flow without depending on MXE readiness.
+  - Full UI loop with simulated game state.
+  - Best for learning the controls and the match flow without depending on MXE readiness.
 - **Live devnet mode**
-  - The app can connect to the deployed Solana program on devnet.
-  - Read-only flows, match browsing, and public state work normally.
-  - Full encrypted gameplay still depends on Arcium MXE readiness.
+  - Connects to the deployed Solana program on devnet.
+  - Public flows work normally. Full encrypted gameplay still depends on Arcium MXE readiness.
 
-### Fastest Way: Play The Demo
+The in-app **How To Play** guide is the detailed walkthrough and is kept closest to the live UI.
+
+### Fastest Path: Demo Mode
 
 1. Open the frontend.
-2. Click **Launch Demo** on the landing page, or open the demo match directly.
-3. Use the demo battlefield to:
-   - select a target sector
-   - use Fire Control to queue a mock order
-   - optionally turn Companion Mode on for a smarter suggested move
-   - replace that queued order any time before the turn resolves
-   - resolve a simulated turn from the same panel
-   - request a simulated visibility report from the same panel
-   - use the Audio toggle for ambient sound and action cues
-4. Watch the board, battle panels, and activity log update locally.
+2. Click **Launch Demo**.
+3. Select a sector on the board.
+4. Use **Fire Control** to queue an order, resolve the turn, and request visibility.
+5. Turn **Companion Mode** on if you want a local tactical suggestion before you commit.
+6. Use the **Audio** toggle if you want ambient sound plus action cues.
 
-The demo does not require a wallet and does not depend on live MXE encryption.
+Demo mode does not require a wallet and does not depend on live MXE encryption.
 
-### Play On Devnet
+### Live Devnet
 
 1. Open the frontend and connect a Solana wallet such as Phantom or Solflare.
 2. Browse existing matches in the lobby, or create a new one.
-3. Join a match if a player slot is open.
-4. Once the match is active:
-   - submit one encrypted order per turn from Fire Control
-   - optionally turn Companion Mode on for a local tactical suggestion with anti-repeat memory
-   - request visibility when needed from the same panel
-   - resolve the turn after all players have submitted
-   - use the Audio toggle if you want ambient sound plus button, action, and victory effects
+3. Join a match if a player slot is open, then use **Fire Control** for actions.
+4. Submit one encrypted order per turn.
+5. Resolve the turn after all players have submitted.
+6. Request visibility when needed.
+7. Turn **Companion Mode** on if you want a local tactical suggestion with anti-repeat memory.
 
 Important:
 
@@ -96,9 +90,9 @@ Important:
 
 ### What "Playing" Means Right Now
 
-Today, the most reliable fully playable experience is demo mode.
+Today, the most reliable fully playable experience is still demo mode.
 
-The live onchain experience is real, but the full encrypted turn loop still depends on Arcium devnet cluster readiness. When MXE is available, the app supports the intended private move and private resolve flow. When MXE is not available, demo mode remains the best way to test and showcase the game.
+The live onchain experience is real, but the full encrypted turn loop still depends on Arcium devnet cluster readiness. When MXE is not available, demo mode remains the best way to test and showcase the project.
 
 The MVP uses:
 

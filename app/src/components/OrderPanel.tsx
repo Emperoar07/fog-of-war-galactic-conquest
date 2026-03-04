@@ -134,6 +134,7 @@ export default function OrderPanel({
             value={unitSlot}
             onChange={(e) => setUnitSlot(Number(e.target.value))}
             disabled={isDisabled}
+            aria-label="Choose the unit that will execute this order"
             className="w-full border border-[#0e2a0e] bg-[#021202] px-2 py-2 text-sm text-[#00ff41] disabled:opacity-40"
           >
             {[0, 1, 2, 3].map((i) => (
@@ -152,6 +153,7 @@ export default function OrderPanel({
             value={action}
             onChange={(e) => setAction(Number(e.target.value) as OrderAction)}
             disabled={isDisabled}
+            aria-label="Choose the action type for this order"
             className="w-full border border-[#0e2a0e] bg-[#021202] px-2 py-2 text-sm text-[#ffb000] disabled:opacity-40"
           >
             {Object.entries(ACTION_LABELS).map(([val, label]) => (
@@ -173,6 +175,7 @@ export default function OrderPanel({
             value={targetX}
             onChange={(e) => setTargetX(Number(e.target.value))}
             disabled={isDisabled}
+            aria-label="Target X coordinate"
             className="w-full border border-[#0e2a0e] bg-[#021202] px-2 py-2 text-sm text-[#00cc33] disabled:opacity-40"
           />
         </div>
@@ -188,9 +191,14 @@ export default function OrderPanel({
             value={targetY}
             onChange={(e) => setTargetY(Number(e.target.value))}
             disabled={isDisabled}
+            aria-label="Target Y coordinate"
             className="w-full border border-[#0e2a0e] bg-[#021202] px-2 py-2 text-sm text-[#00cc33] disabled:opacity-40"
           />
         </div>
+      </div>
+
+      <div className="mt-3 text-[8px] uppercase tracking-[0.16em] text-[#0c6d1f] sm:text-[9px]">
+        Keyboard: use arrow keys on the board to move selection, then press Enter to target the current sector.
       </div>
 
       {showResolve ? (
@@ -199,6 +207,7 @@ export default function OrderPanel({
             data-sound-manual="true"
             onClick={handleSubmit}
             disabled={isDisabled}
+            aria-label={submitLabel}
             className="border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.2em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"
           >
             {submitLabel}
@@ -207,6 +216,7 @@ export default function OrderPanel({
             data-sound-manual="true"
             onClick={onResolve}
             disabled={resolveDisabled}
+            aria-label={resolveLabel}
             className={`border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.2em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)] disabled:opacity-35 ${
               highlightResolve
                 ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]"
@@ -221,6 +231,7 @@ export default function OrderPanel({
           data-sound-manual="true"
           onClick={handleSubmit}
           disabled={isDisabled}
+          aria-label={submitLabel}
           className="mt-4 w-full border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"
         >
           {submitLabel}
@@ -232,6 +243,7 @@ export default function OrderPanel({
           data-sound-manual="true"
           onClick={onVisibility}
           disabled={visibilityDisabled}
+          aria-label={visibilityLabel}
           className={`mt-3 w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.2em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-35 ${
             highlightVisibility
               ? "ring-1 ring-[#00e5cc] ring-offset-1 ring-offset-[#010801]"

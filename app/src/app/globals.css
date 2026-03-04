@@ -110,6 +110,16 @@ select {
     box-shadow 140ms ease;
 }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px #010801,
+    0 0 0 2px rgba(0, 229, 204, 0.6);
+}
+
 ::selection {
   background: rgba(0, 255, 65, 0.18);
   color: #d8ffe3;

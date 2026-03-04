@@ -1,64 +1,36 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMatch } from "@/hooks/useMatch";
 import { useGameClient } from "@/hooks/useGameClient";
 import { usePlayerKeys } from "@/hooks/usePlayerKeys";
+import { useMatchActions } from "@/hooks/useMatchActions";
+import { useCompanionMode } from "@/hooks/useCompanionMode";
+import { useDemoTurnFlow } from "@/hooks/useDemoTurnFlow";
 import { useSound } from "@/components/SoundProvider";
 import GameBoard from "@/components/GameBoard";
 import Toast from "@/components/Toast";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import TurnTimer from "@/components/TurnTimer";
 import { trackEvent } from "@/lib/analytics";
+import type { ActivityLogEntry } from "@/lib/activity";
 import {
-  advanceDemoTurn,
   buildDemoVisibilityReport,
   DEMO_MODE_ENABLED,
   getDemoUnitPositions,
   isDemoMatchId,
-  markDemoOpponentSubmitted,
-  markDemoOrdersSubmitted,
   saveDemoSnapshot,
   type DemoSnapshot,
 } from "@/lib/demo";
+import { buildWinnerOverlayKey, areOrdersReady } from "@/lib/match-state";
 import {
   MatchStatus,
-  OrderAction,
   type DecodedVisibilityReport,
   type OrderParams,
 } from "@sdk";
-
-// Re-export type for dynamic imports
-export type ActivityLogEntry = {
-  id: string;
-  message: string;
-  time: string;
-  tone: "info" | "success" | "error";
-};
-
-type CompanionSuggestion = {
-  order: OrderParams;
-  title: string;
-  reason: string;
-  reasonKey: string;
-  memoryKey: string;
-};
-
-type CompanionHistoryEntry = {
-  unitSlot: number;
-  action: OrderAction;
-  targetX: number;
-  targetY: number;
-  reasonKey: string;
-  memoryKey: string;
-};
-
-type CompanionCandidate = CompanionSuggestion & {
-  score: number;
-};
 
 function buildInitialDemoActivity(): ActivityLogEntry[] {
   return [
@@ -135,8 +107,6 @@ function MatchPageInner() {
   );
   const { keys, ensureKeys } = usePlayerKeys();
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [actionTone, setActionTone] = useState<"info" | "success" | "error">("info");
   const [visibilityReport, setVisibilityReport] =
     useState<DecodedVisibilityReport | null>(null);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
@@ -144,19 +114,22 @@ function MatchPageInner() {
   const [pendingAction, setPendingAction] = useState<
     null | "join" | "orders" | "resolve" | "visibility" | "refresh"
   >(null);
-  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const [tutorialHighlight, setTutorialHighlight] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState(false);
   const [winnerOverlayVisible, setWinnerOverlayVisible] = useState(false);
   const [lastWinnerKey, setLastWinnerKey] = useState<string | null>(null);
-  const [companionEnabled, setCompanionEnabled] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem("fog-of-war-companion-enabled") !== "0";
-  });
-  const [companionHistory, setCompanionHistory] = useState<CompanionHistoryEntry[]>([]);
   const [orderPrefill, setOrderPrefill] = useState<OrderParams | null>(null);
   const [orderPrefillNonce, setOrderPrefillNonce] = useState(0);
-  const demoOpponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    actionMessage,
+    actionTone,
+    activityLog,
+    appendActivity,
+    showStatus,
+    resetActivity,
+    setActionMessage,
+    setActionTone,
+  } = useMatchActions();
   const playerSlot =
     demoMode
       ? 0
@@ -165,22 +138,6 @@ function MatchPageInner() {
       : null;
   const isPlayer = playerSlot !== null;
   const isBusy = pendingAction !== null;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      "fog-of-war-companion-enabled",
-      companionEnabled ? "1" : "0",
-    );
-  }, [companionEnabled]);
-
-  useEffect(() => {
-    return () => {
-      if (demoOpponentTimeoutRef.current) {
-        clearTimeout(demoOpponentTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Analytics: track match view
   useEffect(() => {
@@ -204,16 +161,33 @@ function MatchPageInner() {
     }));
   }, [visibilityReport]);
 
+  const {
+    companionEnabled,
+    setCompanionEnabled,
+    companionSuggestion,
+    recordCompanionHistory,
+  } = useCompanionMode({
+    match,
+    matchId,
+    playerSlot,
+    selectedCell,
+    visibilityReport,
+  });
+
+  const { clearPendingLock, submitDemoOrder, resolveDemoTurn } = useDemoTurnFlow({
+    enabled: demoMode,
+    updateMatch,
+    appendActivity,
+    showStatus,
+    playSound,
+  });
+
   // Save demo snapshots for replay
   useEffect(() => {
     if (demoMode && match) {
       saveDemoSnapshot(match);
     }
   }, [demoMode, match]);
-
-  useEffect(() => {
-    setCompanionHistory([]);
-  }, [matchId]);
 
   const summary = useMemo(
     () =>
@@ -228,255 +202,25 @@ function MatchPageInner() {
     [client, match],
   );
 
-  const companionSuggestion = useMemo<CompanionSuggestion | null>(() => {
-    if (
-      !companionEnabled ||
-      !match ||
-      playerSlot === null ||
-      match.status !== MatchStatus.Active
-    ) {
-      return null;
-    }
-
-    const size = Math.sqrt(match.revealedSectorOwner.length) || 1;
-    const center = (size - 1) / 2;
-    const tiles = match.revealedSectorOwner.map((owner, index) => {
-      const x = index % size;
-      const y = Math.floor(index / size);
-      const score = Math.abs(x - center) + Math.abs(y - center);
-      return { owner, x, y, score };
-    });
-    const candidates: CompanionCandidate[] = [];
-
-    const addCandidate = (
-      order: OrderParams,
-      title: string,
-      reason: string,
-      reasonKey: string,
-      baseScore: number,
-    ) => {
-      const memoryKey = `${order.unitSlot}-${order.action}-${order.targetX}-${order.targetY}-${reasonKey}`;
-      let score = baseScore;
-
-      for (const entry of companionHistory) {
-        if (entry.action === order.action) score -= 5;
-        if (entry.unitSlot === order.unitSlot) score -= 3;
-        if (entry.targetX === order.targetX && entry.targetY === order.targetY) score -= 10;
-        if (entry.reasonKey === reasonKey) score -= 7;
-        if (entry.memoryKey === memoryKey) score -= 14;
-      }
-
-      candidates.push({
-        order,
-        title,
-        reason,
-        reasonKey,
-        memoryKey,
-        score,
-      });
-    };
-
-    const threatNearCommand = tiles.some(
-      (tile) =>
-        (tile.owner === 2 || tile.owner === 3 || tile.owner === 4) &&
-        tile.x <= 2 &&
-        tile.y <= 2,
-    );
-
-    if (visibilityReport && visibilityReport.units.length > 0) {
-      for (const target of visibilityReport.units.slice(0, 2)) {
-        const distanceFromCenter =
-          Math.abs(target.x - center) + Math.abs(target.y - center);
-        addCandidate(
-          {
-            unitSlot: 2,
-            action: OrderAction.Attack,
-            targetX: target.x,
-            targetY: target.y,
-          },
-          `Attack sector (${target.x}, ${target.y})`,
-          "Attack the clearest hostile contact before it can reposition.",
-          "attack-visible",
-          96 - distanceFromCenter * 3,
-        );
-      }
-    }
-
-    if (threatNearCommand) {
-      const fallbackTile =
-        tiles
-          .filter((tile) => tile.owner === 1)
-          .sort((a, b) => a.score - b.score)[0] ?? { x: 1, y: 1, score: 0 };
-      addCandidate(
-        {
-          unitSlot: 2,
-          action: OrderAction.Move,
-          targetX: fallbackTile.x,
-          targetY: fallbackTile.y,
-        },
-        `Reposition command to (${fallbackTile.x}, ${fallbackTile.y})`,
-        "Enemy pressure is near your base, so preserving the command fleet takes priority.",
-        "protect-command",
-        82,
-      );
-    }
-
-    for (const contested of tiles
-      .filter((tile) => tile.owner === 3)
-      .sort((a, b) => a.score - b.score)
-      .slice(0, 2)) {
-      addCandidate(
-        {
-          unitSlot: 1,
-          action: OrderAction.Scout,
-          targetX: contested.x,
-          targetY: contested.y,
-        },
-        `Scout sector (${contested.x}, ${contested.y})`,
-        "Scout the contested center to expand vision before committing heavier units.",
-        "scout-contested",
-        76 - contested.score * 4,
-      );
-    }
-
-    for (const neutral of tiles
-      .filter((tile) => tile.owner === 0)
-      .sort((a, b) => a.score - b.score)
-      .slice(0, 2)) {
-      addCandidate(
-        {
-          unitSlot: 0,
-          action: OrderAction.Move,
-          targetX: neutral.x,
-          targetY: neutral.y,
-        },
-        `Advance to sector (${neutral.x}, ${neutral.y})`,
-        "Advance into open space to improve board control without overextending.",
-        "expand-neutral",
-        62 - neutral.score * 3,
-      );
-    }
-
-    if (selectedCell) {
-      addCandidate(
-        {
-          unitSlot: 1,
-          action: OrderAction.Scout,
-          targetX: selectedCell.x,
-          targetY: selectedCell.y,
-        },
-        `Probe sector (${selectedCell.x}, ${selectedCell.y})`,
-        "Your selected sector is a good probe point if you want to test this lane next.",
-        "probe-selected",
-        58,
-      );
-    }
-
-    if (candidates.length === 0) {
-      addCandidate(
-        {
-          unitSlot: 1,
-          action: OrderAction.Scout,
-          targetX: 0,
-          targetY: 0,
-        },
-        "Scout sector (0, 0)",
-        "No strong signal is visible, so a cautious scout keeps the initiative without overcommitting.",
-        "fallback-scout",
-        48,
-      );
-    }
-
-    candidates.sort((a, b) => b.score - a.score);
-    const best = candidates[0];
-    return best
-      ? {
-          order: best.order,
-          title: best.title,
-          reason: best.reason,
-          reasonKey: best.reasonKey,
-          memoryKey: best.memoryKey,
-        }
-      : null;
-  }, [
-    companionEnabled,
-    companionHistory,
-    match,
-    playerSlot,
-    selectedCell,
-    visibilityReport,
-  ]);
-
-  const appendActivity = useCallback(
-    (message: string, tone: "info" | "success" | "error" = "info") => {
-      const entry: ActivityLogEntry = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        message,
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        tone,
-      };
-      setActivityLog((current) => [entry, ...current].slice(0, 8));
-    },
-    [],
-  );
-
-  const showStatus = useCallback(
-    (
-      message: string,
-      tone: "info" | "success" | "error" = "info",
-      log = false,
-    ) => {
-      setActionMessage(message);
-      setActionTone(tone);
-      if (log) {
-        appendActivity(message, tone);
-      }
-    },
-    [appendActivity],
-  );
-
-  const recordCompanionHistory = useCallback(
-    (
-      order: OrderParams,
-      source?: Pick<CompanionSuggestion, "reasonKey" | "memoryKey"> | null,
-    ) => {
-      setCompanionHistory((current) => {
-        const nextEntry: CompanionHistoryEntry = {
-          unitSlot: order.unitSlot,
-          action: order.action,
-          targetX: order.targetX,
-          targetY: order.targetY,
-          reasonKey: source?.reasonKey ?? "manual-order",
-          memoryKey:
-            source?.memoryKey ??
-            `${order.unitSlot}-${order.action}-${order.targetX}-${order.targetY}-manual-order`,
-        };
-        return [nextEntry, ...current].slice(0, 3);
-      });
-    },
-    [],
-  );
-
   useEffect(() => {
     if (!demoMode) return;
     setActionMessage("Demo mode is active. No MXE or wallet is required.");
     setActionTone("info");
-    setActivityLog((current) =>
-      current.length > 0
-        ? current
-        : buildInitialDemoActivity(),
-    );
-  }, [demoMode]);
+    if (activityLog.length === 0) {
+      resetActivity(buildInitialDemoActivity());
+    }
+  }, [activityLog.length, demoMode, resetActivity, setActionMessage, setActionTone]);
 
   useEffect(() => {
-    if (!summary || summary.winner === 255 || matchId === null || !match) return;
+    if (!summary || matchId === null || !match) return;
 
-    const winnerKey = `${matchId.toString()}-${summary.winner}-${match.turn}`;
-    if (winnerKey === lastWinnerKey) return;
+    const winnerKey = buildWinnerOverlayKey(
+      matchId,
+      summary.winner,
+      match.turn,
+      match.status,
+    );
+    if (!winnerKey || winnerKey === lastWinnerKey) return;
 
     setLastWinnerKey(winnerKey);
     setWinnerOverlayVisible(true);
@@ -698,40 +442,7 @@ function MatchPageInner() {
         : null;
 
     if (demoMode) {
-      if (demoOpponentTimeoutRef.current) {
-        clearTimeout(demoOpponentTimeoutRef.current);
-      }
-      playSound("uplink");
-      showStatus(
-        `Simulating ${order.action === 2 ? "attack" : "maneuver"} from unit ${order.unitSlot + 1}...`,
-        "info",
-        true,
-      );
-      updateMatch((current) =>
-        markDemoOrdersSubmitted(current, {
-          targetX: order.targetX,
-          targetY: order.targetY,
-          action: order.action,
-        }),
-      );
-      recordCompanionHistory(order, matchedSuggestion);
-      appendActivity(
-        `Your order is staged for sector (${order.targetX}, ${order.targetY}).`,
-        "info",
-      );
-      trackEvent("ordersSubmitted");
-      playSound("success");
-      showStatus(
-        "Order queued. Demo AI is locking in. You can still replace this order before resolve.",
-        "success",
-      );
-      demoOpponentTimeoutRef.current = setTimeout(() => {
-        updateMatch((current) => markDemoOpponentSubmitted(current));
-        appendActivity("Enemy commander has locked in a response.", "success");
-        playSound("success");
-        showStatus("Both orders are locked. Resolve the turn when ready.", "success");
-        demoOpponentTimeoutRef.current = null;
-      }, 900);
+      submitDemoOrder(order, () => recordCompanionHistory(order, matchedSuggestion));
       return;
     }
 
@@ -768,16 +479,7 @@ function MatchPageInner() {
 
   const handleResolveTurn = async () => {
     if (demoMode) {
-      if (demoOpponentTimeoutRef.current) {
-        clearTimeout(demoOpponentTimeoutRef.current);
-        demoOpponentTimeoutRef.current = null;
-      }
-      playSound("resolve");
-      showStatus("Resolving simulated turn...", "info", true);
-      updateMatch((current) => advanceDemoTurn(current));
-      trackEvent("turnsPlayed");
-      appendActivity("Recon updates and battle results refreshed locally.", "success");
-      showStatus("Demo turn resolved.", "success");
+      resolveDemoTurn();
       return;
     }
 
@@ -876,10 +578,7 @@ function MatchPageInner() {
   const handleRefresh = async () => {
     setPendingAction("refresh");
     try {
-      if (demoOpponentTimeoutRef.current) {
-        clearTimeout(demoOpponentTimeoutRef.current);
-        demoOpponentTimeoutRef.current = null;
-      }
+      clearPendingLock();
       await refresh();
       if (demoMode) {
         setSelectedCell(null);
@@ -889,7 +588,7 @@ function MatchPageInner() {
         setDecryptingVisibility(false);
         setActionMessage("Demo mode is active. No MXE or wallet is required.");
         setActionTone("info");
-        setActivityLog(buildInitialDemoActivity());
+        resetActivity(buildInitialDemoActivity());
         setWinnerOverlayVisible(false);
         setLastWinnerKey(null);
       }
@@ -916,9 +615,7 @@ function MatchPageInner() {
     publicKey;
   const canSubmitOrders =
     match.status === MatchStatus.Active && isPlayer && playerSlot !== null;
-  const allOrdersReady = match.submittedOrders
-    .slice(0, match.playerCount)
-    .every((submitted) => submitted !== 0);
+  const allOrdersReady = areOrdersReady(match.submittedOrders, match.playerCount);
   const canResolve =
     match.status === MatchStatus.Active &&
     (demoMode ? allOrdersReady : Boolean(client?.allOrdersSubmitted(match)));
@@ -972,6 +669,7 @@ function MatchPageInner() {
           <button
             data-sound-manual="true"
             onClick={handleShareLink}
+            aria-label="Copy this match link to the clipboard"
             className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] sm:w-auto"
             title="Copy match link to clipboard"
           >
@@ -981,6 +679,7 @@ function MatchPageInner() {
             data-sound-manual="true"
             onClick={handleRefresh}
             disabled={isBusy}
+            aria-label={demoMode ? "Reset the local demo session" : "Refresh match state"}
             className="w-full border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)] sm:w-auto"
           >
             {pendingAction === "refresh"
@@ -1121,6 +820,7 @@ function MatchPageInner() {
                 <button
                   data-sound-manual="true"
                   onClick={() => setCompanionEnabled((current) => !current)}
+                  aria-label={companionEnabled ? "Turn companion mode off" : "Turn companion mode on"}
                   className={`border px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] sm:px-3 sm:py-1.5 sm:text-[9px] ${
                     companionEnabled
                       ? "border-[#005f52] bg-[rgba(0,229,204,0.03)] text-[#00e5cc]"
@@ -1149,6 +849,7 @@ function MatchPageInner() {
                       data-sound-manual="true"
                       onClick={handleApplyCompanionSuggestion}
                       disabled={isBusy}
+                      aria-label="Load the suggested move into fire control"
                       className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-40"
                     >
                       Apply Suggestion

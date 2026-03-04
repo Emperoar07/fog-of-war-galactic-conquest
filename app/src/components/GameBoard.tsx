@@ -83,7 +83,7 @@ const BoardCell = memo(function BoardCell({
         isSelected
           ? "scale-[1.02] border-[#ff3333] shadow-[0_0_18px_rgba(255,51,51,0.18)]"
           : ""
-      }`}
+      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00e5cc] focus-visible:ring-offset-1 focus-visible:ring-offset-[#010801]`}
       style={{
         backgroundColor: CELL_BG[owner] || CELL_BG[0],
         borderColor: isSelected
@@ -180,12 +180,19 @@ export default function GameBoard({
         <div className="text-[8px] uppercase tracking-[0.34em] text-[#0c6d1f] sm:text-[9px]">
           Battlefield Grid
         </div>
+        <div
+          id="battlefield-keyboard-hint"
+          className="mt-1 text-[8px] uppercase tracking-[0.14em] text-[#084010] sm:text-[9px]"
+        >
+          Arrow keys move the selector. Press Enter to lock the current sector.
+        </div>
       </div>
       <div
         className="grid gap-1 sm:gap-1.5 md:gap-2"
         style={{ gridTemplateColumns: `repeat(${MAP_SIZE}, minmax(0, 1fr))` }}
         role="grid"
         aria-label="Battlefield grid"
+        aria-describedby="battlefield-keyboard-hint"
       >
         {Array.from({ length: MAP_SIZE * MAP_SIZE }, (_, i) => {
           const x = i % MAP_SIZE;
