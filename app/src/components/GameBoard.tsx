@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { MAP_SIZE, UnitType, UNITS_PER_PLAYER } from "@sdk";
 
 interface GameBoardProps {
@@ -168,17 +168,7 @@ export default function GameBoard({
     }
   }
 
-  // Radar sweep on turn change
-  const [sweeping, setSweeping] = useState(false);
-  const prevTurn = useRef(turn);
-  useEffect(() => {
-    if (turn !== undefined && prevTurn.current !== undefined && turn !== prevTurn.current) {
-      setSweeping(true);
-      const timer = setTimeout(() => setSweeping(false), 1200);
-      return () => clearTimeout(timer);
-    }
-    prevTurn.current = turn;
-  }, [turn]);
+  const sweepKey = turn ?? "no-turn";
 
   // Mobile zoom
   const [zoomed, setZoomed] = useState(false);
@@ -247,12 +237,13 @@ export default function GameBoard({
       </div>
       <div className={`relative ${zoomed ? "overflow-auto" : "overflow-hidden"}`}>
         {/* Radar sweep overlay */}
-        {sweeping && (
+        {turn !== undefined && (
           <div
+            key={`sweep-${sweepKey}`}
             className="pointer-events-none absolute inset-0 z-10"
             style={{
               background: "linear-gradient(180deg, transparent, rgba(0,255,65,0.12), transparent)",
-              animation: "radarSweep 1.2s ease-out forwards",
+              animation: "radarSweep 1.2s ease-out",
             }}
           />
         )}
