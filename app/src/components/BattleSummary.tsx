@@ -10,11 +10,13 @@ import {
 interface BattleSummaryProps {
   match: GalaxyMatch;
   summary: BattleSummaryType;
+  playerLabels?: string[];
 }
 
 export default memo(function BattleSummary({
   match,
   summary,
+  playerLabels,
 }: BattleSummaryProps) {
   const hasData = match.turn > 0 || summary.winner !== NO_WINNER;
 
@@ -44,7 +46,7 @@ export default memo(function BattleSummary({
             className="flex min-h-0 flex-1 flex-col justify-center border border-[#0e2a0e] bg-[#021202] px-3 py-1.5 sm:px-3 sm:py-2"
           >
             <div className="text-[8px] uppercase tracking-[0.22em] text-[#0c6d1f] sm:text-[9px] sm:tracking-[0.24em]">
-              Player {i + 1}
+              {playerLabels?.[i] ?? `Player ${i + 1}`}
             </div>
             <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[9px] uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.16em]">
               <span className="text-[#00aa2a]">

@@ -889,18 +889,25 @@ function MatchPageInner() {
             {match.players.map((p, i) => {
               const isEmpty = p.toBase58() === "11111111111111111111111111111111";
               if (i >= match.playerCount) return null;
+
+              let label: string;
+              let value: string;
+              if (localMode && i === 0) {
+                label = "Player 1 (you)";
+                value = "Commander";
+              } else if (localMode && i === 1) {
+                label = "Player 2";
+                value = aiDifficulty ? `AI — ${getAiProfile(aiDifficulty).label}` : "Simulated";
+              } else {
+                label = `Player ${i + 1}${publicKey && p.toBase58() === publicKey.toBase58() ? " (you)" : ""}`;
+                value = isEmpty ? "Empty" : `${p.toBase58().slice(0, 4)}...${p.toBase58().slice(-4)}`;
+              }
+
               return (
                 <div key={i} className="flex justify-between gap-3 text-[9px] uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.14em]">
-                  <span className="text-[#0c6d1f]">
-                    Player {i + 1}
-                    {publicKey && p.toBase58() === publicKey.toBase58()
-                      ? " (you)"
-                      : ""}
-                  </span>
-                  <span className={`text-right ${isEmpty ? "text-[#084010]" : "text-[#00cc33]"}`}>
-                    {isEmpty
-                      ? "Empty"
-                      : `${p.toBase58().slice(0, 4)}...${p.toBase58().slice(-4)}`}
+                  <span className="text-[#0c6d1f]">{label}</span>
+                  <span className={`text-right ${isEmpty && !localMode ? "text-[#084010]" : "text-[#00cc33]"}`}>
+                    {value}
                   </span>
                 </div>
               );
@@ -908,7 +915,11 @@ function MatchPageInner() {
           </div>
         </div>
 
-        <BattleSummary match={match} summary={resolvedSummary} />
+        <BattleSummary
+          match={match}
+          summary={resolvedSummary}
+          playerLabels={localMode ? ["You", aiDifficulty ? `AI (${getAiProfile(aiDifficulty).label})` : "Simulated"] : undefined}
+        />
       </div>
 
       {actionMessage && (
