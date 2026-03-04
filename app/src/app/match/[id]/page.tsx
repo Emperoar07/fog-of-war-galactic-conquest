@@ -43,6 +43,21 @@ type CompanionSuggestion = {
   order: OrderParams;
   title: string;
   reason: string;
+  reasonKey: string;
+  memoryKey: string;
+};
+
+type CompanionHistoryEntry = {
+  unitSlot: number;
+  action: OrderAction;
+  targetX: number;
+  targetY: number;
+  reasonKey: string;
+  memoryKey: string;
+};
+
+type CompanionCandidate = CompanionSuggestion & {
+  score: number;
 };
 
 function buildInitialDemoActivity(): ActivityLogEntry[] {
@@ -138,6 +153,7 @@ function MatchPageInner() {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem("fog-of-war-companion-enabled") !== "0";
   });
+  const [companionHistory, setCompanionHistory] = useState<CompanionHistoryEntry[]>([]);
   const [orderPrefill, setOrderPrefill] = useState<OrderParams | null>(null);
   const [orderPrefillNonce, setOrderPrefillNonce] = useState(0);
   const demoOpponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -195,6 +211,10 @@ function MatchPageInner() {
     }
   }, [demoMode, match]);
 
+  useEffect(() => {
+    setCompanionHistory([]);
+  }, [matchId]);
+
   const summary = useMemo(
     () =>
       match
@@ -218,21 +238,6 @@ function MatchPageInner() {
       return null;
     }
 
-    if (visibilityReport && visibilityReport.units.length > 0) {
-      const target = visibilityReport.units[0];
-      return {
-        order: {
-          unitSlot: 2,
-          action: OrderAction.Attack,
-          targetX: target.x,
-          targetY: target.y,
-        },
-        title: `Attack sector (${target.x}, ${target.y})`,
-        reason:
-          "Visible enemy contact is already on your scanners. Strike now before the target moves.",
-      };
-    }
-
     const size = Math.sqrt(match.revealedSectorOwner.length) || 1;
     const center = (size - 1) / 2;
     const tiles = match.revealedSectorOwner.map((owner, index) => {
@@ -241,56 +246,166 @@ function MatchPageInner() {
       const score = Math.abs(x - center) + Math.abs(y - center);
       return { owner, x, y, score };
     });
+    const candidates: CompanionCandidate[] = [];
 
-    const contested =
-      tiles
-        .filter((tile) => tile.owner === 3)
-        .sort((a, b) => a.score - b.score)[0] ?? null;
-    if (contested) {
-      return {
-        order: {
+    const addCandidate = (
+      order: OrderParams,
+      title: string,
+      reason: string,
+      reasonKey: string,
+      baseScore: number,
+    ) => {
+      const memoryKey = `${order.unitSlot}-${order.action}-${order.targetX}-${order.targetY}-${reasonKey}`;
+      let score = baseScore;
+
+      for (const entry of companionHistory) {
+        if (entry.action === order.action) score -= 5;
+        if (entry.unitSlot === order.unitSlot) score -= 3;
+        if (entry.targetX === order.targetX && entry.targetY === order.targetY) score -= 10;
+        if (entry.reasonKey === reasonKey) score -= 7;
+        if (entry.memoryKey === memoryKey) score -= 14;
+      }
+
+      candidates.push({
+        order,
+        title,
+        reason,
+        reasonKey,
+        memoryKey,
+        score,
+      });
+    };
+
+    const threatNearCommand = tiles.some(
+      (tile) =>
+        (tile.owner === 2 || tile.owner === 3 || tile.owner === 4) &&
+        tile.x <= 2 &&
+        tile.y <= 2,
+    );
+
+    if (visibilityReport && visibilityReport.units.length > 0) {
+      for (const target of visibilityReport.units.slice(0, 2)) {
+        const distanceFromCenter =
+          Math.abs(target.x - center) + Math.abs(target.y - center);
+        addCandidate(
+          {
+            unitSlot: 2,
+            action: OrderAction.Attack,
+            targetX: target.x,
+            targetY: target.y,
+          },
+          `Attack sector (${target.x}, ${target.y})`,
+          "Attack the clearest hostile contact before it can reposition.",
+          "attack-visible",
+          96 - distanceFromCenter * 3,
+        );
+      }
+    }
+
+    if (threatNearCommand) {
+      const fallbackTile =
+        tiles
+          .filter((tile) => tile.owner === 1)
+          .sort((a, b) => a.score - b.score)[0] ?? { x: 1, y: 1, score: 0 };
+      addCandidate(
+        {
+          unitSlot: 2,
+          action: OrderAction.Move,
+          targetX: fallbackTile.x,
+          targetY: fallbackTile.y,
+        },
+        `Reposition command to (${fallbackTile.x}, ${fallbackTile.y})`,
+        "Enemy pressure is near your base, so preserving the command fleet takes priority.",
+        "protect-command",
+        82,
+      );
+    }
+
+    for (const contested of tiles
+      .filter((tile) => tile.owner === 3)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 2)) {
+      addCandidate(
+        {
           unitSlot: 1,
           action: OrderAction.Scout,
           targetX: contested.x,
           targetY: contested.y,
         },
-        title: `Scout sector (${contested.x}, ${contested.y})`,
-        reason:
-          "A contested sector is the best place to gather intel before committing your attack line.",
-      };
+        `Scout sector (${contested.x}, ${contested.y})`,
+        "Scout the contested center to expand vision before committing heavier units.",
+        "scout-contested",
+        76 - contested.score * 4,
+      );
     }
 
-    const neutral =
-      tiles
-        .filter((tile) => tile.owner === 0)
-        .sort((a, b) => a.score - b.score)[0] ?? null;
-    if (neutral) {
-      return {
-        order: {
+    for (const neutral of tiles
+      .filter((tile) => tile.owner === 0)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 2)) {
+      addCandidate(
+        {
           unitSlot: 0,
           action: OrderAction.Move,
           targetX: neutral.x,
           targetY: neutral.y,
         },
-        title: `Advance to sector (${neutral.x}, ${neutral.y})`,
-        reason:
-          "This route expands your control toward the center without exposing the command fleet too aggressively.",
-      };
+        `Advance to sector (${neutral.x}, ${neutral.y})`,
+        "Advance into open space to improve board control without overextending.",
+        "expand-neutral",
+        62 - neutral.score * 3,
+      );
     }
 
-    const fallback = selectedCell ?? { x: 0, y: 0 };
-    return {
-      order: {
-        unitSlot: 1,
-        action: OrderAction.Scout,
-        targetX: fallback.x,
-        targetY: fallback.y,
-      },
-      title: `Probe sector (${fallback.x}, ${fallback.y})`,
-      reason:
-        "No clear public target is available, so a scout action keeps pressure on the board while preserving flexibility.",
-    };
-  }, [companionEnabled, match, playerSlot, selectedCell, visibilityReport]);
+    if (selectedCell) {
+      addCandidate(
+        {
+          unitSlot: 1,
+          action: OrderAction.Scout,
+          targetX: selectedCell.x,
+          targetY: selectedCell.y,
+        },
+        `Probe sector (${selectedCell.x}, ${selectedCell.y})`,
+        "Your selected sector is a good probe point if you want to test this lane next.",
+        "probe-selected",
+        58,
+      );
+    }
+
+    if (candidates.length === 0) {
+      addCandidate(
+        {
+          unitSlot: 1,
+          action: OrderAction.Scout,
+          targetX: 0,
+          targetY: 0,
+        },
+        "Scout sector (0, 0)",
+        "No strong signal is visible, so a cautious scout keeps the initiative without overcommitting.",
+        "fallback-scout",
+        48,
+      );
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    const best = candidates[0];
+    return best
+      ? {
+          order: best.order,
+          title: best.title,
+          reason: best.reason,
+          reasonKey: best.reasonKey,
+          memoryKey: best.memoryKey,
+        }
+      : null;
+  }, [
+    companionEnabled,
+    companionHistory,
+    match,
+    playerSlot,
+    selectedCell,
+    visibilityReport,
+  ]);
 
   const appendActivity = useCallback(
     (message: string, tone: "info" | "success" | "error" = "info") => {
@@ -322,6 +437,28 @@ function MatchPageInner() {
       }
     },
     [appendActivity],
+  );
+
+  const recordCompanionHistory = useCallback(
+    (
+      order: OrderParams,
+      source?: Pick<CompanionSuggestion, "reasonKey" | "memoryKey"> | null,
+    ) => {
+      setCompanionHistory((current) => {
+        const nextEntry: CompanionHistoryEntry = {
+          unitSlot: order.unitSlot,
+          action: order.action,
+          targetX: order.targetX,
+          targetY: order.targetY,
+          reasonKey: source?.reasonKey ?? "manual-order",
+          memoryKey:
+            source?.memoryKey ??
+            `${order.unitSlot}-${order.action}-${order.targetX}-${order.targetY}-manual-order`,
+        };
+        return [nextEntry, ...current].slice(0, 3);
+      });
+    },
+    [],
   );
 
   useEffect(() => {
@@ -551,6 +688,15 @@ function MatchPageInner() {
   };
 
   const handleSubmitOrder = async (order: OrderParams) => {
+    const matchedSuggestion =
+      companionSuggestion &&
+      companionSuggestion.order.unitSlot === order.unitSlot &&
+      companionSuggestion.order.action === order.action &&
+      companionSuggestion.order.targetX === order.targetX &&
+      companionSuggestion.order.targetY === order.targetY
+        ? companionSuggestion
+        : null;
+
     if (demoMode) {
       if (demoOpponentTimeoutRef.current) {
         clearTimeout(demoOpponentTimeoutRef.current);
@@ -568,6 +714,7 @@ function MatchPageInner() {
           action: order.action,
         }),
       );
+      recordCompanionHistory(order, matchedSuggestion);
       appendActivity(
         `Your order is staged for sector (${order.targetX}, ${order.targetY}).`,
         "info",
@@ -600,6 +747,7 @@ function MatchPageInner() {
         order,
         keys.privateKey,
       );
+      recordCompanionHistory(order, matchedSuggestion);
       showStatus("Order queued. Waiting for MPC computation...", "info", true);
       await client.awaitComputation(result.computationOffset);
       trackEvent("ordersSubmitted");

@@ -32,21 +32,21 @@ export default memo(function BattleSummary({
   }
 
   return (
-    <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[176px]">
+    <div className="flex flex-col overflow-hidden border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[176px]">
       <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
         BATTLE LOGIC
       </h3>
 
-      <div className="mt-2 grid gap-1.5 text-sm sm:mt-2.5 sm:gap-2">
+      <div className="mt-2 flex min-h-0 flex-1 flex-col gap-1.5 text-sm sm:mt-2.5 sm:gap-2">
         {Array.from({ length: match.playerCount }, (_, i) => (
           <div
             key={i}
-            className="border border-[#0e2a0e] bg-[#021202] px-3 py-2 sm:py-2.5"
+            className="flex min-h-0 flex-1 flex-col justify-center border border-[#0e2a0e] bg-[#021202] px-3 py-1.5 sm:px-3 sm:py-2"
           >
             <div className="text-[8px] uppercase tracking-[0.22em] text-[#0c6d1f] sm:text-[9px] sm:tracking-[0.24em]">
               Player {i + 1}
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[9px] uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.16em]">
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[9px] uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.16em]">
               <span className="text-[#00aa2a]">
                 Destroyed {summary.destroyedByPlayer[i]}
               </span>

@@ -49,7 +49,9 @@ export default function Home() {
   }, [showGuide]);
 
   return (
-    <div className="space-y-2">
+    <div className="relative space-y-2 overflow-hidden">
+      <div className="pointer-events-none absolute inset-y-0 left-[-45%] z-0 w-1/2 animate-[scanner_8s_linear_infinite] bg-linear-to-r from-transparent via-[rgba(0,255,65,0.035)] to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-px bg-[rgba(0,255,65,0.06)]" />
       {showGuide && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4"
@@ -125,7 +127,7 @@ export default function Home() {
                   </li>
                   <li>
                     5. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
-                    want a suggested move before you commit.
+                    want a smarter suggested move before you commit.
                   </li>
                   <li>
                     6. After you queue an order, the demo AI locks in shortly
@@ -212,10 +214,39 @@ export default function Home() {
                   </li>
                   <li>
                     - Companion Mode only suggests; you still choose whether to
-                    apply and submit.
+                    apply and submit, and it avoids repeating the same advice
+                    unless the board still demands it.
                   </li>
                   <li>
                     - Battle Logic gives the fastest snapshot of who is ahead.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
+                <div className="text-[9px] uppercase tracking-[0.24em] text-[#00ff41]">
+                  Color Guide
+                </div>
+                <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
+                  <li>
+                    - <span className="text-[#00ff41]">Green</span>: your
+                    controlled sectors and friendly presence.
+                  </li>
+                  <li>
+                    - <span className="text-[#ffb000]">Amber</span>: enemy
+                    controlled sectors or enemy pressure.
+                  </li>
+                  <li>
+                    - <span className="text-[#00e5cc]">Cyan</span>: contested
+                    sectors, visibility intel, and shared tactical updates.
+                  </li>
+                  <li>
+                    - <span className="text-[#ff3333]">Red</span>: danger,
+                    damage, failed actions, or destroyed battle zones.
+                  </li>
+                  <li>
+                    - <span className="text-[#0c6d1f]">Dim green</span>: idle,
+                    waiting, hidden, or inactive interface states.
                   </li>
                 </ul>
               </div>
@@ -244,7 +275,7 @@ export default function Home() {
         </div>
       )}
 
-      <section className="border border-[#0e2a0e] bg-[#030d03] px-3 py-5 sm:px-5 sm:py-8">
+      <section className="relative z-10 border border-[#0e2a0e] bg-[#030d03] px-3 py-5 sm:px-5 sm:py-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_260px] lg:items-center">
           <div className="space-y-5">
             <div className="space-y-2">
@@ -305,12 +336,12 @@ export default function Home() {
       </section>
 
       {connected ? (
-        <div className="space-y-2">
+        <div className="relative z-10 space-y-2">
           <MXEStatusBanner />
           <Lobby />
         </div>
       ) : (
-        <section className="border border-[#0e2a0e] bg-[#030d03] px-5 py-8 text-center">
+        <section className="relative z-10 border border-[#0e2a0e] bg-[#030d03] px-5 py-8 text-center">
           <p className="text-sm uppercase tracking-[0.24em] text-[#00cc33]">
             Connect a wallet for live devnet matches
           </p>

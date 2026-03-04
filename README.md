@@ -47,7 +47,7 @@ You can use the project today in two ways:
 3. Use the demo battlefield to:
    - select a target sector
    - use Fire Control to queue a mock order
-   - optionally turn Companion Mode on for a suggested move
+   - optionally turn Companion Mode on for a smarter suggested move
    - replace that queued order any time before the turn resolves
    - resolve a simulated turn from the same panel
    - request a simulated visibility report from the same panel
@@ -63,7 +63,7 @@ The demo does not require a wallet and does not depend on live MXE encryption.
 3. Join a match if a player slot is open.
 4. Once the match is active:
    - submit one encrypted order per turn from Fire Control
-   - optionally turn Companion Mode on for a local tactical suggestion
+   - optionally turn Companion Mode on for a local tactical suggestion with anti-repeat memory
    - request visibility when needed from the same panel
    - resolve the turn after all players have submitted
    - use the Audio toggle if you want ambient sound plus button, action, and victory effects
@@ -85,6 +85,14 @@ Important:
 4. Use:
    - the demo path for a guaranteed playable UI loop
    - wallet-connected devnet mode for live network interaction
+
+### Color Guide
+
+- **Green**: your controlled sectors and friendly presence
+- **Amber**: enemy controlled sectors or enemy pressure
+- **Cyan**: contested sectors, visibility intel, and shared tactical updates
+- **Red**: danger, damage, failed actions, or destroyed battle zones
+- **Dim green**: idle, waiting, hidden, or inactive interface states
 
 ### What "Playing" Means Right Now
 
