@@ -1,26 +1,23 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMatch } from "@/hooks/useMatch";
 import { useGameClient } from "@/hooks/useGameClient";
 import { usePlayerKeys } from "@/hooks/usePlayerKeys";
 import { useSound } from "@/components/SoundProvider";
-import ActivityLog, { type ActivityLogEntry } from "@/components/ActivityLog";
 import GameBoard from "@/components/GameBoard";
-import TurnStatus from "@/components/TurnStatus";
-import OrderPanel from "@/components/OrderPanel";
-import BattleSummary from "@/components/BattleSummary";
 import Toast from "@/components/Toast";
-import VisibilityPanel from "@/components/VisibilityPanel";
-import MXEStatusBanner from "@/components/MXEStatusBanner";
-import TutorialOverlay from "@/components/TutorialOverlay";
-import DemoReplay from "@/components/DemoReplay";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import TurnTimer from "@/components/TurnTimer";
+import { trackEvent } from "@/lib/analytics";
 import {
   advanceDemoTurn,
   buildDemoVisibilityReport,
   DEMO_MODE_ENABLED,
+  getDemoUnitPositions,
   isDemoMatchId,
   markDemoOrdersSubmitted,
   saveDemoSnapshot,
@@ -32,18 +29,58 @@ import {
   type OrderParams,
 } from "@sdk";
 
+// Re-export type for dynamic imports
+export type ActivityLogEntry = {
+  id: string;
+  message: string;
+  time: string;
+  tone: "info" | "success" | "error";
+};
+
+// Lazy-load side panel components
+const TurnStatus = dynamic(() => import("@/components/TurnStatus"), {
+  ssr: false,
+  loading: () => <div className="h-16 animate-pulse border border-[#0e2a0e] bg-[#030d03]" />,
+});
+const OrderPanel = dynamic(() => import("@/components/OrderPanel"), {
+  ssr: false,
+  loading: () => <div className="h-24 animate-pulse border border-[#0e2a0e] bg-[#030d03]" />,
+});
+const BattleSummary = dynamic(() => import("@/components/BattleSummary"), {
+  ssr: false,
+  loading: () => <div className="h-20 animate-pulse border border-[#0e2a0e] bg-[#030d03]" />,
+});
+const ActivityLog = dynamic(() => import("@/components/ActivityLog"), {
+  ssr: false,
+  loading: () => <div className="h-16 animate-pulse border border-[#0e2a0e] bg-[#030d03]" />,
+});
+const VisibilityPanel = dynamic(() => import("@/components/VisibilityPanel"), {
+  ssr: false,
+});
+const MXEStatusBanner = dynamic(() => import("@/components/MXEStatusBanner"), {
+  ssr: false,
+});
+const TutorialOverlay = dynamic(() => import("@/components/TutorialOverlay"), {
+  ssr: false,
+});
+const DemoReplay = dynamic(() => import("@/components/DemoReplay"), {
+  ssr: false,
+});
+
 export default function MatchPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-col items-center gap-3 py-16 text-center text-[#0c6d1f]">
-          <span className="h-10 w-10 animate-spin rounded-full border-2 border-[#0e2a0e] border-t-[#00ff41]" />
-          <span>Loading...</span>
-        </div>
-      }
-    >
-      <MatchPageInner />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex flex-col items-center gap-3 py-16 text-center text-[#0c6d1f]">
+            <span className="h-10 w-10 animate-spin rounded-full border-2 border-[#0e2a0e] border-t-[#00ff41]" />
+            <span>Loading...</span>
+          </div>
+        }
+      >
+        <MatchPageInner />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
@@ -74,6 +111,7 @@ function MatchPageInner() {
   >(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const [tutorialHighlight, setTutorialHighlight] = useState<string | null>(null);
+  const [shareToast, setShareToast] = useState(false);
   const playerSlot =
     demoMode
       ? 0
@@ -82,6 +120,28 @@ function MatchPageInner() {
       : null;
   const isPlayer = playerSlot !== null;
   const isBusy = pendingAction !== null;
+
+  // Analytics: track match view
+  useEffect(() => {
+    trackEvent("matchesViewed");
+    if (demoMode) trackEvent("demoStarts");
+  }, [demoMode]);
+
+  // Demo unit positions (memoized per turn)
+  const demoUnitPositions = useMemo(
+    () => (demoMode && match ? getDemoUnitPositions(match.turn) : []),
+    [demoMode, match],
+  );
+
+  // Visibility-derived unit positions for live mode
+  const visibilityUnits = useMemo(() => {
+    if (!visibilityReport) return [];
+    return visibilityReport.units.map((u) => ({
+      slot: u.slot,
+      x: u.x,
+      y: u.y,
+    }));
+  }, [visibilityReport]);
 
   // Save demo snapshots for replay
   useEffect(() => {
@@ -281,6 +341,17 @@ function MatchPageInner() {
     nextTurn: 0,
   };
 
+  const handleShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareToast(true);
+      playSound("uiTap");
+      setTimeout(() => setShareToast(false), 2000);
+    } catch {
+      // fallback: select text
+    }
+  };
+
   const handleJoin = async () => {
     if (demoMode) {
       playSound("uiTap");
@@ -329,11 +400,18 @@ function MatchPageInner() {
         "info",
         true,
       );
-      updateMatch((current) => markDemoOrdersSubmitted(current));
+      updateMatch((current) =>
+        markDemoOrdersSubmitted(current, {
+          targetX: order.targetX,
+          targetY: order.targetY,
+          action: order.action,
+        }),
+      );
       appendActivity(
         `Enemy commander mirrors your move toward sector (${order.targetX}, ${order.targetY}).`,
         "info",
       );
+      trackEvent("ordersSubmitted");
       playSound("success");
       showStatus("Demo orders locked in. Resolve the turn to continue.", "success");
       return;
@@ -353,6 +431,7 @@ function MatchPageInner() {
       );
       showStatus("Order queued. Waiting for MPC computation...", "info", true);
       await client.awaitComputation(result.computationOffset);
+      trackEvent("ordersSubmitted");
       playSound("success");
       showStatus("Order callback confirmed.", "success");
       appendActivity("Orders accepted for this turn.", "success");
@@ -373,6 +452,7 @@ function MatchPageInner() {
       playSound("resolve");
       showStatus("Resolving simulated turn...", "info", true);
       updateMatch((current) => advanceDemoTurn(current));
+      trackEvent("turnsPlayed");
       appendActivity("Recon updates and battle results refreshed locally.", "success");
       showStatus("Demo turn resolved.", "success");
       return;
@@ -390,6 +470,7 @@ function MatchPageInner() {
         true,
       );
       await client.awaitComputation(result.computationOffset);
+      trackEvent("turnsPlayed");
       playSound("success");
       showStatus("Turn resolution callback confirmed.", "success");
       appendActivity("Turn resolution completed.", "success");
@@ -412,6 +493,7 @@ function MatchPageInner() {
       const report = buildDemoVisibilityReport(match.turn);
       setVisibilityError(null);
       setVisibilityReport(report);
+      trackEvent("visibilityRequests");
       showStatus("Simulated scout report generated.", "success", true);
       appendActivity(
         `Scout drones tagged ${report.units.length} hostile contact(s).`,
@@ -443,6 +525,7 @@ function MatchPageInner() {
         keys.privateKey,
       );
       setVisibilityReport(report);
+      trackEvent("visibilityRequests");
       playSound("success");
       showStatus("Visibility report decrypted.", "success");
       appendActivity(
@@ -504,6 +587,12 @@ function MatchPageInner() {
         tone="error"
       />
 
+      {shareToast && (
+        <div className="fixed top-4 right-4 z-50 border border-[#0c6d1f] bg-[#030d03] px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[#00ff41] shadow-[0_0_20px_rgba(0,255,65,0.15)]">
+          Link copied to clipboard
+        </div>
+      )}
+
       {demoMode && (
         <TutorialOverlay onHighlight={(area) => setTutorialHighlight(area ?? null)} />
       )}
@@ -512,17 +601,26 @@ function MatchPageInner() {
         <h2 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.14em] text-[#00ff41] sm:text-4xl">
           Match #{matchId?.toString()}
         </h2>
-        <button
-          onClick={handleRefresh}
-          disabled={isBusy}
-          className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
-        >
-          {pendingAction === "refresh"
-            ? "Syncing..."
-            : demoMode
-              ? "Reset Demo"
-              : "Refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleShareLink}
+            className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)]"
+            title="Copy match link to clipboard"
+          >
+            Share Link
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={isBusy}
+            className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
+          >
+            {pendingAction === "refresh"
+              ? "Syncing..."
+              : demoMode
+                ? "Reset Demo"
+                : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 border border-[#0e2a0e] bg-[#030d03] px-3 py-2 sm:grid-cols-4 sm:px-4 sm:py-3">
@@ -583,20 +681,19 @@ function MatchPageInner() {
         </div>
       )}
 
-      {isBusy && (
-        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-[#00e5cc] sm:px-4 sm:py-3 sm:text-[10px]">
-          Uplink active: {pendingAction === "orders"
-            ? "submitting encrypted orders"
+      <TurnTimer
+        key={pendingAction ?? "idle"}
+        active={pendingAction === "orders" || pendingAction === "resolve" || pendingAction === "visibility"}
+        label={
+          pendingAction === "orders"
+            ? "Submitting Encrypted Orders"
             : pendingAction === "resolve"
-              ? "resolving turn"
+              ? "Resolving Turn"
               : pendingAction === "visibility"
-                ? "requesting visibility"
-                : pendingAction === "join"
-                  ? "joining match"
-                  : "refreshing match state"}
-          ...
-        </div>
-      )}
+                ? "Requesting Visibility"
+                : "Uplink Active"
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)]">
         <div className="flex justify-center">
@@ -605,6 +702,7 @@ function MatchPageInner() {
             selectedCell={selectedCell}
             onCellClick={(x, y) => setSelectedCell({ x, y })}
             highlightBoard={tutorialHighlight === "board"}
+            unitPositions={demoMode ? demoUnitPositions : visibilityUnits}
           />
         </div>
 

@@ -3,6 +3,7 @@ import { Share_Tech_Mono, VT323 } from "next/font/google";
 import "./globals.css";
 import WalletProvider from "@/components/WalletProvider";
 import NavBar from "@/components/NavBar";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { SoundProvider } from "@/components/SoundProvider";
 
 const shareTechMono = Share_Tech_Mono({
@@ -53,6 +54,7 @@ export default function RootLayout({
         className={`${shareTechMono.variable} ${vt323.variable} min-h-screen antialiased`}
       >
         <SoundProvider>
+          <ServiceWorkerRegister />
           <WalletProvider>
             <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-2 px-2 py-2 sm:px-3">
               <NavBar />

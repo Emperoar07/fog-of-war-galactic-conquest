@@ -157,11 +157,77 @@ export function advanceDemoTurn(match: GalaxyMatch): GalaxyMatch {
   };
 }
 
-export function markDemoOrdersSubmitted(match: GalaxyMatch): GalaxyMatch {
+export function markDemoOrdersSubmitted(
+  match: GalaxyMatch,
+  playerOrder?: { targetX: number; targetY: number; action: number },
+): GalaxyMatch {
+  // Smarter AI: respond to the player's action
+  if (playerOrder) {
+    const rand = seededRandom(match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY);
+    const map = [...match.revealedSectorOwner];
+    const targetIdx = playerOrder.targetY * MAP_SIZE + playerOrder.targetX;
+
+    // If player attacks, AI has a chance to reinforce or counter-attack nearby
+    if (playerOrder.action === 2) {
+      // AI reinforces a random adjacent cell
+      const adjacent = [
+        targetIdx - MAP_SIZE,
+        targetIdx + MAP_SIZE,
+        targetIdx - 1,
+        targetIdx + 1,
+      ].filter((i) => i >= 0 && i < map.length);
+      const pick = adjacent[Math.floor(rand() * adjacent.length)];
+      if (pick !== undefined && map[pick] === 0) {
+        map[pick] = 2; // AI claims the adjacent cell
+      }
+    } else {
+      // AI scouts or pushes forward toward player territory
+      for (let i = 0; i < map.length; i++) {
+        if (map[i] === 0 && rand() < 0.12) {
+          map[i] = 2;
+          break;
+        }
+      }
+    }
+
+    // Ensure bases stay
+    map[0] = 1;
+    map[map.length - 1] = 2;
+
+    return {
+      ...match,
+      submittedOrders: [1, 1, 0, 0],
+      revealedSectorOwner: map,
+    };
+  }
+
   return {
     ...match,
     submittedOrders: [1, 1, 0, 0],
   };
+}
+
+// Generate demo unit positions for board display
+export function getDemoUnitPositions(turn: number): { slot: number; x: number; y: number }[] {
+  const rand = seededRandom(turn * 2003 + 41);
+  // Player 1 units (slots 0-3) cluster near top-left
+  // Player 2 units (slots 4-7) cluster near bottom-right
+  const units: { slot: number; x: number; y: number }[] = [];
+  for (let i = 0; i < 4; i++) {
+    units.push({
+      slot: i,
+      x: Math.min(MAP_SIZE - 1, Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.3))),
+      y: Math.min(MAP_SIZE - 1, Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.2))),
+    });
+  }
+  for (let i = 4; i < 8; i++) {
+    units.push({
+      slot: i,
+      x: Math.max(0, MAP_SIZE - 1 - Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.3))),
+      y: Math.max(0, MAP_SIZE - 1 - Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.2))),
+    });
+  }
+  return units;
 }
 
 export function buildDemoVisibilityReport(turn: number): DecodedVisibilityReport {

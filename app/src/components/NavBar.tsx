@@ -72,13 +72,13 @@ export default function NavBar() {
         </div>
 
         {/* Right badges — desktop only */}
-        <div className="hidden items-start justify-end gap-2 lg:flex lg:flex-wrap">
-          <div className="grid gap-2">
-            <span className="inline-flex items-center gap-2 border border-[rgba(255,176,0,0.28)] bg-[rgba(255,176,0,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#ffb000]">
+        <div className="hidden items-stretch justify-end gap-2 lg:flex lg:flex-wrap">
+          <div className="grid auto-rows-fr gap-2 self-stretch">
+            <span className="inline-flex min-h-[36px] items-center gap-2 border border-[rgba(255,176,0,0.28)] bg-[rgba(255,176,0,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#ffb000]">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ffb000] shadow-[0_0_8px_rgba(255,176,0,0.6)]" />
               Solana Devnet
             </span>
-            <span className="inline-flex items-center gap-2 border border-[rgba(0,229,204,0.3)] bg-[rgba(0,229,204,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#00e5cc]">
+            <span className="inline-flex min-h-[36px] items-center gap-2 border border-[rgba(0,229,204,0.3)] bg-[rgba(0,229,204,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#00e5cc]">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00e5cc] shadow-[0_0_8px_rgba(0,229,204,0.8)]" />
               Arcium MPC
             </span>
@@ -88,7 +88,7 @@ export default function NavBar() {
                 toggleAudio();
                 if (enablingAudio) playSound("uiTap");
               }}
-              className={`inline-flex items-center gap-2 border px-3 py-1 text-[9px] uppercase tracking-[0.22em] ${
+              className={`inline-flex min-h-[36px] items-center gap-2 border px-3 py-1 text-[9px] uppercase tracking-[0.22em] ${
                 audioEnabled
                   ? "border-[rgba(0,255,65,0.3)] bg-[rgba(0,255,65,0.04)] text-[#00ff41]"
                   : "border-[#0e2a0e] bg-[#021202] text-[#0c6d1f]"
@@ -106,7 +106,9 @@ export default function NavBar() {
               {audioEnabled ? "Audio On" : "Audio Off"}
             </button>
           </div>
-          <WalletButton />
+          <div className="flex self-stretch">
+            <WalletButton />
+          </div>
         </div>
 
         {/* Mobile badges row */}
