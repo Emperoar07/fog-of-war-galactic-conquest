@@ -94,7 +94,7 @@ const BoardCell = memo(function BoardCell({
         hapticTap();
         onClick(x, y);
       }}
-      className={`group relative aspect-square min-h-[30px] border p-0.5 text-left sm:min-h-[40px] sm:p-1 md:min-h-[48px] ${
+      className={`group relative aspect-square min-h-[36px] border p-0.5 text-left sm:min-h-[48px] sm:p-1 md:min-h-[56px] ${
         isSelected
           ? "scale-[1.02] border-[#ff3333] shadow-[0_0_18px_rgba(255,51,51,0.18)]"
           : ""
@@ -225,7 +225,7 @@ export default function GameBoard({
 
   return (
     <div
-      className={`w-full max-w-[42rem] border bg-[#030d03] p-2 sm:p-3 shadow-[0_0_30px_rgba(0,255,65,0.04)] transition-all duration-300 ${
+      className={`w-full max-w-[48rem] border bg-[#030d03] p-2 sm:p-3 shadow-[0_0_30px_rgba(0,255,65,0.04)] transition-all duration-300 ${
         highlightBoard
           ? "border-[#ffb000] shadow-[0_0_24px_rgba(255,176,0,0.15)]"
           : "border-[#0e2a0e]"
@@ -264,7 +264,7 @@ export default function GameBoard({
           />
         )}
         <div
-          className={`grid gap-1 sm:gap-1.5 md:gap-2 ${zoomed ? "min-w-[420px]" : ""}`}
+          className={`grid gap-1 sm:gap-1.5 md:gap-2 ${zoomed ? "min-w-[480px]" : ""}`}
           style={{ gridTemplateColumns: `repeat(${MAP_SIZE}, minmax(0, 1fr))` }}
           role="grid"
           aria-label="Battlefield grid"
