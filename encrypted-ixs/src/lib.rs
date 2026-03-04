@@ -6,44 +6,50 @@ mod circuits {
 
     const MAX_PLAYERS: usize = 4;
     const MAX_UNITS_PER_PLAYER: usize = 4;
+    const TOTAL_UNITS: usize = MAX_PLAYERS * MAX_UNITS_PER_PLAYER;
     const MAP_WIDTH: u8 = 8;
     const MAP_HEIGHT: u8 = 8;
     const NO_WINNER: u8 = 255;
+    const NO_PLAYER: u8 = 255;
     const EMPTY_COORD: u8 = 255;
 
     const ACTION_MOVE: u8 = 0;
     const ACTION_SCOUT: u8 = 1;
     const ACTION_ATTACK: u8 = 2;
-    const ACTION_DEFEND: u8 = 3;
-    const ACTION_COLONIZE: u8 = 4;
 
     const UNIT_FIGHTER: u8 = 0;
     const UNIT_SCOUT: u8 = 1;
     const UNIT_COMMAND: u8 = 2;
 
-    pub struct GalaxyState {
-        unit_x: [[u8; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-        unit_y: [[u8; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-        unit_type: [[u8; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-        unit_health: [[u8; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-        vision_range: [[u8; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-        alive: [[u8; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-        current_turn: u8,
-        player_count: u8,
-    }
+    const STATE_BYTES: usize = 118;
+    const VISIBILITY_BYTES: usize = 48;
 
-    pub struct PlayerOrder {
-        player_index: u8,
+    const UNIT_X_OFFSET: usize = 0;
+    const UNIT_Y_OFFSET: usize = UNIT_X_OFFSET + TOTAL_UNITS;
+    const UNIT_TYPE_OFFSET: usize = UNIT_Y_OFFSET + TOTAL_UNITS;
+    const UNIT_HEALTH_OFFSET: usize = UNIT_TYPE_OFFSET + TOTAL_UNITS;
+    const VISION_RANGE_OFFSET: usize = UNIT_HEALTH_OFFSET + TOTAL_UNITS;
+    const ALIVE_OFFSET: usize = VISION_RANGE_OFFSET + TOTAL_UNITS;
+    const PENDING_UNIT_SLOT_OFFSET: usize = ALIVE_OFFSET + TOTAL_UNITS;
+    const PENDING_ACTION_OFFSET: usize = PENDING_UNIT_SLOT_OFFSET + MAX_PLAYERS;
+    const PENDING_TARGET_X_OFFSET: usize = PENDING_ACTION_OFFSET + MAX_PLAYERS;
+    const PENDING_TARGET_Y_OFFSET: usize = PENDING_TARGET_X_OFFSET + MAX_PLAYERS;
+    const PENDING_SUBMITTED_OFFSET: usize = PENDING_TARGET_Y_OFFSET + MAX_PLAYERS;
+    const CURRENT_TURN_INDEX: usize = PENDING_SUBMITTED_OFFSET + MAX_PLAYERS;
+    const PLAYER_COUNT_INDEX: usize = CURRENT_TURN_INDEX + 1;
+
+    const VISIBILITY_PRESENT_OFFSET: usize = 0;
+    const VISIBILITY_X_OFFSET: usize = VISIBILITY_PRESENT_OFFSET + TOTAL_UNITS;
+    const VISIBILITY_Y_OFFSET: usize = VISIBILITY_X_OFFSET + TOTAL_UNITS;
+
+    type GalaxyState = Pack<[u8; STATE_BYTES]>;
+    type VisibilityReport = Pack<[u8; VISIBILITY_BYTES]>;
+
+    pub struct PlayerCommand {
         unit_slot: u8,
         action: u8,
         target_x: u8,
         target_y: u8,
-    }
-
-    pub struct VisibilityReport {
-        visible_enemy_present: [u8; MAX_PLAYERS * MAX_UNITS_PER_PLAYER],
-        visible_enemy_x: [u8; MAX_PLAYERS * MAX_UNITS_PER_PLAYER],
-        visible_enemy_y: [u8; MAX_PLAYERS * MAX_UNITS_PER_PLAYER],
     }
 
     pub struct BattleSummary {
@@ -69,234 +75,282 @@ mod circuits {
         }
     }
 
+    fn action_supported(action: u8) -> u8 {
+        if action == ACTION_MOVE || action == ACTION_SCOUT || action == ACTION_ATTACK {
+            1
+        } else {
+            0
+        }
+    }
+
+    fn unit_index(player: usize, unit: usize) -> usize {
+        player * MAX_UNITS_PER_PLAYER + unit
+    }
+
+    fn player_slot(base_offset: usize, player: usize) -> usize {
+        base_offset + player
+    }
+
+    fn clear_pending_order(state: &mut [u8; STATE_BYTES], player: usize) {
+        state[player_slot(PENDING_UNIT_SLOT_OFFSET, player)] = 0;
+        state[player_slot(PENDING_ACTION_OFFSET, player)] = ACTION_MOVE;
+        state[player_slot(PENDING_TARGET_X_OFFSET, player)] = EMPTY_COORD;
+        state[player_slot(PENDING_TARGET_Y_OFFSET, player)] = EMPTY_COORD;
+        state[player_slot(PENDING_SUBMITTED_OFFSET, player)] = 0;
+    }
+
     fn unit_visible_to_viewer(
-        state: &GalaxyState,
+        state: &[u8; STATE_BYTES],
         viewer_index: usize,
         enemy_player_index: usize,
         enemy_unit_index: usize,
     ) -> u8 {
-        let mut viewer_unit_index = 0usize;
+        let enemy_slot = unit_index(enemy_player_index, enemy_unit_index);
+        let enemy_x = state[UNIT_X_OFFSET + enemy_slot];
+        let enemy_y = state[UNIT_Y_OFFSET + enemy_slot];
+        let enemy_alive = state[ALIVE_OFFSET + enemy_slot];
+        let mut visible = 0;
 
-        while viewer_unit_index < MAX_UNITS_PER_PLAYER {
-            if state.alive[viewer_index][viewer_unit_index] == 1
-                && state.alive[enemy_player_index][enemy_unit_index] == 1
-            {
-                let dx = abs_diff(
-                    state.unit_x[viewer_index][viewer_unit_index],
-                    state.unit_x[enemy_player_index][enemy_unit_index],
-                );
-                let dy = abs_diff(
-                    state.unit_y[viewer_index][viewer_unit_index],
-                    state.unit_y[enemy_player_index][enemy_unit_index],
-                );
+        for viewer_unit_index in 0..MAX_UNITS_PER_PLAYER {
+            let viewer_slot = unit_index(viewer_index, viewer_unit_index);
 
-                if dx + dy <= state.vision_range[viewer_index][viewer_unit_index] {
-                    return 1;
+            if state[ALIVE_OFFSET + viewer_slot] == 1 && enemy_alive == 1 {
+                let dx = abs_diff(state[UNIT_X_OFFSET + viewer_slot], enemy_x);
+                let dy = abs_diff(state[UNIT_Y_OFFSET + viewer_slot], enemy_y);
+
+                if dx + dy <= state[VISION_RANGE_OFFSET + viewer_slot] {
+                    visible = 1;
                 }
             }
-
-            viewer_unit_index += 1;
         }
 
-        0
+        visible
     }
 
     #[instruction]
     pub fn init_match(player_count: u8, map_seed: u64) -> Enc<Mxe, GalaxyState> {
-        let mut state = GalaxyState {
-            unit_x: [[EMPTY_COORD; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-            unit_y: [[EMPTY_COORD; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-            unit_type: [[UNIT_FIGHTER; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-            unit_health: [[0; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-            vision_range: [[0; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-            alive: [[0; MAX_UNITS_PER_PLAYER]; MAX_PLAYERS],
-            current_turn: 0,
-            player_count,
-        };
+        let mut state: [u8; STATE_BYTES] = [0u8; STATE_BYTES];
+        let vertical_shift = if map_seed % 2 == 0 { 0 } else { 1 };
 
-        let vertical_shift = (map_seed as u8) & 1;
-        let mut player = 0usize;
+        for index in 0..TOTAL_UNITS {
+            state[UNIT_X_OFFSET + index] = EMPTY_COORD;
+            state[UNIT_Y_OFFSET + index] = EMPTY_COORD;
+            state[UNIT_TYPE_OFFSET + index] = UNIT_FIGHTER;
+            state[UNIT_HEALTH_OFFSET + index] = 0;
+            state[VISION_RANGE_OFFSET + index] = 0;
+            state[ALIVE_OFFSET + index] = 0;
+        }
 
-        while player < MAX_PLAYERS {
+        for player in 0..MAX_PLAYERS {
+            clear_pending_order(&mut state, player);
+        }
+
+        state[CURRENT_TURN_INDEX] = 0;
+        state[PLAYER_COUNT_INDEX] = player_count;
+
+        for player in 0..MAX_PLAYERS {
             let active_player = (player as u8) < player_count;
-            let mut unit = 0usize;
 
-            while unit < MAX_UNITS_PER_PLAYER {
+            for unit in 0..MAX_UNITS_PER_PLAYER {
                 if active_player {
-                    state.alive[player][unit] = 1;
-                    state.unit_health[player][unit] = if unit == 0 { 5 } else { 3 };
-                    state.unit_type[player][unit] = if unit == 0 {
+                    let slot = unit_index(player, unit);
+                    state[ALIVE_OFFSET + slot] = 1;
+                    state[UNIT_HEALTH_OFFSET + slot] = if unit == 0 { 5 } else { 3 };
+                    state[UNIT_TYPE_OFFSET + slot] = if unit == 0 {
                         UNIT_COMMAND
                     } else if unit == 1 {
                         UNIT_SCOUT
                     } else {
                         UNIT_FIGHTER
                     };
-                    state.vision_range[player][unit] = if unit == 1 { 4 } else { 2 };
+                    state[VISION_RANGE_OFFSET + slot] = if unit == 1 { 4 } else { 2 };
 
                     if player == 0 {
-                        state.unit_x[player][unit] = 0;
-                        state.unit_y[player][unit] = (unit as u8 + vertical_shift) % MAP_HEIGHT;
+                        state[UNIT_X_OFFSET + slot] = 0;
+                        state[UNIT_Y_OFFSET + slot] = (unit as u8 + vertical_shift) % MAP_HEIGHT;
                     } else if player == 1 {
-                        state.unit_x[player][unit] = MAP_WIDTH - 1;
-                        state.unit_y[player][unit] = (unit as u8 + vertical_shift) % MAP_HEIGHT;
+                        state[UNIT_X_OFFSET + slot] = MAP_WIDTH - 1;
+                        state[UNIT_Y_OFFSET + slot] = (unit as u8 + vertical_shift) % MAP_HEIGHT;
                     } else if player == 2 {
-                        state.unit_x[player][unit] = (unit as u8 + vertical_shift) % MAP_WIDTH;
-                        state.unit_y[player][unit] = 0;
+                        state[UNIT_X_OFFSET + slot] = (unit as u8 + vertical_shift) % MAP_WIDTH;
+                        state[UNIT_Y_OFFSET + slot] = 0;
                     } else {
-                        state.unit_x[player][unit] = (unit as u8 + vertical_shift) % MAP_WIDTH;
-                        state.unit_y[player][unit] = MAP_HEIGHT - 1;
+                        state[UNIT_X_OFFSET + slot] = (unit as u8 + vertical_shift) % MAP_WIDTH;
+                        state[UNIT_Y_OFFSET + slot] = MAP_HEIGHT - 1;
                     }
                 }
-
-                unit += 1;
             }
-
-            player += 1;
         }
 
-        Mxe::get().from_arcis(state)
+        Mxe::get().from_arcis(Pack::new(state))
     }
 
     #[instruction]
     pub fn submit_orders(
-        order_ctxt: Enc<Shared, PlayerOrder>,
+        player_index: u8,
+        order_ctxt: Enc<Shared, PlayerCommand>,
         game_ctxt: Enc<Mxe, GalaxyState>,
-    ) -> Enc<Mxe, GalaxyState> {
+    ) -> (Enc<Mxe, GalaxyState>, u8) {
         let order = order_ctxt.to_arcis();
-        let mut state = game_ctxt.to_arcis();
+        let mut state = game_ctxt.to_arcis().unpack();
+        let player_count = state[PLAYER_COUNT_INDEX];
+        let mut accepted_player = NO_PLAYER;
 
-        if order.player_index < state.player_count && order.unit_slot < MAX_UNITS_PER_PLAYER as u8 {
-            let player = order.player_index as usize;
-            let unit = order.unit_slot as usize;
+        if player_index < player_count
+            && order.unit_slot < MAX_UNITS_PER_PLAYER as u8
+            && action_supported(order.action) == 1
+        {
+            let player = player_index as usize;
+            let slot = unit_index(player, order.unit_slot as usize);
 
-            if state.alive[player][unit] == 1 {
-                let target_x = clamp_coordinate(order.target_x, MAP_WIDTH);
-                let target_y = clamp_coordinate(order.target_y, MAP_HEIGHT);
-
-                if order.action == ACTION_MOVE || order.action == ACTION_SCOUT {
-                    state.unit_x[player][unit] = target_x;
-                    state.unit_y[player][unit] = target_y;
-                } else if order.action == ACTION_ATTACK {
-                    let mut enemy_player = 0usize;
-
-                    while enemy_player < MAX_PLAYERS {
-                        if enemy_player != player {
-                            let mut enemy_unit = 0usize;
-
-                            while enemy_unit < MAX_UNITS_PER_PLAYER {
-                                if state.alive[enemy_player][enemy_unit] == 1
-                                    && state.unit_x[enemy_player][enemy_unit] == target_x
-                                    && state.unit_y[enemy_player][enemy_unit] == target_y
-                                {
-                                    if state.unit_health[enemy_player][enemy_unit] > 1 {
-                                        state.unit_health[enemy_player][enemy_unit] -= 1;
-                                    } else {
-                                        state.unit_health[enemy_player][enemy_unit] = 0;
-                                        state.alive[enemy_player][enemy_unit] = 0;
-                                        state.unit_x[enemy_player][enemy_unit] = EMPTY_COORD;
-                                        state.unit_y[enemy_player][enemy_unit] = EMPTY_COORD;
-                                    }
-                                }
-
-                                enemy_unit += 1;
-                            }
-                        }
-
-                        enemy_player += 1;
-                    }
-                } else if order.action == ACTION_DEFEND || order.action == ACTION_COLONIZE {
-                    // Reserved actions for the MVP.
-                }
+            if state[ALIVE_OFFSET + slot] == 1 && state[player_slot(PENDING_SUBMITTED_OFFSET, player)] == 0 {
+                state[player_slot(PENDING_UNIT_SLOT_OFFSET, player)] = order.unit_slot;
+                state[player_slot(PENDING_ACTION_OFFSET, player)] = order.action;
+                state[player_slot(PENDING_TARGET_X_OFFSET, player)] =
+                    clamp_coordinate(order.target_x, MAP_WIDTH);
+                state[player_slot(PENDING_TARGET_Y_OFFSET, player)] =
+                    clamp_coordinate(order.target_y, MAP_HEIGHT);
+                state[player_slot(PENDING_SUBMITTED_OFFSET, player)] = 1;
+                accepted_player = player_index;
             }
         }
 
-        game_ctxt.owner.from_arcis(state)
+        (game_ctxt.owner.from_arcis(Pack::new(state)), accepted_player.reveal())
     }
 
     #[instruction]
     pub fn visibility_check(
+        viewer: Shared,
         viewer_index: u8,
         game_ctxt: Enc<Mxe, GalaxyState>,
-    ) -> Enc<Shared, VisibilityReport> {
-        let state = game_ctxt.to_arcis();
-        let mut report = VisibilityReport {
-            visible_enemy_present: [0; MAX_PLAYERS * MAX_UNITS_PER_PLAYER],
-            visible_enemy_x: [EMPTY_COORD; MAX_PLAYERS * MAX_UNITS_PER_PLAYER],
-            visible_enemy_y: [EMPTY_COORD; MAX_PLAYERS * MAX_UNITS_PER_PLAYER],
-        };
+    ) -> (Enc<Shared, VisibilityReport>, u8) {
+        let state = game_ctxt.to_arcis().unpack();
+        let player_count = state[PLAYER_COUNT_INDEX];
+        let mut report: [u8; VISIBILITY_BYTES] = [0u8; VISIBILITY_BYTES];
 
-        if viewer_index < state.player_count {
-            let viewer = viewer_index as usize;
-            let mut enemy_player = 0usize;
+        for index in 0..TOTAL_UNITS {
+            report[VISIBILITY_PRESENT_OFFSET + index] = 0u8;
+            report[VISIBILITY_X_OFFSET + index] = EMPTY_COORD;
+            report[VISIBILITY_Y_OFFSET + index] = EMPTY_COORD;
+        }
 
-            while enemy_player < MAX_PLAYERS {
-                if enemy_player != viewer && (enemy_player as u8) < state.player_count {
-                    let mut enemy_unit = 0usize;
+        if viewer_index < player_count {
+            let viewer_slot = viewer_index as usize;
 
-                    while enemy_unit < MAX_UNITS_PER_PLAYER {
-                        let slot = enemy_player * MAX_UNITS_PER_PLAYER + enemy_unit;
+            for enemy_player in 0..MAX_PLAYERS {
+                if enemy_player != viewer_slot && (enemy_player as u8) < player_count {
+                    for enemy_unit in 0..MAX_UNITS_PER_PLAYER {
+                        let slot = unit_index(enemy_player, enemy_unit);
                         let visible =
-                            unit_visible_to_viewer(&state, viewer, enemy_player, enemy_unit);
+                            unit_visible_to_viewer(&state, viewer_slot, enemy_player, enemy_unit);
 
-                        report.visible_enemy_present[slot] = visible;
+                        report[VISIBILITY_PRESENT_OFFSET + slot] = visible;
 
                         if visible == 1 {
-                            report.visible_enemy_x[slot] = state.unit_x[enemy_player][enemy_unit];
-                            report.visible_enemy_y[slot] = state.unit_y[enemy_player][enemy_unit];
+                            report[VISIBILITY_X_OFFSET + slot] = state[UNIT_X_OFFSET + slot];
+                            report[VISIBILITY_Y_OFFSET + slot] = state[UNIT_Y_OFFSET + slot];
                         }
-
-                        enemy_unit += 1;
                     }
                 }
-
-                enemy_player += 1;
             }
         }
 
-        Shared::get().from_arcis(report)
+        (viewer.from_arcis(Pack::new(report)), viewer_index.reveal())
     }
 
     #[instruction]
-    pub fn resolve_turn(game_ctxt: Enc<Mxe, GalaxyState>) -> BattleSummary {
-        let state = game_ctxt.to_arcis();
+    pub fn resolve_turn(game_ctxt: Enc<Mxe, GalaxyState>) -> (Enc<Mxe, GalaxyState>, BattleSummary) {
+        let mut state = game_ctxt.to_arcis().unpack();
+        let player_count = state[PLAYER_COUNT_INDEX];
         let mut summary = BattleSummary {
             winner: NO_WINNER,
             destroyed_by_player: [0; MAX_PLAYERS],
             command_fleet_alive: [0; MAX_PLAYERS],
-            next_turn: state.current_turn + 1,
+            next_turn: state[CURRENT_TURN_INDEX],
         };
 
-        let mut player = 0usize;
+        for player in 0..MAX_PLAYERS {
+            if (player as u8) < player_count && state[player_slot(PENDING_SUBMITTED_OFFSET, player)] == 1 {
+                let unit_slot = state[player_slot(PENDING_UNIT_SLOT_OFFSET, player)];
+
+                if unit_slot < MAX_UNITS_PER_PLAYER as u8 {
+                    let slot = unit_index(player, unit_slot as usize);
+                    let action = state[player_slot(PENDING_ACTION_OFFSET, player)];
+
+                    if state[ALIVE_OFFSET + slot] == 1
+                        && (action == ACTION_MOVE || action == ACTION_SCOUT)
+                    {
+                        state[UNIT_X_OFFSET + slot] = state[player_slot(PENDING_TARGET_X_OFFSET, player)];
+                        state[UNIT_Y_OFFSET + slot] = state[player_slot(PENDING_TARGET_Y_OFFSET, player)];
+                    }
+                }
+            }
+        }
+
+        for player in 0..MAX_PLAYERS {
+            if (player as u8) < player_count
+                && state[player_slot(PENDING_SUBMITTED_OFFSET, player)] == 1
+                && state[player_slot(PENDING_ACTION_OFFSET, player)] == ACTION_ATTACK
+            {
+                let target_x = state[player_slot(PENDING_TARGET_X_OFFSET, player)];
+                let target_y = state[player_slot(PENDING_TARGET_Y_OFFSET, player)];
+
+                for enemy_player in 0..MAX_PLAYERS {
+                    if enemy_player != player && (enemy_player as u8) < player_count {
+                        for enemy_unit in 0..MAX_UNITS_PER_PLAYER {
+                            let enemy_slot = unit_index(enemy_player, enemy_unit);
+
+                            if state[ALIVE_OFFSET + enemy_slot] == 1
+                                && state[UNIT_X_OFFSET + enemy_slot] == target_x
+                                && state[UNIT_Y_OFFSET + enemy_slot] == target_y
+                            {
+                                if state[UNIT_HEALTH_OFFSET + enemy_slot] > 1 {
+                                    state[UNIT_HEALTH_OFFSET + enemy_slot] -= 1;
+                                } else {
+                                    state[UNIT_HEALTH_OFFSET + enemy_slot] = 0;
+                                    state[ALIVE_OFFSET + enemy_slot] = 0;
+                                    state[UNIT_X_OFFSET + enemy_slot] = EMPTY_COORD;
+                                    state[UNIT_Y_OFFSET + enemy_slot] = EMPTY_COORD;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for player in 0..MAX_PLAYERS {
+            clear_pending_order(&mut state, player);
+        }
+
+        state[CURRENT_TURN_INDEX] += 1;
+        summary.next_turn = state[CURRENT_TURN_INDEX];
+
         let mut living_command_fleets = 0u8;
         let mut last_commander = NO_WINNER;
 
-        while player < MAX_PLAYERS {
-            if (player as u8) < state.player_count {
-                let mut unit = 0usize;
+        for player in 0..MAX_PLAYERS {
+            if (player as u8) < player_count {
+                for unit in 0..MAX_UNITS_PER_PLAYER {
+                    let slot = unit_index(player, unit);
 
-                while unit < MAX_UNITS_PER_PLAYER {
-                    if state.alive[player][unit] == 0 {
+                    if state[ALIVE_OFFSET + slot] == 0 {
                         summary.destroyed_by_player[player] += 1;
                     }
-
-                    unit += 1;
                 }
 
-                if state.alive[player][0] == 1 {
+                if state[ALIVE_OFFSET + unit_index(player, 0)] == 1 {
                     summary.command_fleet_alive[player] = 1;
                     living_command_fleets += 1;
                     last_commander = player as u8;
                 }
             }
-
-            player += 1;
         }
 
         if living_command_fleets == 1 {
             summary.winner = last_commander;
         }
 
-        summary.reveal()
+        (game_ctxt.owner.from_arcis(Pack::new(state)), summary.reveal())
     }
 }

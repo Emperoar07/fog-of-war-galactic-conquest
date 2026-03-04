@@ -9,11 +9,12 @@ const COMP_DEF_OFFSET_RESOLVE_TURN: u32 = comp_def_offset("resolve_turn");
 
 const MAX_PLAYERS: usize = 4;
 const MAP_TILES: usize = 64;
-const HIDDEN_STATE_WORDS: usize = 82;
-const VISIBILITY_REPORT_WORDS: usize = 48;
+const HIDDEN_STATE_WORDS: usize = 5;
+const VISIBILITY_REPORT_WORDS: usize = 2;
 const NO_WINNER: u8 = 255;
+const NO_PLAYER: u8 = 255;
 
-declare_id!("Fg6PaFpoGXkYsidMpWxTWqkZqYMb6Y3VjNjQf61uJv24");
+declare_id!("BSUDUdpFuGJpw68HjJcHmUJ9AHHnr4V9Am75s6meJ9hE");
 
 #[arcium_program]
 pub mod fog_of_war_galactic_conquest {
@@ -48,10 +49,7 @@ pub mod fog_of_war_galactic_conquest {
         player_count: u8,
         map_seed: u64,
     ) -> Result<()> {
-        require!(
-            player_count >= 2 && player_count as usize <= MAX_PLAYERS,
-            ErrorCode::InvalidPlayerCount
-        );
+        require!(player_count == 2, ErrorCode::InvalidPlayerCount);
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
         galaxy_match.match_id = match_id;
@@ -64,10 +62,12 @@ pub mod fog_of_war_galactic_conquest {
         galaxy_match.map_seed = map_seed;
         galaxy_match.revealed_sector_owner = [0; MAP_TILES];
         galaxy_match.battle_summary = [0; 10];
+        galaxy_match.submitted_orders = [0; MAX_PLAYERS];
         galaxy_match.hidden_state = [[0; 32]; HIDDEN_STATE_WORDS];
         galaxy_match.hidden_state_nonce = 0;
         galaxy_match.last_visibility = [[0; 32]; VISIBILITY_REPORT_WORDS];
         galaxy_match.last_visibility_nonce = 0;
+        galaxy_match.last_visibility_viewer = NO_PLAYER;
 
         let args = ArgBuilder::new()
             .plaintext_u8(player_count)
@@ -80,7 +80,7 @@ pub mod fog_of_war_galactic_conquest {
             ctx.accounts,
             computation_offset,
             args,
-            vec![CreateMatchCallback::callback_ix(
+            vec![InitMatchCallback::callback_ix(
                 computation_offset,
                 &ctx.accounts.mxe_account,
                 &[CallbackAccount {
@@ -96,8 +96,8 @@ pub mod fog_of_war_galactic_conquest {
     }
 
     #[arcium_callback(encrypted_ix = "init_match")]
-    pub fn create_match_callback(
-        ctx: Context<CreateMatchCallback>,
+    pub fn init_match_callback(
+        ctx: Context<InitMatchCallback>,
         output: SignedComputationOutputs<InitMatchOutput>,
     ) -> Result<()> {
         let state = match output.verify_output(
@@ -124,7 +124,12 @@ pub mod fog_of_war_galactic_conquest {
         let galaxy_match = &mut ctx.accounts.galaxy_match;
         let slot_index = slot as usize;
 
+        require!(galaxy_match.status == 0, ErrorCode::RegistrationClosed);
         require!(slot_index < MAX_PLAYERS, ErrorCode::InvalidPlayerSlot);
+        require!(
+            galaxy_match.registered_count() < galaxy_match.player_count as usize,
+            ErrorCode::MatchFull
+        );
         require!(
             galaxy_match.players[slot_index] == Pubkey::default(),
             ErrorCode::SlotTaken
@@ -146,31 +151,41 @@ pub mod fog_of_war_galactic_conquest {
     pub fn submit_orders(
         ctx: Context<SubmitOrders>,
         computation_offset: u64,
-        player_index_ct: [u8; 32],
+        player_index: u8,
         unit_slot_ct: [u8; 32],
         action_ct: [u8; 32],
         target_x_ct: [u8; 32],
         target_y_ct: [u8; 32],
         pub_key: [u8; 32],
+        order_nonce: u128,
     ) -> Result<()> {
-        require!(ctx.accounts.galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        let galaxy_match = &ctx.accounts.galaxy_match;
+
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
         require!(
-            ctx.accounts
-                .galaxy_match
-                .is_registered(&ctx.accounts.payer.key()),
+            galaxy_match.is_registered(&ctx.accounts.payer.key()),
             ErrorCode::NotAuthorized
+        );
+        let caller_index = galaxy_match
+            .player_slot(&ctx.accounts.payer.key())
+            .ok_or(ErrorCode::NotAuthorized)?;
+        require!(caller_index == player_index, ErrorCode::PlayerIndexMismatch);
+        require!(
+            galaxy_match.submitted_orders[player_index as usize] == 0,
+            ErrorCode::OrdersAlreadySubmitted
         );
 
         let args = ArgBuilder::new()
+            .plaintext_u8(player_index)
             .x25519_pubkey(pub_key)
-            .plaintext_u128(ctx.accounts.galaxy_match.hidden_state_nonce)
-            .encrypted_u8(player_index_ct)
+            .plaintext_u128(order_nonce)
             .encrypted_u8(unit_slot_ct)
             .encrypted_u8(action_ct)
             .encrypted_u8(target_x_ct)
             .encrypted_u8(target_y_ct)
+            .plaintext_u128(galaxy_match.hidden_state_nonce)
             .account(
-                ctx.accounts.galaxy_match.key(),
+                galaxy_match.key(),
                 GalaxyMatch::HIDDEN_STATE_OFFSET as u32,
                 (32 * HIDDEN_STATE_WORDS) as u32,
             )
@@ -202,17 +217,29 @@ pub mod fog_of_war_galactic_conquest {
         ctx: Context<SubmitOrdersCallback>,
         output: SignedComputationOutputs<SubmitOrdersOutput>,
     ) -> Result<()> {
-        let state = match output.verify_output(
+        let (state, submitted_player) = match output.verify_output(
             &ctx.accounts.cluster_account,
             &ctx.accounts.computation_account,
         ) {
-            Ok(SubmitOrdersOutput { field_0 }) => field_0,
+            Ok(SubmitOrdersOutput {
+                field_0:
+                    SubmitOrdersOutputStruct0 {
+                        field_0: state,
+                        field_1: submitted_player,
+                    },
+            }) => (state, submitted_player),
             Err(_) => return Err(ErrorCode::AbortedComputation.into()),
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
         galaxy_match.hidden_state = state.ciphertexts;
         galaxy_match.hidden_state_nonce = state.nonce;
+        require!(submitted_player != NO_PLAYER, ErrorCode::InvalidEncryptedOrder);
+        require!(
+            (submitted_player as usize) < MAX_PLAYERS,
+            ErrorCode::InvalidPlayerSlot
+        );
+        galaxy_match.submitted_orders[submitted_player as usize] = 1;
 
         Ok(())
     }
@@ -220,21 +247,27 @@ pub mod fog_of_war_galactic_conquest {
     pub fn visibility_check(
         ctx: Context<VisibilityCheck>,
         computation_offset: u64,
-        viewer_index: u8,
+        viewer_pub_key: [u8; 32],
+        viewer_nonce: u128,
     ) -> Result<()> {
-        require!(ctx.accounts.galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        let galaxy_match = &ctx.accounts.galaxy_match;
+
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
         require!(
-            ctx.accounts
-                .galaxy_match
-                .is_registered(&ctx.accounts.payer.key()),
+            galaxy_match.is_registered(&ctx.accounts.payer.key()),
             ErrorCode::NotAuthorized
         );
+        let caller_index = galaxy_match
+            .player_slot(&ctx.accounts.payer.key())
+            .ok_or(ErrorCode::NotAuthorized)?;
 
         let args = ArgBuilder::new()
-            .plaintext_u8(viewer_index)
-            .plaintext_u128(ctx.accounts.galaxy_match.hidden_state_nonce)
+            .x25519_pubkey(viewer_pub_key)
+            .plaintext_u128(viewer_nonce)
+            .plaintext_u8(caller_index)
+            .plaintext_u128(galaxy_match.hidden_state_nonce)
             .account(
-                ctx.accounts.galaxy_match.key(),
+                galaxy_match.key(),
                 GalaxyMatch::HIDDEN_STATE_OFFSET as u32,
                 (32 * HIDDEN_STATE_WORDS) as u32,
             )
@@ -266,33 +299,49 @@ pub mod fog_of_war_galactic_conquest {
         ctx: Context<VisibilityCheckCallback>,
         output: SignedComputationOutputs<VisibilityCheckOutput>,
     ) -> Result<()> {
-        let report = match output.verify_output(
+        let (report, viewer_index) = match output.verify_output(
             &ctx.accounts.cluster_account,
             &ctx.accounts.computation_account,
         ) {
-            Ok(VisibilityCheckOutput { field_0 }) => field_0,
+            Ok(VisibilityCheckOutput {
+                field_0:
+                    VisibilityCheckOutputStruct0 {
+                        field_0: report,
+                        field_1: viewer_index,
+                    },
+            }) => (report, viewer_index),
             Err(_) => return Err(ErrorCode::AbortedComputation.into()),
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
         galaxy_match.last_visibility = report.ciphertexts;
         galaxy_match.last_visibility_nonce = report.nonce;
+        galaxy_match.last_visibility_viewer = viewer_index;
 
         emit!(VisibilitySnapshotReady {
             match_id: galaxy_match.match_id,
             turn: galaxy_match.turn,
+            viewer_index,
         });
 
         Ok(())
     }
 
     pub fn resolve_turn(ctx: Context<ResolveTurn>, computation_offset: u64) -> Result<()> {
-        require!(ctx.accounts.galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        let galaxy_match = &ctx.accounts.galaxy_match;
+
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        require!(
+            ctx.accounts.payer.key() == galaxy_match.authority
+                || galaxy_match.is_registered(&ctx.accounts.payer.key()),
+            ErrorCode::NotAuthorized
+        );
+        require!(galaxy_match.has_all_submissions(), ErrorCode::PendingOrders);
 
         let args = ArgBuilder::new()
-            .plaintext_u128(ctx.accounts.galaxy_match.hidden_state_nonce)
+            .plaintext_u128(galaxy_match.hidden_state_nonce)
             .account(
-                ctx.accounts.galaxy_match.key(),
+                galaxy_match.key(),
                 GalaxyMatch::HIDDEN_STATE_OFFSET as u32,
                 (32 * HIDDEN_STATE_WORDS) as u32,
             )
@@ -324,37 +373,51 @@ pub mod fog_of_war_galactic_conquest {
         ctx: Context<ResolveTurnCallback>,
         output: SignedComputationOutputs<ResolveTurnOutput>,
     ) -> Result<()> {
-        let summary = match output.verify_output(
+        let (state, summary) = match output.verify_output(
             &ctx.accounts.cluster_account,
             &ctx.accounts.computation_account,
         ) {
-            Ok(ResolveTurnOutput { field_0 }) => field_0,
+            Ok(ResolveTurnOutput {
+                field_0:
+                    ResolveTurnOutputStruct0 {
+                        field_0: state,
+                        field_1: summary,
+                    },
+            }) => (state, summary),
             Err(_) => return Err(ErrorCode::AbortedComputation.into()),
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
-        galaxy_match.turn = summary.next_turn;
-        galaxy_match.battle_summary = [
-            summary.winner,
-            summary.destroyed_by_player[0],
-            summary.destroyed_by_player[1],
-            summary.destroyed_by_player[2],
-            summary.destroyed_by_player[3],
-            summary.command_fleet_alive[0],
-            summary.command_fleet_alive[1],
-            summary.command_fleet_alive[2],
-            summary.command_fleet_alive[3],
-            summary.next_turn,
-        ];
+        galaxy_match.hidden_state = state.ciphertexts;
+        galaxy_match.hidden_state_nonce = state.nonce;
+        let winner = summary.field_0;
+        let destroyed_by_player = summary.field_1;
+        let command_fleet_alive = summary.field_2;
+        let next_turn = summary.field_3;
 
-        if summary.winner != NO_WINNER {
+        galaxy_match.turn = next_turn;
+        galaxy_match.battle_summary = [
+            winner,
+            destroyed_by_player[0],
+            destroyed_by_player[1],
+            destroyed_by_player[2],
+            destroyed_by_player[3],
+            command_fleet_alive[0],
+            command_fleet_alive[1],
+            command_fleet_alive[2],
+            command_fleet_alive[3],
+            next_turn,
+        ];
+        galaxy_match.submitted_orders = [0; MAX_PLAYERS];
+
+        if winner != NO_WINNER {
             galaxy_match.status = 2;
         }
 
         emit!(TurnResolved {
             match_id: galaxy_match.match_id,
-            winner: summary.winner,
-            next_turn: summary.next_turn,
+            winner,
+            next_turn,
         });
 
         Ok(())
@@ -416,12 +479,12 @@ pub struct CreateMatch<'info> {
         seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
         bump
     )]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[callback_accounts("init_match")]
 #[derive(Accounts)]
-pub struct CreateMatchCallback<'info> {
+pub struct InitMatchCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_INIT_MATCH))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
@@ -435,7 +498,7 @@ pub struct CreateMatchCallback<'info> {
     /// CHECK: Checked by the account constraint.
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[init_computation_definition_accounts("init_match", payer)]
@@ -463,7 +526,7 @@ pub struct RegisterPlayer<'info> {
     #[account(mut)]
     pub player: Signer<'info>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[queue_computation_accounts("submit_orders", payer)]
@@ -515,7 +578,7 @@ pub struct SubmitOrders<'info> {
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[callback_accounts("submit_orders")]
@@ -534,7 +597,7 @@ pub struct SubmitOrdersCallback<'info> {
     /// CHECK: Checked by the account constraint.
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[init_computation_definition_accounts("submit_orders", payer)]
@@ -606,7 +669,7 @@ pub struct VisibilityCheck<'info> {
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[callback_accounts("visibility_check")]
@@ -625,7 +688,7 @@ pub struct VisibilityCheckCallback<'info> {
     /// CHECK: Checked by the account constraint.
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[init_computation_definition_accounts("visibility_check", payer)]
@@ -697,7 +760,7 @@ pub struct ResolveTurn<'info> {
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[callback_accounts("resolve_turn")]
@@ -716,7 +779,7 @@ pub struct ResolveTurnCallback<'info> {
     /// CHECK: Checked by the account constraint.
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub galaxy_match: Account<'info, GalaxyMatch>,
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[init_computation_definition_accounts("resolve_turn", payer)]
@@ -750,18 +813,27 @@ pub struct GalaxyMatch {
     pub map_seed: u64,
     pub revealed_sector_owner: [u8; MAP_TILES],
     pub battle_summary: [u8; 10],
+    pub submitted_orders: [u8; MAX_PLAYERS],
     pub hidden_state: [[u8; 32]; HIDDEN_STATE_WORDS],
     pub hidden_state_nonce: u128,
     pub last_visibility: [[u8; 32]; VISIBILITY_REPORT_WORDS],
     pub last_visibility_nonce: u128,
+    pub last_visibility_viewer: u8,
 }
 
 impl GalaxyMatch {
-    pub const SPACE: usize = 4453;
-    pub const HIDDEN_STATE_OFFSET: usize = 261;
+    pub const SPACE: usize = 522;
+    pub const HIDDEN_STATE_OFFSET: usize = 265;
 
     pub fn is_registered(&self, player: &Pubkey) -> bool {
         self.players.iter().any(|registered| registered == player)
+    }
+
+    pub fn player_slot(&self, player: &Pubkey) -> Option<u8> {
+        self.players
+            .iter()
+            .position(|registered| registered == player)
+            .map(|slot| slot as u8)
     }
 
     pub fn registered_count(&self) -> usize {
@@ -769,6 +841,20 @@ impl GalaxyMatch {
             .iter()
             .filter(|player| **player != Pubkey::default())
             .count()
+    }
+
+    pub fn has_all_submissions(&self) -> bool {
+        let mut slot = 0usize;
+
+        while slot < self.player_count as usize {
+            if self.players[slot] == Pubkey::default() || self.submitted_orders[slot] == 0 {
+                return false;
+            }
+
+            slot += 1;
+        }
+
+        true
     }
 }
 
@@ -782,6 +868,7 @@ pub struct MatchReady {
 pub struct VisibilitySnapshotReady {
     pub match_id: u64,
     pub turn: u8,
+    pub viewer_index: u8,
 }
 
 #[event]
@@ -809,4 +896,16 @@ pub enum ErrorCode {
     SlotTaken,
     #[msg("That player is already registered")]
     AlreadyRegistered,
+    #[msg("The match is already full")]
+    MatchFull,
+    #[msg("Player registration has closed")]
+    RegistrationClosed,
+    #[msg("Orders have already been submitted for that player")]
+    OrdersAlreadySubmitted,
+    #[msg("The encrypted order payload was rejected")]
+    InvalidEncryptedOrder,
+    #[msg("That player index does not match the caller")]
+    PlayerIndexMismatch,
+    #[msg("Not all players have submitted orders for this turn")]
+    PendingOrders,
 }
