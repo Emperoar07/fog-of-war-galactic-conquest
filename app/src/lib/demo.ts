@@ -327,7 +327,7 @@ export interface TutorialStep {
   highlight?: "board" | "orders" | "resolve" | "visibility";
 }
 
-const TUTORIAL_KEY = "fog-of-war-tutorial-done";
+const TUTORIAL_KEY = "fog-of-war-tutorial-v2-done";
 
 export function isTutorialDone(): boolean {
   try {
@@ -360,6 +360,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     highlight: "board",
   },
   {
+    id: "units-and-actions",
+    title: "CHOOSE THE RIGHT TOOL",
+    message:
+      "Use the Scout Wing when you need information, switch to Fighter Wings when a target is confirmed, and keep the Command Fleet for safe control or emergency repositioning. Move repositions, Scout gathers intel, and Attack commits force.",
+    highlight: "orders",
+  },
+  {
     id: "submit-order",
     title: "ISSUE AN ORDER",
     message:
@@ -370,7 +377,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "companion-mode",
     title: "USE COMPANION MODE",
     message:
-      "Turn Companion Mode on when you want a suggested move. It only advises; you still choose whether to apply and submit it.",
+      "Turn Companion Mode on when you want the assistant to suggest the best unit and action for the current board. It only advises; you still choose whether to apply and submit it.",
     highlight: "orders",
   },
   {
