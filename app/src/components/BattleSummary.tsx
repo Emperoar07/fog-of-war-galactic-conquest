@@ -20,7 +20,7 @@ export default memo(function BattleSummary({
 
   if (!hasData) {
     return (
-      <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+      <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[152px]">
         <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
           BATTLE LOGIC
         </h3>
@@ -32,7 +32,7 @@ export default memo(function BattleSummary({
   }
 
   return (
-    <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+    <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[152px]">
       <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
         BATTLE LOGIC
       </h3>

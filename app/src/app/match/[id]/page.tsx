@@ -854,7 +854,7 @@ function MatchPageInner() {
       <div className="grid grid-cols-1 gap-2 sm:gap-3 xl:grid-cols-[minmax(0,0.4fr)_minmax(240px,0.3fr)_minmax(240px,0.3fr)] xl:items-start">
         <TurnStatus match={match} walletKey={publicKey} />
 
-        <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+        <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4 xl:h-[152px]">
           <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
             PLAYERS
           </h3>

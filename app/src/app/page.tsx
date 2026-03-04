@@ -91,23 +91,16 @@ export default function Home() {
                 </div>
                 <div className="mt-3 space-y-3 text-xs leading-6 text-[#00cc33]">
                   <p>
-                    Fog of War is a turn-based strategy game. You are trying to
-                    out-position the other player, keep your important units
-                    alive, and reveal just enough information to make better
-                    decisions than your opponent.
+                    Fog of War is a turn-based strategy game. Pick a unit, pick
+                    a target, submit a turn, then read the result.
                   </p>
                   <p>
-                    The core idea is simple: not every piece of information is
-                    public. Some moves and visibility checks are meant to stay
-                    hidden until the rules say they can be revealed.
+                    Some information stays hidden. Orders and visibility are
+                    meant to stay private until the rules allow a reveal.
                   </p>
                   <p>
-                    If you are new to tactical games, think of it as:
-                    <span className="text-[#b8ffc8]">
-                      {" "}
-                      choose a unit, choose a target, submit your turn, then
-                      read the result.
-                    </span>
+                    If you are new, start in demo mode first. It teaches the
+                    full loop without needing a wallet.
                   </p>
                 </div>
               </div>
@@ -118,44 +111,39 @@ export default function Home() {
                 </div>
                 <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
                   <li>
-                    1. Click <span className="text-[#ffb000]">Launch Demo</span> on the
-                    landing page.
+                    1. Click <span className="text-[#ffb000]">Launch Demo</span>.
                   </li>
                   <li>
-                    2. The demo opens a simulated match instantly. No wallet
-                    and no blockchain setup are required.
+                    2. The demo opens instantly. No wallet is required.
                   </li>
                   <li>
-                    3. On the board, click a sector to choose where you want to
-                    act.
+                    3. Click a board sector to choose your target.
                   </li>
                   <li>
-                    4. Use the action controls to submit a move or attack order
-                    for the current turn.
+                    4. Use Fire Control to queue an order.
                   </li>
                   <li>
-                    5. Click <span className="text-[#ffb000]">Resolve Turn</span> to see the
-                    next state of the battlefield.
+                    5. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
+                    want a suggested move before you commit.
                   </li>
                   <li>
-                    6. Click{" "}
+                    6. Click <span className="text-[#ffb000]">Resolve Turn</span> to advance
+                    the battle.
+                  </li>
+                  <li>
+                    7. Click{" "}
                     <span className="text-[#00e5cc]">
                       Request Visibility Report
                     </span>{" "}
-                    to simulate a scout update and reveal enemy information.
+                    to simulate a scout update.
                   </li>
                   <li>
-                    7. Watch the battle summary, activity log, and board
-                    updates to understand what changed after each action.
+                    8. Watch the board, battle logic, and activity log to see
+                    what changed.
                   </li>
                   <li>
-                    8. If you turn <span className="text-[#00e5cc]">Companion Mode</span> on,
-                    the tactical assistant will suggest a move you can load
-                    into Fire Control before you confirm it.
-                  </li>
-                  <li>
-                    9. Use the audio toggle in the header if you want ambient
-                    command-deck audio and action cues while you play.
+                    9. Use the audio toggle if you want ambient sound and
+                    action cues.
                   </li>
                 </ol>
               </div>
@@ -166,35 +154,33 @@ export default function Home() {
                 </div>
                 <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
                   <li>
-                    1. Connect a Solana wallet such as Phantom or Solflare.
+                    1. Connect a Solana wallet.
                   </li>
                   <li>
-                    2. In the lobby, create a new match or join an open one.
+                    2. Create a match or join an open one.
                   </li>
                   <li>
-                    3. When the match is active, select a board sector and
-                    choose an action for your turn.
+                    3. When the match is active, select a sector and choose an
+                    action.
                   </li>
                   <li>
-                    4. Submit your encrypted order. This sends your instruction
-                    to the game flow without exposing everything publicly.
-                  </li>
-                  <li>5. Wait for the other player to submit their turn.</li>
-                  <li>
-                    6. Once all orders are in, resolve the turn to process the
-                    battle result.
+                    4. Submit one encrypted order for the turn.
                   </li>
                   <li>
-                    7. Request visibility when you want a scouting-style update
-                    about enemy positions that your units are allowed to detect.
+                    5. Wait for the other player to submit.
+                  </li>
+                  <li>
+                    6. Resolve the turn when both sides are ready.
+                  </li>
+                  <li>
+                    7. Request visibility when you need a scouting update.
                   </li>
                   <li>
                     8. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
-                    want a local tactical suggestion before you submit an order.
+                    want a local tactical suggestion before you commit.
                   </li>
                   <li>
-                    9. Keep the audio toggle on if you want live ambient audio,
-                    action effects, and victory confirmation cues.
+                    9. Keep audio on if you want ambient sound and result cues.
                   </li>
                 </ol>
               </div>
@@ -207,24 +193,22 @@ export default function Home() {
                 </div>
                 <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
                   <li>
-                    - The board shows which sectors are known, contested, or
-                    newly updated.
+                    - The board shows known, contested, and updated sectors.
                   </li>
                   <li>
-                    - The status rail tells you whether you are in demo mode,
-                    live devnet, or waiting on the next turn.
+                    - The status rail tells you if you are in demo, live
+                    devnet, or waiting.
                   </li>
                   <li>
-                    - The activity log records important actions like
-                    submissions, visibility updates, and turn resolution.
+                    - The activity log records submissions, visibility updates,
+                    and turn resolution.
                   </li>
                   <li>
-                    - Companion Mode only suggests moves when you turn it on,
-                    and you still choose when to apply and submit them.
+                    - Companion Mode only suggests; you still choose whether to
+                    apply and submit.
                   </li>
                   <li>
-                    - The battle summary gives the cleanest snapshot of who is
-                    ahead after each turn.
+                    - Battle Logic gives the fastest snapshot of who is ahead.
                   </li>
                 </ul>
               </div>
@@ -235,17 +219,16 @@ export default function Home() {
                 </div>
                 <div className="mt-3 space-y-3">
                   <p>
-                    Demo mode is the best place to learn because it is fully
-                    playable right now and shows the complete UI flow.
+                    Demo mode is the easiest place to learn because it is fully
+                    playable right now.
                   </p>
                   <p>
-                    Live devnet mode uses the real network flow, but encrypted
-                    actions depend on Arcium MXE readiness. If MXE is not ready,
-                    some live encrypted steps may wait or be unavailable.
+                    Live devnet uses the real network flow, but encrypted
+                    actions still depend on Arcium MXE readiness.
                   </p>
                   <p>
-                    If you are unsure where to start, begin with demo mode,
-                    learn the loop, then try a live match after that.
+                    If you are unsure where to start, learn the loop in demo
+                    mode first, then try live devnet.
                   </p>
                 </div>
               </div>

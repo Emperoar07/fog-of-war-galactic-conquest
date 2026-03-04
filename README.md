@@ -28,6 +28,69 @@ The result is a verifiable game loop where hidden information remains hidden unt
 5. Publish the public turn summary.
 6. Request a player-scoped visibility report when needed.
 
+## How To Play
+
+You can use the project today in two ways:
+
+- **Demo mode**
+  - The full frontend loop works with simulated game state.
+  - This is the best way to explore the UI, match flow, and turn flow without depending on MXE readiness.
+- **Live devnet mode**
+  - The app can connect to the deployed Solana program on devnet.
+  - Read-only flows, match browsing, and public state work normally.
+  - Full encrypted gameplay still depends on Arcium MXE readiness.
+
+### Fastest Way: Play The Demo
+
+1. Open the frontend.
+2. Click **Launch Demo** on the landing page, or open the demo match directly.
+3. Use the demo battlefield to:
+   - select a target sector
+   - queue a mock order
+   - optionally turn Companion Mode on for a suggested move
+   - resolve a simulated turn
+   - request a simulated visibility report
+   - use the Audio toggle for ambient sound and action cues
+4. Watch the board, battle panels, and activity log update locally.
+
+The demo does not require a wallet and does not depend on live MXE encryption.
+
+### Play On Devnet
+
+1. Open the frontend and connect a Solana wallet such as Phantom or Solflare.
+2. Browse existing matches in the lobby, or create a new one.
+3. Join a match if a player slot is open.
+4. Once the match is active:
+   - submit one encrypted order per turn
+   - optionally turn Companion Mode on for a local tactical suggestion
+   - request visibility when needed
+   - resolve the turn after all players have submitted
+   - use the Audio toggle if you want ambient sound plus button, action, and victory effects
+
+Important:
+
+- If the Arcium devnet MXE cluster is not ready, encrypted actions may be unavailable or may not finalize.
+- In that case, use demo mode for a full walkthrough and use live devnet mainly for public-state testing.
+
+### Run It Locally
+
+1. Install dependencies:
+   - `npm install`
+   - `cd app && npm install`
+2. Start the frontend:
+   - `cd app`
+   - `npm run dev`
+3. Open the local app in your browser.
+4. Use:
+   - the demo path for a guaranteed playable UI loop
+   - wallet-connected devnet mode for live network interaction
+
+### What "Playing" Means Right Now
+
+Today, the most reliable fully playable experience is demo mode.
+
+The live onchain experience is real, but the full encrypted turn loop still depends on Arcium devnet cluster readiness. When MXE is available, the app supports the intended private move and private resolve flow. When MXE is not available, demo mode remains the best way to test and showcase the game.
+
 The MVP uses:
 
 - 2 players
@@ -78,69 +141,6 @@ What is in place today:
 Known limitation:
 
 - Full positive-path devnet execution currently depends on MXE cluster readiness on the target Arcium devnet cluster. If MXE keys are unavailable, encrypted actions cannot complete end-to-end.
-
-## How To Play
-
-Yes, you can use the project today in two ways:
-
-- **Demo mode**
-  - The full frontend loop works with simulated game state.
-  - This is the best way to explore the UI, match flow, and turn flow without depending on MXE readiness.
-- **Live devnet mode**
-  - The app can connect to the deployed Solana program on devnet.
-  - Read-only flows, match browsing, and public state work normally.
-  - Full encrypted gameplay still depends on Arcium MXE readiness.
-
-### Fastest Way: Play The Demo
-
-1. Open the frontend.
-2. Click **Launch Demo** on the landing page, or open the demo match directly.
-3. Use the demo battlefield to:
-   - select a target sector
-   - queue a mock order
-   - resolve a simulated turn
-   - request a simulated visibility report
-   - optionally turn Companion Mode on to load a suggested move into Fire Control
-   - use the Audio toggle for ambient command-deck audio, action cues, and victory signals
-4. Watch the activity log and battle panels update locally.
-
-The demo does not require a wallet and does not depend on live MXE encryption.
-
-### Play On Devnet
-
-1. Open the frontend and connect a Solana wallet such as Phantom or Solflare.
-2. Browse existing matches in the lobby, or create a new one.
-3. Join a match if a player slot is open.
-4. Once the match is active:
-   - submit one encrypted order per turn
-   - request visibility when needed
-   - resolve the turn after all players have submitted
-   - optionally turn Companion Mode on for a local tactical suggestion before you commit
-   - use the Audio toggle if you want live ambient audio plus button, action, and victory effects
-
-Important:
-
-- If the Arcium devnet MXE cluster is not ready, encrypted actions may be unavailable or may not finalize.
-- In that case, use demo mode for a full walkthrough and use live devnet mainly for public-state testing.
-
-### Run It Locally
-
-1. Install dependencies:
-   - `npm install`
-   - `cd app && npm install`
-2. Start the frontend:
-   - `cd app`
-   - `npm run dev`
-3. Open the local app in your browser.
-4. Use:
-   - the demo path for a guaranteed playable UI loop
-   - wallet-connected devnet mode for live network interaction
-
-### What "Playing" Means Right Now
-
-Today, the most reliable fully playable experience is the frontend demo mode.
-
-The live onchain experience is real, but the complete encrypted turn loop still depends on Arcium devnet cluster readiness. When MXE is available, the app is designed to support the full private move / private resolve flow. When MXE is not available, the demo remains the best way to test and showcase the game.
 
 ## Local Development
 

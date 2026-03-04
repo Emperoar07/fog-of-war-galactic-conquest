@@ -360,6 +360,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     highlight: "orders",
   },
   {
+    id: "companion-mode",
+    title: "USE COMPANION MODE",
+    message:
+      "Turn Companion Mode on when you want a suggested move. It only advises; you still choose whether to apply and submit it.",
+    highlight: "orders",
+  },
+  {
     id: "resolve-turn",
     title: "RESOLVE THE TURN",
     message:

@@ -48,7 +48,7 @@ export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
   const current = TUTORIAL_STEPS[step];
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] flex justify-center px-3 pb-4 sm:pb-6">
+    <div className="fixed inset-x-0 top-0 z-[100] flex justify-center px-3 pt-20 sm:top-auto sm:bottom-0 sm:pt-0 sm:pb-6">
       <div className="w-full max-w-lg animate-[slideUp_300ms_ease-out] border border-[#0c6d1f] bg-[#030d03] p-4 shadow-[0_0_40px_rgba(0,255,65,0.12)] sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
