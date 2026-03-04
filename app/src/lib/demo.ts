@@ -32,6 +32,10 @@ type AiProfile = {
   aggression: number;
   caution: number;
   reinforcementBurst: number;
+  moveBudgetMin: number;
+  moveBudgetMax: number;
+  waveCount: number;
+  interiorReinforcementChance: number;
   expansionChance: number;
   contestedPushChance: number;
   winnerTurn: number;
@@ -46,6 +50,10 @@ const AI_PROFILES: Record<AiDifficulty, AiProfile> = {
     aggression: 0.2,
     caution: 0.8,
     reinforcementBurst: 1,
+    moveBudgetMin: 1,
+    moveBudgetMax: 2,
+    waveCount: 1,
+    interiorReinforcementChance: 0.08,
     expansionChance: 0.08,
     contestedPushChance: 0.2,
     winnerTurn: 8,
@@ -58,6 +66,10 @@ const AI_PROFILES: Record<AiDifficulty, AiProfile> = {
     aggression: 0.45,
     caution: 0.5,
     reinforcementBurst: 2,
+    moveBudgetMin: 2,
+    moveBudgetMax: 4,
+    waveCount: 2,
+    interiorReinforcementChance: 0.16,
     expansionChance: 0.12,
     contestedPushChance: 0.35,
     winnerTurn: 9,
@@ -70,6 +82,10 @@ const AI_PROFILES: Record<AiDifficulty, AiProfile> = {
     aggression: 0.72,
     caution: 0.25,
     reinforcementBurst: 3,
+    moveBudgetMin: 3,
+    moveBudgetMax: 6,
+    waveCount: 3,
+    interiorReinforcementChance: 0.24,
     expansionChance: 0.18,
     contestedPushChance: 0.55,
     winnerTurn: 9,
@@ -256,93 +272,90 @@ function applyAiTurnByDifficulty(
   rand: () => number,
 ): number[] {
   const next = [...map];
-  const analysis = analyzeBoard(next);
-  const allMoves = generateMoves(next, analysis, profile, playerOrder);
-
-  if (allMoves.length === 0) return next;
-
-  // Sort moves by score descending
-  allMoves.sort((a, b) => b.score - a.score);
-
   const usedIndices = new Set<number>();
-  let budget: number;
 
-  if (profile.label === "Easy") {
-    // Easy: pick 1-2 random moves from all candidates, ignoring score
-    budget = 1 + (rand() < 0.3 ? 1 : 0);
-    // Shuffle the moves randomly instead of using score order
-    for (let i = allMoves.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [allMoves[i], allMoves[j]] = [allMoves[j], allMoves[i]];
-    }
-    // Easy rarely captures — filter out captures most of the time
-    const filtered = allMoves.filter((m) => {
-      if (m.type === "capture") return rand() < 0.15;
-      if (m.type === "contest") return rand() < 0.35;
-      return true;
-    });
-    const pool = filtered.length > 0 ? filtered : allMoves;
-    for (const move of pool) {
-      if (usedIndices.size >= budget) break;
-      if (usedIndices.has(move.index)) continue;
-      next[move.index] = move.newOwner;
-      usedIndices.add(move.index);
-    }
-  } else if (profile.label === "Medium") {
-    // Medium: pick from top ~60% of moves, apply 2-4 changes
-    budget = 2 + (rand() < 0.5 ? 1 : 0) + (rand() < 0.25 ? 1 : 0);
-    const topCount = Math.max(3, Math.ceil(allMoves.length * 0.6));
-    const pool = allMoves.slice(0, topCount);
-    // Slight shuffle within the top pool
-    for (let i = pool.length - 1; i > 0; i--) {
-      if (rand() < 0.4) {
+  const baseBudget = profile.moveBudgetMin;
+  const extraBudget = Math.floor(
+    rand() * Math.max(1, profile.moveBudgetMax - profile.moveBudgetMin + 1),
+  );
+  const budget = baseBudget + extraBudget;
+  let remaining = budget;
+
+  for (let wave = 0; wave < profile.waveCount && remaining > 0; wave++) {
+    const analysis = analyzeBoard(next);
+    const allMoves = generateMoves(next, analysis, profile, playerOrder);
+    if (allMoves.length === 0) break;
+
+    allMoves.sort((a, b) => b.score - a.score);
+
+    // Difficulty-specific shaping within each wave
+    let pool = allMoves;
+    if (profile.label === "Easy") {
+      for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(rand() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
       }
-    }
-    for (const move of pool) {
-      if (usedIndices.size >= budget) break;
-      if (usedIndices.has(move.index)) continue;
-      next[move.index] = move.newOwner;
-      usedIndices.add(move.index);
-    }
-  } else {
-    // Hard: pick the top-scoring moves optimally, apply 3-5 changes
-    budget = 3 + (rand() < 0.6 ? 1 : 0) + (rand() < 0.3 ? 1 : 0);
-
-    // Hard AI also reacts to player's action type
-    if (playerOrder.action === 2) {
-      // Player attacked — boost defensive/counter moves near target
+      pool = pool.filter((m) => {
+        if (m.type === "capture") return rand() < 0.12;
+        if (m.type === "contest") return rand() < 0.3;
+        return true;
+      });
+      if (pool.length === 0) pool = allMoves.slice(0, 2);
+    } else if (profile.label === "Medium") {
+      const topCount = Math.max(3, Math.ceil(pool.length * 0.6));
+      pool = pool.slice(0, topCount);
+      for (let i = pool.length - 1; i > 1; i--) {
+        if (rand() < 0.35) {
+          const j = Math.floor(rand() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+      }
+    } else {
+      // Hard mode re-prioritizes counters near player target and frontier blocking.
       const playerTarget = toIndex(playerOrder.targetX, playerOrder.targetY);
-      for (const move of allMoves) {
+      for (const move of pool) {
         if (gridDistance(move.index, playerTarget) <= 2) {
-          move.score += 1.5;
+          move.score += 1.2;
+        }
+        if (analysis.playerFrontier.includes(move.index) && move.type === "expand") {
+          move.score += 0.9;
         }
       }
-      allMoves.sort((a, b) => b.score - a.score);
-    } else if (playerOrder.action === 1) {
-      // Player scouted — push into contested/enemy zones while they gather info
-      for (const move of allMoves) {
-        if (move.type === "capture" || move.type === "contest") {
-          move.score += 0.8;
-        }
-      }
-      allMoves.sort((a, b) => b.score - a.score);
+      pool.sort((a, b) => b.score - a.score);
     }
 
-    // Try to cut off player expansion paths
-    for (const move of allMoves) {
-      if (analysis.playerFrontier.includes(move.index) && move.type === "expand") {
-        move.score += 1.0; // bonus for blocking
-      }
-    }
-    allMoves.sort((a, b) => b.score - a.score);
-
-    for (const move of allMoves) {
-      if (usedIndices.size >= budget) break;
+    const perWaveBudget = Math.max(
+      1,
+      Math.min(remaining, Math.ceil(budget / profile.waveCount)),
+    );
+    let waveApplied = 0;
+    for (const move of pool) {
+      if (waveApplied >= perWaveBudget || remaining <= 0) break;
       if (usedIndices.has(move.index)) continue;
       next[move.index] = move.newOwner;
       usedIndices.add(move.index);
+      waveApplied++;
+      remaining--;
+    }
+
+    // Interior reinforcement: deepen control behind the frontier.
+    if (remaining > 0) {
+      const postAnalysis = analyzeBoard(next);
+      const interior = postAnalysis.aiTiles.filter((idx) => {
+        const adj = neighbors(idx);
+        return adj.every((n) => next[n] === 2 || next[n] === 4);
+      });
+      for (const idx of interior) {
+        if (remaining <= 0) break;
+        if (rand() > profile.interiorReinforcementChance) continue;
+        const ring = neighbors(idx).filter((n) => next[n] === 0 || next[n] === 3);
+        if (ring.length === 0) continue;
+        const pick = ring[Math.floor(rand() * ring.length)];
+        if (usedIndices.has(pick)) continue;
+        next[pick] = 2;
+        usedIndices.add(pick);
+        remaining--;
+      }
     }
   }
 

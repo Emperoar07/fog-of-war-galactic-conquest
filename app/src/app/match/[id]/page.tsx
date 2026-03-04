@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -154,7 +154,10 @@ function MatchPageInner() {
   const [turnSnapshots, setTurnSnapshots] = useState<
     { turn: number; dominant: "friendly" | "enemy" | "contested"; controlled: number; contested: number }[]
   >([]);
+  const [changedTiles, setChangedTiles] = useState<number[]>([]);
   const [notificationPrompted, setNotificationPrompted] = useState(false);
+  const previousMapRef = useRef<number[] | null>(null);
+  const changedTileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     actionMessage,
     actionTone,
@@ -299,6 +302,42 @@ function MatchPageInner() {
       return [...current, nextSnapshot].slice(-8);
     });
   }, [match]);
+
+  useEffect(() => {
+    if (!match) return;
+    const previous = previousMapRef.current;
+    const current = match.revealedSectorOwner;
+    if (!previous) {
+      previousMapRef.current = [...current];
+      return;
+    }
+
+    const diff: number[] = [];
+    const len = Math.min(previous.length, current.length);
+    for (let i = 0; i < len; i++) {
+      if (previous[i] !== current[i]) diff.push(i);
+    }
+    previousMapRef.current = [...current];
+    if (diff.length === 0) return;
+
+    setChangedTiles(diff);
+    if (changedTileTimerRef.current) {
+      clearTimeout(changedTileTimerRef.current);
+    }
+    changedTileTimerRef.current = setTimeout(() => {
+      setChangedTiles([]);
+      changedTileTimerRef.current = null;
+    }, 900);
+  }, [match]);
+
+  useEffect(
+    () => () => {
+      if (changedTileTimerRef.current) {
+        clearTimeout(changedTileTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -961,6 +1000,7 @@ function MatchPageInner() {
               unitPositions={localMode ? demoUnitPositions : visibilityUnits}
               pendingOrder={pendingOrderGhost}
               turn={match.turn}
+              changedTiles={changedTiles}
             />
             {selectedCell && (
               <div className="border border-[#0e2a0e] bg-[#030d03] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[#00cc33] sm:hidden">

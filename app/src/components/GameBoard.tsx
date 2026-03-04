@@ -8,9 +8,10 @@ interface GameBoardProps {
   selectedCell: { x: number; y: number } | null;
   onCellClick: (x: number, y: number) => void;
   highlightBoard?: boolean;
-  unitPositions?: { slot: number; x: number; y: number }[];
+  unitPositions?: { slot: number; x: number; y: number }[]; 
   pendingOrder?: { x: number; y: number; action: string } | null;
   turn?: number;
+  changedTiles?: number[];
 }
 
 const CELL_BG: Record<number, string> = {
@@ -72,6 +73,7 @@ const BoardCell = memo(function BoardCell({
   unitIcon,
   unitType,
   pendingAction,
+  changed,
   onClick,
 }: {
   x: number;
@@ -81,6 +83,7 @@ const BoardCell = memo(function BoardCell({
   unitIcon: string | null;
   unitType: UnitType | null;
   pendingAction: string | null;
+  changed: boolean;
   onClick: (x: number, y: number) => void;
 }) {
   const dot = DOT_COLORS[owner] || DOT_COLORS[0];
@@ -144,6 +147,17 @@ const BoardCell = memo(function BoardCell({
             </span>
           )}
         </div>
+        {changed && (
+          <span
+            className="pointer-events-none absolute inset-0 rounded-[1px]"
+            style={{
+              animation: "tileFlash 800ms ease-out",
+              boxShadow: "inset 0 0 0 1px rgba(0,229,204,0.45), 0 0 16px rgba(0,229,204,0.18)",
+              background:
+                "linear-gradient(135deg, rgba(0,229,204,0.14), rgba(0,255,65,0.06) 45%, transparent 80%)",
+            }}
+          />
+        )}
       </div>
     </button>
   );
@@ -157,6 +171,7 @@ export default function GameBoard({
   unitPositions,
   pendingOrder,
   turn,
+  changedTiles = [],
 }: GameBoardProps) {
   const unitMap = new Map<string, string>();
   const unitTypeMap = new Map<string, UnitType>();
@@ -169,6 +184,7 @@ export default function GameBoard({
   }
 
   const sweepKey = turn ?? "no-turn";
+  const changedSet = new Set(changedTiles);
 
   // Mobile zoom
   const [zoomed, setZoomed] = useState(false);
@@ -271,6 +287,7 @@ export default function GameBoard({
                     ? pendingOrder.action
                     : null
                 }
+                changed={changedSet.has(i)}
                 onClick={onCellClick}
               />
             );
