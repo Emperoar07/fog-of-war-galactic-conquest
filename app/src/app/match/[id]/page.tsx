@@ -967,6 +967,12 @@ function MatchPageInner() {
                 Sector ({selectedCell.x}, {selectedCell.y}) selected. Review the target here before you confirm the order.
               </div>
             )}
+            <div className={`grid gap-2.5 sm:gap-3 ${localMode ? "lg:grid-cols-2" : ""}`}>
+              <TurnTimeline snapshots={turnSnapshots} currentTurn={match.turn} />
+              {localMode && (
+                <DemoReplay onApplySnapshot={handleReplaySnapshot} />
+              )}
+            </div>
           </div>
         </div>
 
@@ -1097,12 +1103,6 @@ function MatchPageInner() {
           )}
 
           <ActivityLog entries={activityLog} />
-
-          <TurnTimeline snapshots={turnSnapshots} currentTurn={match.turn} />
-
-          {localMode && (
-            <DemoReplay onApplySnapshot={handleReplaySnapshot} />
-          )}
         </div>
       </div>
     </div>
