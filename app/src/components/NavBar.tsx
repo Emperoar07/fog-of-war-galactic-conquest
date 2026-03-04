@@ -40,37 +40,42 @@ export default function NavBar() {
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
-          <button
-            onClick={() => {
-              playSound("uiTap");
-              toggleAudio();
-            }}
-            className={`inline-flex items-center gap-2 border px-3 py-1 text-[9px] uppercase tracking-[0.22em] ${
-              audioEnabled
-                ? "border-[rgba(0,255,65,0.3)] bg-[rgba(0,255,65,0.04)] text-[#00ff41]"
-                : "border-[#0e2a0e] bg-[#021202] text-[#0c6d1f]"
-            }`}
-            aria-pressed={audioEnabled}
-            aria-label={audioEnabled ? "Disable sound effects" : "Enable sound effects"}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
+        <div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
+          <div className="grid gap-2">
+            <span className="inline-flex items-center gap-2 border border-[rgba(255,176,0,0.28)] bg-[rgba(255,176,0,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#ffb000]">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ffb000] shadow-[0_0_8px_rgba(255,176,0,0.6)]" />
+              Solana Devnet
+            </span>
+            <span className="inline-flex items-center gap-2 border border-[rgba(0,229,204,0.3)] bg-[rgba(0,229,204,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#00e5cc]">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00e5cc] shadow-[0_0_8px_rgba(0,229,204,0.8)]" />
+              Arcium MPC
+            </span>
+            <button
+              onClick={() => {
+                const enablingAudio = !audioEnabled;
+                toggleAudio();
+                if (enablingAudio) {
+                  playSound("uiTap");
+                }
+              }}
+              className={`inline-flex items-center gap-2 border px-3 py-1 text-[9px] uppercase tracking-[0.22em] ${
                 audioEnabled
-                  ? "animate-pulse bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.7)]"
-                  : "bg-[#0c6d1f]"
+                  ? "border-[rgba(0,255,65,0.3)] bg-[rgba(0,255,65,0.04)] text-[#00ff41]"
+                  : "border-[#0e2a0e] bg-[#021202] text-[#0c6d1f]"
               }`}
-            />
-            {audioEnabled ? "Audio On" : "Audio Off"}
-          </button>
-          <span className="inline-flex items-center gap-2 border border-[rgba(0,229,204,0.3)] bg-[rgba(0,229,204,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#00e5cc]">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00e5cc] shadow-[0_0_8px_rgba(0,229,204,0.8)]" />
-            Arcium MPC
-          </span>
-          <span className="inline-flex items-center gap-2 border border-[rgba(255,176,0,0.28)] bg-[rgba(255,176,0,0.04)] px-3 py-1 text-[9px] uppercase tracking-[0.22em] text-[#ffb000]">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ffb000] shadow-[0_0_8px_rgba(255,176,0,0.6)]" />
-            Solana Devnet
-          </span>
+              aria-pressed={audioEnabled}
+              aria-label={audioEnabled ? "Disable sound effects" : "Enable sound effects"}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  audioEnabled
+                    ? "animate-pulse bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.7)]"
+                    : "bg-[#0c6d1f]"
+                }`}
+              />
+              {audioEnabled ? "Audio On" : "Audio Off"}
+            </button>
+          </div>
           <WalletButton />
         </div>
       </div>

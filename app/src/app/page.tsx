@@ -102,7 +102,11 @@ export default function Home() {
                   </p>
                   <p>
                     If you are new to tactical games, think of it as:
-                    <span className="text-[#b8ffc8]"> choose a unit, choose a target, submit your turn, then read the result.</span>
+                    <span className="text-[#b8ffc8]">
+                      {" "}
+                      choose a unit, choose a target, submit your turn, then
+                      read the result.
+                    </span>
                   </p>
                 </div>
               </div>
@@ -112,13 +116,37 @@ export default function Home() {
                   Demo Mode Walkthrough
                 </div>
                 <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>1. Click <span className="text-[#ffb000]">Launch Demo Loop</span> on the landing page.</li>
-                  <li>2. The demo opens a simulated match instantly. No wallet and no blockchain setup are required.</li>
-                  <li>3. On the board, click a sector to choose where you want to act.</li>
-                  <li>4. Use the action controls to submit a move or attack order for the current turn.</li>
-                  <li>5. Click <span className="text-[#ffb000]">Resolve Turn</span> to see the next state of the battlefield.</li>
-                  <li>6. Click <span className="text-[#00e5cc]">Request Visibility Report</span> to simulate a scout update and reveal enemy information.</li>
-                  <li>7. Watch the battle summary, activity log, and board updates to understand what changed after each action.</li>
+                  <li>
+                    1. Click <span className="text-[#ffb000]">Launch Demo Loop</span> on the
+                    landing page.
+                  </li>
+                  <li>
+                    2. The demo opens a simulated match instantly. No wallet
+                    and no blockchain setup are required.
+                  </li>
+                  <li>
+                    3. On the board, click a sector to choose where you want to
+                    act.
+                  </li>
+                  <li>
+                    4. Use the action controls to submit a move or attack order
+                    for the current turn.
+                  </li>
+                  <li>
+                    5. Click <span className="text-[#ffb000]">Resolve Turn</span> to see the
+                    next state of the battlefield.
+                  </li>
+                  <li>
+                    6. Click{" "}
+                    <span className="text-[#00e5cc]">
+                      Request Visibility Report
+                    </span>{" "}
+                    to simulate a scout update and reveal enemy information.
+                  </li>
+                  <li>
+                    7. Watch the battle summary, activity log, and board
+                    updates to understand what changed after each action.
+                  </li>
                 </ol>
               </div>
 
@@ -127,13 +155,29 @@ export default function Home() {
                   Live Devnet Walkthrough
                 </div>
                 <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>1. Connect a Solana wallet such as Phantom or Solflare.</li>
-                  <li>2. In the lobby, create a new match or join an open one.</li>
-                  <li>3. When the match is active, select a board sector and choose an action for your turn.</li>
-                  <li>4. Submit your encrypted order. This sends your instruction to the game flow without exposing everything publicly.</li>
+                  <li>
+                    1. Connect a Solana wallet such as Phantom or Solflare.
+                  </li>
+                  <li>
+                    2. In the lobby, create a new match or join an open one.
+                  </li>
+                  <li>
+                    3. When the match is active, select a board sector and
+                    choose an action for your turn.
+                  </li>
+                  <li>
+                    4. Submit your encrypted order. This sends your instruction
+                    to the game flow without exposing everything publicly.
+                  </li>
                   <li>5. Wait for the other player to submit their turn.</li>
-                  <li>6. Once all orders are in, resolve the turn to process the battle result.</li>
-                  <li>7. Request visibility when you want a scouting-style update about enemy positions that your units are allowed to detect.</li>
+                  <li>
+                    6. Once all orders are in, resolve the turn to process the
+                    battle result.
+                  </li>
+                  <li>
+                    7. Request visibility when you want a scouting-style update
+                    about enemy positions that your units are allowed to detect.
+                  </li>
                 </ol>
               </div>
             </div>
@@ -144,10 +188,22 @@ export default function Home() {
                   What To Watch While Playing
                 </div>
                 <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>• The board shows which sectors are known, contested, or newly updated.</li>
-                  <li>• The status rail tells you whether you are in demo mode, live devnet, or waiting on the next turn.</li>
-                  <li>• The activity log records important actions like submissions, visibility updates, and turn resolution.</li>
-                  <li>• The battle summary gives the cleanest snapshot of who is ahead after each turn.</li>
+                  <li>
+                    - The board shows which sectors are known, contested, or
+                    newly updated.
+                  </li>
+                  <li>
+                    - The status rail tells you whether you are in demo mode,
+                    live devnet, or waiting on the next turn.
+                  </li>
+                  <li>
+                    - The activity log records important actions like
+                    submissions, visibility updates, and turn resolution.
+                  </li>
+                  <li>
+                    - The battle summary gives the cleanest snapshot of who is
+                    ahead after each turn.
+                  </li>
                 </ul>
               </div>
 
@@ -215,17 +271,14 @@ export default function Home() {
 
           <div className="grid gap-2">
             {[
-              ["01", "Commit", "Queue encrypted match setup and hidden state."],
-              ["02", "Compute", "Resolve turns with private Arcium MPC."],
-              ["03", "Reveal", "Emit only the public outcome the rules allow."],
-            ].map(([step, title, text]) => (
+              ["Commit", "Queue encrypted match setup and hidden state."],
+              ["Compute", "Resolve turns with private Arcium MPC."],
+              ["Reveal", "Emit only the public outcome the rules allow."],
+            ].map(([title, text]) => (
               <div
-                key={step}
+                key={title}
                 className="border border-[#0e2a0e] bg-[#021202] px-4 py-3"
               >
-                <div className="text-[9px] uppercase tracking-[0.26em] text-[#0c6d1f]">
-                  {step}
-                </div>
                 <div className="mt-1 font-[family-name:var(--font-vt323)] text-2xl tracking-[0.14em] text-[#00ff41]">
                   {title}
                 </div>

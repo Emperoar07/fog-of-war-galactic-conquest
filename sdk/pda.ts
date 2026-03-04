@@ -23,13 +23,21 @@ import {
 // Game PDAs
 // ---------------------------------------------------------------------------
 
+function encodeU64LE(value: bigint): Buffer {
+  const bytes = new Uint8Array(8);
+  const view = new DataView(bytes.buffer);
+  view.setBigUint64(0, value, true);
+  return Buffer.from(bytes);
+}
+
 /** Derive the GalaxyMatch PDA from a match ID. */
 export function getMatchPDA(
   matchId: bigint | BN,
   programId: PublicKey = PROGRAM_ID,
 ): [PublicKey, number] {
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64LE(typeof matchId === "bigint" ? matchId : BigInt(matchId.toString()));
+  const buf = encodeU64LE(
+    typeof matchId === "bigint" ? matchId : BigInt(matchId.toString()),
+  );
   return PublicKey.findProgramAddressSync(
     [Buffer.from(GALAXY_MATCH_SEED), buf],
     programId,
