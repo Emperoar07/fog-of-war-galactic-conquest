@@ -199,7 +199,12 @@ function MatchPageInner() {
   );
 
   const companionSuggestion = useMemo<CompanionSuggestion | null>(() => {
-    if (!match || playerSlot === null || match.status !== MatchStatus.Active) {
+    if (
+      !companionEnabled ||
+      !match ||
+      playerSlot === null ||
+      match.status !== MatchStatus.Active
+    ) {
       return null;
     }
 
@@ -275,7 +280,7 @@ function MatchPageInner() {
       reason:
         "No clear public target is available, so a scout action keeps pressure on the board while preserving flexibility.",
     };
-  }, [match, playerSlot, selectedCell, visibilityReport]);
+  }, [companionEnabled, match, playerSlot, selectedCell, visibilityReport]);
 
   const appendActivity = useCallback(
     (message: string, tone: "info" | "success" | "error" = "info") => {
@@ -903,8 +908,8 @@ function MatchPageInner() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)]">
-        <div className="flex justify-center">
+      <div className="grid grid-cols-1 gap-3 sm:gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)] xl:items-start">
+        <div className="flex justify-center self-start">
           <GameBoard
             revealedSectorOwner={match.revealedSectorOwner}
             selectedCell={selectedCell}
@@ -915,7 +920,7 @@ function MatchPageInner() {
         </div>
 
         <div className="space-y-2.5 sm:space-y-4">
-          {companionSuggestion && (
+          {canSubmitOrders && (
             <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -939,7 +944,7 @@ function MatchPageInner() {
               </div>
 
               <div className="mt-3 border border-[#0e2a0e] bg-[#021202] px-3 py-3">
-                {companionEnabled ? (
+                {companionEnabled && companionSuggestion ? (
                   <div className="space-y-3">
                     <div>
                       <div className="text-[8px] uppercase tracking-[0.24em] text-[#ffb000] sm:text-[9px]">
@@ -962,7 +967,7 @@ function MatchPageInner() {
                   </div>
                 ) : (
                   <div className="text-xs leading-6 text-[#0c6d1f]">
-                    Companion Mode is disabled. Turn it on to get local move suggestions before you commit an order.
+                    Companion Mode is off. Turn it on when you want a tactical recommendation. It will not suggest or apply moves until you enable it.
                   </div>
                 )}
               </div>

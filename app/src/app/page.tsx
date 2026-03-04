@@ -148,9 +148,9 @@ export default function Home() {
                     updates to understand what changed after each action.
                   </li>
                   <li>
-                    8. If <span className="text-[#00e5cc]">Companion Mode</span> is on,
-                    use the tactical assistant to load a suggested move into
-                    Fire Control before you confirm it.
+                    8. If you turn <span className="text-[#00e5cc]">Companion Mode</span> on,
+                    the tactical assistant will suggest a move you can load
+                    into Fire Control before you confirm it.
                   </li>
                 </ol>
               </div>
@@ -184,7 +184,7 @@ export default function Home() {
                     about enemy positions that your units are allowed to detect.
                   </li>
                   <li>
-                    8. Use <span className="text-[#00e5cc]">Companion Mode</span> if you
+                    8. Turn <span className="text-[#00e5cc]">Companion Mode</span> on if you
                     want a local tactical suggestion before you submit an order.
                   </li>
                 </ol>
@@ -210,8 +210,8 @@ export default function Home() {
                     submissions, visibility updates, and turn resolution.
                   </li>
                   <li>
-                    - Companion Mode suggests moves, but you still choose when
-                    to apply and submit them.
+                    - Companion Mode only suggests moves when you turn it on,
+                    and you still choose when to apply and submit them.
                   </li>
                   <li>
                     - The battle summary gives the cleanest snapshot of who is

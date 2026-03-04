@@ -100,7 +100,7 @@ Yes, you can use the project today in two ways:
    - queue a mock order
    - resolve a simulated turn
    - request a simulated visibility report
-   - optionally use Companion Mode to load a suggested move into Fire Control
+   - optionally turn Companion Mode on to load a suggested move into Fire Control
 4. Watch the activity log and battle panels update locally.
 
 The demo does not require a wallet and does not depend on live MXE encryption.
@@ -114,7 +114,7 @@ The demo does not require a wallet and does not depend on live MXE encryption.
    - submit one encrypted order per turn
    - request visibility when needed
    - resolve the turn after all players have submitted
-   - optionally use Companion Mode for a local tactical suggestion before you commit
+   - optionally turn Companion Mode on for a local tactical suggestion before you commit
 
 Important:
 
