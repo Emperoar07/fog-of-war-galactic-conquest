@@ -658,7 +658,22 @@ function MatchPageInner() {
       )}
 
       {demoMode && (
-        <TutorialOverlay onHighlight={(area) => setTutorialHighlight(area ?? null)} />
+        <TutorialOverlay onHighlight={(area) => {
+          setTutorialHighlight(area ?? null);
+          if (area) {
+            const targetId =
+              area === "board" ? "tutorial-board"
+              : area === "orders" ? "tutorial-orders"
+              : area === "resolve" ? "tutorial-orders"
+              : area === "visibility" ? "tutorial-orders"
+              : null;
+            if (targetId) {
+              setTimeout(() => {
+                document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 120);
+            }
+          }
+        }} />
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -795,7 +810,7 @@ function MatchPageInner() {
       />
 
       <div className="grid grid-cols-1 gap-3 sm:gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)] xl:items-start">
-        <div className="flex justify-center self-start">
+        <div id="tutorial-board" className="flex justify-center self-start">
           <GameBoard
             revealedSectorOwner={match.revealedSectorOwner}
             selectedCell={selectedCell}
@@ -876,7 +891,7 @@ function MatchPageInner() {
           )}
 
           {canSubmitOrders && (
-            <div className={tutorialHighlight === "orders" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""}>
+            <div id="tutorial-orders" className={tutorialHighlight === "orders" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""}>
               <OrderPanel
                 match={match}
                 playerSlot={playerSlot}
