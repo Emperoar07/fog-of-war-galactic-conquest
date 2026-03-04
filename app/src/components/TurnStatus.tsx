@@ -12,11 +12,11 @@ interface TurnStatusProps {
 function statusLabel(status: number): string {
   switch (status) {
     case MatchStatus.WaitingForPlayers:
-      return "Waiting for Players";
+      return "Standby";
     case MatchStatus.Active:
-      return "Active";
+      return "Battle";
     case MatchStatus.Completed:
-      return "Completed";
+      return "Complete";
     default:
       return `Unknown (${status})`;
   }
@@ -30,54 +30,58 @@ export default memo(function TurnStatus({ match, walletKey }: TurnStatusProps) {
   ).length;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-slate-800">Turn {match.turn}</h3>
+    <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-[9px] uppercase tracking-[0.34em] text-[#0c6d1f]">
+            Turn Status
+          </div>
+          <h3 className="mt-1 font-[family-name:var(--font-vt323)] text-4xl tracking-[0.14em] text-[#ffb000]">
+            {String(match.turn).padStart(3, "0")}
+          </h3>
+        </div>
         <span
-          className={`px-2 py-1 rounded text-sm font-medium ${
+          className={`border px-3 py-2 text-[10px] uppercase tracking-[0.24em] ${
             match.status === MatchStatus.Active
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+              ? "border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] text-[#00ff41]"
               : match.status === MatchStatus.Completed
-                ? "bg-purple-50 text-purple-700 border border-purple-200"
-                : "bg-amber-50 text-amber-700 border border-amber-200"
+                ? "border-[#005f52] bg-[rgba(0,229,204,0.03)] text-[#00e5cc]"
+                : "border-[#996800] bg-[rgba(255,176,0,0.03)] text-[#ffb000]"
           }`}
         >
           {statusLabel(match.status)}
         </span>
       </div>
 
-      <div className="text-sm text-slate-500">
-        Players: {registeredPlayers} / {match.playerCount}
+      <div className="mt-3 text-xs uppercase tracking-[0.14em] text-[#0c6d1f]">
+        Registered pilots: {registeredPlayers} / {match.playerCount}
       </div>
 
       {match.status === MatchStatus.Active && (
-        <div className="flex gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {Array.from({ length: match.playerCount }, (_, i) => (
             <div
               key={i}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+              className={`border px-3 py-2 text-[10px] uppercase tracking-[0.18em] ${
                 match.submittedOrders[i]
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-slate-50 text-slate-400 border border-slate-200"
+                  ? "border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] text-[#00ff41]"
+                  : "border-[#0e2a0e] bg-[#021202] text-[#0c6d1f]"
               }`}
             >
-              <span>{match.submittedOrders[i] ? "Ready" : "Waiting"}</span>
-              <span>
-                Player {i + 1}
-                {walletKey && match.players[i]?.toBase58() === walletKey.toBase58()
-                  ? " (you)"
-                  : ""}
-              </span>
+              {match.submittedOrders[i] ? "Ready" : "Waiting"} • Player {i + 1}
+              {walletKey && match.players[i]?.toBase58() === walletKey.toBase58()
+                ? " • You"
+                : ""}
             </div>
           ))}
         </div>
       )}
 
       {hasWinner && (
-        <div className="text-lg font-bold text-amber-600">
-          Winner: Player {winner + 1}
+        <div className="mt-3 border border-[#996800] bg-[rgba(255,176,0,0.03)] px-3 py-3 text-sm uppercase tracking-[0.2em] text-[#ffb000]">
+          Winner confirmed: Player {winner + 1}
         </div>
       )}
     </div>
   );
-})
+});

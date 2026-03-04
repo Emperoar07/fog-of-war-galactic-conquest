@@ -31,8 +31,8 @@ export default function MatchPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-col items-center gap-3 py-16 text-center text-slate-400">
-          <span className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+        <div className="flex flex-col items-center gap-3 py-16 text-center text-[#0c6d1f]">
+          <span className="h-10 w-10 animate-spin rounded-full border-2 border-[#0e2a0e] border-t-[#00ff41]" />
           <span>Loading...</span>
         </div>
       }
@@ -230,8 +230,8 @@ function MatchPageInner() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center gap-3 py-16 text-center text-slate-400">
-        <span className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+      <div className="flex flex-col items-center gap-3 py-16 text-center text-[#0c6d1f]">
+        <span className="h-10 w-10 animate-spin rounded-full border-2 border-[#0e2a0e] border-t-[#00ff41]" />
         <span>Loading match {matchId?.toString()}...</span>
       </div>
     );
@@ -240,10 +240,10 @@ function MatchPageInner() {
   if (error) {
     return (
       <div className="text-center py-12 space-y-4">
-        <div className="text-red-500">{error}</div>
+        <div className="text-[#ff3333]">{error}</div>
         <button
           onClick={refresh}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded"
+          className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41]"
         >
           Retry
         </button>
@@ -253,7 +253,7 @@ function MatchPageInner() {
 
   if (!match || !matchPDA) {
     return (
-      <div className="text-center py-12 text-slate-400">
+      <div className="text-center py-12 text-[#0c6d1f]">
         Match not found
       </div>
     );
@@ -434,20 +434,55 @@ function MatchPageInner() {
         message={actionTone === "error" ? actionMessage : visibilityError}
         tone="error"
       />
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-800">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="font-[family-name:var(--font-vt323)] text-4xl tracking-[0.14em] text-[#00ff41]">
           Match #{matchId?.toString()}
         </h2>
         <button
           onClick={refresh}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded text-sm"
+          className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
         >
           {demoMode ? "Reset Demo" : "Refresh"}
         </button>
       </div>
 
+      <div className="grid gap-2 border border-[#0e2a0e] bg-[#030d03] px-4 py-3 sm:grid-cols-4">
+        <div>
+          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+            Mode
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#ffb000]">
+            {demoMode ? "Demo Channel" : "Live Devnet"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+            Commander
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#00ff41]">
+            {isPlayer && playerSlot !== null ? `Player ${playerSlot + 1}` : "Observer"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+            Turn Phase
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#00e5cc]">
+            {match.status === MatchStatus.Active ? "Battle Phase" : "Standby"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+            Session Link
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[#00aa2a]">
+            Secure MPC Uplink
+          </div>
+        </div>
+      </div>
+
       {demoMode ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-4 py-3 text-[10px] uppercase tracking-[0.16em] text-[#00e5cc]">
           Demo mode is active. The battlefield runs on simulated state so you can test the full UI loop without MXE.
         </div>
       ) : (
@@ -457,12 +492,12 @@ function MatchPageInner() {
 
       {actionMessage && (
         <div
-          className={`px-4 py-2 rounded text-sm border ${
+          className={`border px-4 py-3 text-[10px] uppercase tracking-[0.16em] ${
             actionTone === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              ? "bg-[rgba(0,229,204,0.03)] border-[#005f52] text-[#00e5cc]"
               : actionTone === "error"
-                ? "bg-red-50 border-red-200 text-red-600"
-                : "bg-slate-50 border-slate-200 text-slate-600"
+                ? "bg-[rgba(35,0,0,0.9)] border-[#881111] text-[#ff3333]"
+                : "bg-[rgba(0,255,65,0.03)] border-[#0c6d1f] text-[#00ff41]"
           }`}
         >
           {actionMessage}
@@ -482,7 +517,7 @@ function MatchPageInner() {
           {canJoin && (
             <button
               onClick={handleJoin}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded transition-colors"
+              className="w-full border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
             >
               Join Match
             </button>
@@ -501,7 +536,7 @@ function MatchPageInner() {
           {canResolve && (
             <button
               onClick={handleResolveTurn}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-3 rounded transition-colors"
+              className="w-full border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
             >
               Resolve Turn
             </button>
@@ -510,7 +545,7 @@ function MatchPageInner() {
           {isPlayer && match.status === MatchStatus.Active && (
             <button
               onClick={handleVisibility}
-              className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 rounded transition-colors text-sm"
+              className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)]"
             >
               Request Visibility Report
             </button>
@@ -527,20 +562,22 @@ function MatchPageInner() {
           <BattleSummary match={match} summary={summary} />
           <ActivityLog entries={activityLog} />
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-800">Players</h3>
+          <div className="border border-[#0e2a0e] bg-[#030d03] p-4 space-y-2">
+            <h3 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.14em] text-[#00ff41]">
+              PLAYERS
+            </h3>
             {match.players.map((p, i) => {
               const isEmpty = p.toBase58() === "11111111111111111111111111111111";
               if (i >= match.playerCount) return null;
               return (
-                <div key={i} className="text-sm flex justify-between">
-                  <span className="text-slate-500">
+                <div key={i} className="flex justify-between text-xs uppercase tracking-[0.14em]">
+                  <span className="text-[#0c6d1f]">
                     Player {i + 1}
                     {publicKey && p.toBase58() === publicKey.toBase58()
                       ? " (you)"
                       : ""}
                   </span>
-                  <span className={isEmpty ? "text-slate-300" : "text-slate-800"}>
+                  <span className={isEmpty ? "text-[#084010]" : "text-[#00cc33]"}>
                     {isEmpty
                       ? "Empty"
                       : `${p.toBase58().slice(0, 4)}...${p.toBase58().slice(-4)}`}

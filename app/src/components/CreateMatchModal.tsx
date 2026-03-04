@@ -9,7 +9,10 @@ interface CreateMatchModalProps {
   onClose: () => void;
 }
 
-export default function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
+export default function CreateMatchModal({
+  open,
+  onClose,
+}: CreateMatchModalProps) {
   const client = useGameClient();
   const router = useRouter();
   const [mapSeed, setMapSeed] = useState("42");
@@ -26,11 +29,7 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
     setStatusMessage("Preparing encrypted match initialization...");
     try {
       const matchId = BigInt(Math.floor(Math.random() * 1_000_000_000));
-      const result = await client.createMatch(
-        matchId,
-        2,
-        BigInt(mapSeed || "42"),
-      );
+      const result = await client.createMatch(matchId, 2, BigInt(mapSeed || "42"));
       setStatusMessage("Match queued. Waiting for callback completion...");
       await client.awaitComputation(result.computationOffset);
       setStatusMessage("Match ready. Opening battlefield...");
@@ -44,53 +43,55 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white border border-slate-200 rounded-xl p-6 w-full max-w-md space-y-4 shadow-xl">
-        <h2 className="text-xl font-bold text-slate-800">Create New Match</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+      <div className="w-full max-w-md border border-[#0c6d1f] bg-[#030d03] p-6 shadow-[0_0_40px_rgba(0,255,65,0.08)]">
+        <h2 className="font-[family-name:var(--font-vt323)] text-4xl tracking-[0.16em] text-[#00ff41]">
+          NEW MATCH
+        </h2>
 
-        <div>
-          <label className="block text-sm text-slate-500 mb-1">
-            Map Seed (determines starting positions)
+        <div className="mt-4">
+          <label className="mb-1 block text-[9px] uppercase tracking-[0.24em] text-[#0c6d1f]">
+            Map Seed
           </label>
           <input
             type="number"
             value={mapSeed}
             onChange={(e) => setMapSeed(e.target.value)}
             disabled={creating}
-            className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800 disabled:opacity-50"
+            className="w-full border border-[#0e2a0e] bg-[#021202] px-3 py-3 text-sm text-[#00ff41] disabled:opacity-40"
           />
         </div>
 
-        <div className="text-sm text-slate-400">
-          2-player match. You will be Player 1 (slot 0).
+        <div className="mt-3 text-[10px] uppercase tracking-[0.18em] text-[#0c6d1f]">
+          2-player match // you deploy as Player 1
         </div>
 
         {error && (
-          <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded p-2">
+          <div className="mt-4 border border-[#881111] bg-[rgba(255,51,51,0.03)] p-3 text-[10px] uppercase tracking-[0.16em] text-[#ff3333]">
             {error}
           </div>
         )}
 
         {statusMessage && !error && (
-          <div className="text-slate-600 text-sm bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="mt-4 border border-[#005f52] bg-[rgba(0,229,204,0.03)] p-3 text-[10px] uppercase tracking-[0.16em] text-[#00e5cc]">
             {statusMessage}
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="mt-5 flex gap-3">
           <button
             onClick={onClose}
             disabled={creating}
-            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded transition-colors disabled:opacity-50"
+            className="flex-1 border border-[#0e2a0e] bg-[#021202] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00aa2a] disabled:opacity-40"
           >
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating || !client}
-            className="flex-1 bg-slate-900 hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium py-2 rounded transition-colors"
+            className="flex-1 border border-[#996800] bg-[rgba(255,176,0,0.04)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#ffb000] disabled:opacity-40"
           >
-            {creating ? "Creating..." : "Create Match"}
+            {creating ? "Deploying..." : "Deploy Fleet"}
           </button>
         </div>
       </div>

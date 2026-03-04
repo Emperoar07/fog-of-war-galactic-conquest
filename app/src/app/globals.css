@@ -1,34 +1,122 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #010801;
+  --foreground: #00cc33;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-share-tech-mono);
+  --font-mono: var(--font-share-tech-mono);
 }
 
 * {
   box-sizing: border-box;
 }
 
-html {
+html,
+body {
   min-height: 100%;
 }
 
 body {
   min-height: 100vh;
-  background: var(--background);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 65, 0.08), transparent 24%),
+    radial-gradient(circle at top left, rgba(0, 170, 42, 0.08), transparent 22%),
+    linear-gradient(180deg, #010801 0%, #020b02 46%, #010801 100%);
   color: var(--foreground);
-  font-family: var(--font-mono), "IBM Plex Mono", "Space Mono", monospace;
+  font-family: var(--font-share-tech-mono), monospace;
+  font-size: 13px;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.12) 2px,
+    rgba(0, 0, 0, 0.12) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, 0.6) 100%);
+  pointer-events: none;
+  z-index: 9997;
+}
+
+@keyframes scanner {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(320%);
+  }
 }
 
 a,
-button {
-  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease,
-    transform 160ms ease, opacity 160ms ease;
+button,
+input,
+select {
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease,
+    opacity 140ms ease,
+    box-shadow 140ms ease;
+}
+
+::selection {
+  background: rgba(0, 255, 65, 0.18);
+  color: #d8ffe3;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #010801;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0c4214;
+}
+
+.wallet-console-shell .wallet-adapter-button,
+.wallet-console-shell .wallet-adapter-button-trigger {
+  min-height: 36px;
+  border-radius: 0 !important;
+  border: 1px solid #0c6d1f !important;
+  background: rgba(0, 255, 65, 0.03) !important;
+  color: #00ff41 !important;
+  font-family: var(--font-share-tech-mono), monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  box-shadow: none !important;
+}
+
+.wallet-console-shell .wallet-adapter-button:hover,
+.wallet-console-shell .wallet-adapter-button-trigger:hover {
+  background: rgba(0, 255, 65, 0.08) !important;
+}
+
+.wallet-console-shell .wallet-adapter-dropdown-list,
+.wallet-console-shell .wallet-adapter-modal-wrapper {
+  font-family: var(--font-share-tech-mono), monospace !important;
 }
