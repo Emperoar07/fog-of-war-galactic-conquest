@@ -7,7 +7,8 @@ export type SoundCue =
   | "error"
   | "uplink"
   | "reveal"
-  | "resolve";
+  | "resolve"
+  | "victory";
 
 type CueStep = {
   frequency: number;
@@ -44,6 +45,12 @@ const CUE_MAP: Record<SoundCue, CueStep[]> = {
     { frequency: 260, duration: 0.05, type: "square", gain: 0.018 },
     { frequency: 390, duration: 0.06, type: "square", gain: 0.018 },
     { frequency: 520, duration: 0.08, type: "triangle", gain: 0.016 },
+  ],
+  victory: [
+    { frequency: 420, duration: 0.08, type: "triangle", gain: 0.018 },
+    { frequency: 560, duration: 0.08, type: "triangle", gain: 0.018 },
+    { frequency: 740, duration: 0.1, type: "triangle", gain: 0.019 },
+    { frequency: 980, duration: 0.14, type: "sine", gain: 0.016 },
   ],
 };
 

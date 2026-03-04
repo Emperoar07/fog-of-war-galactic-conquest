@@ -23,6 +23,7 @@ sdk/dist/
 NUL
 DEV_NOTES.md
 artifacts/
+.playwright-cli/
 
 # Arcium build artifacts
 build/

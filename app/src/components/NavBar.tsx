@@ -59,16 +59,20 @@ export default function NavBar() {
         </div>
 
         {/* Center uplink — hidden on small screens */}
-        <div className="hidden border border-[#0e2a0e] bg-[#021202] px-4 py-2 text-center sm:grid sm:gap-1">
-          <span className="text-[8px] uppercase tracking-[0.34em] text-[#0c6d1f]">
-            Tactical Uplink
-          </span>
-          <span className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.16em] text-[#ffb000]">
-            LIVE
-          </span>
-          <span className="text-[8px] uppercase tracking-[0.24em] text-[#00aa2a]">
-            Demo + Devnet Channels Armed
-          </span>
+        <div className="hidden sm:flex sm:justify-center">
+          <div className="w-full max-w-[19rem] border border-[#0e2a0e] bg-[#021202] px-4 py-2.5 text-center shadow-[0_0_18px_rgba(0,255,65,0.05)]">
+            <div className="border border-[rgba(12,109,31,0.22)] px-4 py-2">
+              <span className="block text-[8px] uppercase tracking-[0.34em] text-[#0c6d1f]">
+                Tactical Uplink
+              </span>
+              <span className="mt-1 block font-[family-name:var(--font-vt323)] text-3xl tracking-[0.16em] text-[#ffb000]">
+                LIVE
+              </span>
+              <span className="mt-1 block text-[8px] uppercase tracking-[0.24em] text-[#00aa2a]">
+                Demo + Devnet Channels Armed
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Right badges — desktop only */}

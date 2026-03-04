@@ -124,6 +124,8 @@ function MatchPageInner() {
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const [tutorialHighlight, setTutorialHighlight] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState(false);
+  const [winnerOverlayVisible, setWinnerOverlayVisible] = useState(false);
+  const [lastWinnerKey, setLastWinnerKey] = useState<string | null>(null);
   const playerSlot =
     demoMode
       ? 0
@@ -161,6 +163,19 @@ function MatchPageInner() {
       saveDemoSnapshot(match);
     }
   }, [demoMode, match]);
+
+  const summary = useMemo(
+    () =>
+      match
+        ? client?.parseBattleSummary(match) ?? {
+            winner: 255,
+            destroyedByPlayer: [0, 0, 0, 0],
+            commandFleetAlive: [true, true, true, true],
+            nextTurn: 0,
+          }
+        : null,
+    [client, match],
+  );
 
   const appendActivity = useCallback(
     (message: string, tone: "info" | "success" | "error" = "info") => {
@@ -204,6 +219,18 @@ function MatchPageInner() {
         : buildInitialDemoActivity(),
     );
   }, [demoMode]);
+
+  useEffect(() => {
+    if (!summary || summary.winner === 255 || matchId === null || !match) return;
+
+    const winnerKey = `${matchId.toString()}-${summary.winner}-${match.turn}`;
+    if (winnerKey === lastWinnerKey) return;
+
+    setLastWinnerKey(winnerKey);
+    setWinnerOverlayVisible(true);
+    playSound("victory");
+    appendActivity(`Victory confirmed for Player ${summary.winner + 1}.`, "success");
+  }, [appendActivity, lastWinnerKey, match, matchId, playSound, summary]);
 
   useEffect(() => {
     let cancelled = false;
@@ -338,7 +365,7 @@ function MatchPageInner() {
     );
   }
 
-  const summary = client?.parseBattleSummary(match) ?? {
+  const resolvedSummary = summary ?? {
     winner: 255,
     destroyedByPlayer: [0, 0, 0, 0],
     commandFleetAlive: [true, true, true, true],
@@ -566,6 +593,8 @@ function MatchPageInner() {
         setActionMessage("Demo mode is active. No MXE or wallet is required.");
         setActionTone("info");
         setActivityLog(buildInitialDemoActivity());
+        setWinnerOverlayVisible(false);
+        setLastWinnerKey(null);
       }
     } finally {
       setPendingAction(null);
@@ -599,6 +628,30 @@ function MatchPageInner() {
         message={actionTone === "error" ? actionMessage : visibilityError}
         tone="error"
       />
+
+      {winnerOverlayVisible && resolvedSummary.winner !== 255 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(1,8,1,0.86)] px-4">
+          <div className="w-full max-w-md border border-[#996800] bg-[#030d03] p-4 text-center shadow-[0_0_28px_rgba(255,176,0,0.14)] sm:p-5">
+            <div className="border border-[rgba(255,176,0,0.2)] p-4">
+              <div className="text-[9px] uppercase tracking-[0.3em] text-[#0c6d1f]">
+                Victory Signal
+              </div>
+              <div className="mt-2 font-[family-name:var(--font-vt323)] text-4xl tracking-[0.16em] text-[#ffb000]">
+                Player {resolvedSummary.winner + 1}
+              </div>
+              <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-[#00cc33]">
+                The campaign is decided. Command fleet supremacy confirmed.
+              </div>
+              <button
+                onClick={() => setWinnerOverlayVisible(false)}
+                className="mt-4 border border-[#996800] bg-[rgba(255,176,0,0.04)] px-5 py-2 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
+              >
+                Acknowledge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {shareToast && (
         <div className="fixed top-4 right-4 z-50 border border-[#0c6d1f] bg-[#030d03] px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[#00ff41] shadow-[0_0_20px_rgba(0,255,65,0.15)]">
@@ -805,7 +858,7 @@ function MatchPageInner() {
             />
           )}
 
-          <BattleSummary match={match} summary={summary} />
+          <BattleSummary match={match} summary={resolvedSummary} />
           <ActivityLog entries={activityLog} />
 
           {demoMode && (
