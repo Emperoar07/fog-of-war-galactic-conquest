@@ -126,9 +126,30 @@ export default function Home() {
                     {list.title}
                   </div>
                   <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                    {list.items.map((item) => (
-                      <li key={item}>- {item}</li>
-                    ))}
+                    {list.items.map((item) => {
+                      if (list.title !== "Color Guide") {
+                        return <li key={item}>- {item}</li>;
+                      }
+
+                      const [label, ...rest] = item.split(":");
+                      const description = rest.join(":").trim();
+                      const colorClass =
+                        label === "Green"
+                          ? "text-[#00ff41]"
+                          : label === "Amber"
+                            ? "text-[#ffb000]"
+                            : label === "Cyan"
+                              ? "text-[#00e5cc]"
+                              : label === "Red"
+                                ? "text-[#ff3333]"
+                                : "text-[#0c6d1f]";
+
+                      return (
+                        <li key={item}>
+                          - <span className={colorClass}>{label}</span>: {description}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}
