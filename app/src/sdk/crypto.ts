@@ -1,7 +1,11 @@
 import { BN } from "@coral-xyz/anchor";
 import { AnchorProvider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { randomBytes } from "crypto";
+function randomBytes(n: number): Uint8Array {
+  const buf = new Uint8Array(n);
+  globalThis.crypto.getRandomValues(buf);
+  return buf;
+}
 import {
   x25519,
   RescueCipher,

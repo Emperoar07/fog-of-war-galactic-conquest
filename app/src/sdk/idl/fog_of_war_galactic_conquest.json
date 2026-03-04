@@ -1,0 +1,1193 @@
+{
+  "address": "BSUDUdpFuGJpw68HjJcHmUJ9AHHnr4V9Am75s6meJ9hE",
+  "metadata": {
+    "name": "fogOfWarGalacticConquest",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "initInitMatchCompDef",
+      "discriminator": [
+        136,
+        16,
+        194,
+        12,
+        184,
+        168,
+        131,
+        77
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mxeAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "addressLookupTable",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "lutProgram",
+          "writable": false,
+          "signer": false,
+          "address": "AddressLookupTab1e1111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initSubmitOrdersCompDef",
+      "discriminator": [
+        163,
+        64,
+        129,
+        19,
+        233,
+        190,
+        113,
+        192
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mxeAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "addressLookupTable",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "lutProgram",
+          "writable": false,
+          "signer": false,
+          "address": "AddressLookupTab1e1111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initVisibilityCheckCompDef",
+      "discriminator": [
+        83,
+        111,
+        132,
+        52,
+        156,
+        57,
+        236,
+        208
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mxeAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "addressLookupTable",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "lutProgram",
+          "writable": false,
+          "signer": false,
+          "address": "AddressLookupTab1e1111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initResolveTurnCompDef",
+      "discriminator": [
+        203,
+        162,
+        125,
+        121,
+        42,
+        128,
+        181,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mxeAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "addressLookupTable",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "lutProgram",
+          "writable": false,
+          "signer": false,
+          "address": "AddressLookupTab1e1111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "createMatch",
+      "discriminator": [
+        107,
+        2,
+        184,
+        145,
+        70,
+        142,
+        17,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "signPdaAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mempoolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "executingPool",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "poolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "clockAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": [
+        {
+          "name": "computationOffset",
+          "type": "u64"
+        },
+        {
+          "name": "matchId",
+          "type": "u64"
+        },
+        {
+          "name": "playerCount",
+          "type": "u8"
+        },
+        {
+          "name": "mapSeed",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initMatchCallback",
+      "discriminator": [
+        120,
+        80,
+        78,
+        114,
+        208,
+        10,
+        33,
+        197
+      ],
+      "accounts": [
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "writable": false,
+          "signer": false,
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "registerPlayer",
+      "discriminator": [
+        242,
+        146,
+        194,
+        234,
+        234,
+        145,
+        228,
+        42
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": [
+        {
+          "name": "slot",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "submitOrders",
+      "discriminator": [
+        225,
+        73,
+        199,
+        91,
+        91,
+        216,
+        89,
+        249
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "signPdaAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mempoolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "executingPool",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "poolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "clockAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": [
+        {
+          "name": "computationOffset",
+          "type": "u64"
+        },
+        {
+          "name": "playerIndex",
+          "type": "u8"
+        },
+        {
+          "name": "unitSlotCt",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "actionCt",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "targetXCt",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "targetYCt",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "pubKey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "orderNonce",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "submitOrdersCallback",
+      "discriminator": [
+        229,
+        39,
+        193,
+        48,
+        213,
+        19,
+        204,
+        149
+      ],
+      "accounts": [
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "writable": false,
+          "signer": false,
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "visibilityCheck",
+      "discriminator": [
+        166,
+        95,
+        116,
+        15,
+        208,
+        252,
+        109,
+        198
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "signPdaAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mempoolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "executingPool",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "poolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "clockAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": [
+        {
+          "name": "computationOffset",
+          "type": "u64"
+        },
+        {
+          "name": "viewerPubKey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "viewerNonce",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "visibilityCheckCallback",
+      "discriminator": [
+        245,
+        140,
+        152,
+        144,
+        78,
+        220,
+        41,
+        197
+      ],
+      "accounts": [
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "writable": false,
+          "signer": false,
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolveTurn",
+      "discriminator": [
+        97,
+        96,
+        32,
+        80,
+        136,
+        41,
+        228,
+        44
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "signPdaAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mempoolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "executingPool",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "poolAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "clockAccount",
+          "writable": true,
+          "signer": false
+        },
+        {
+          "name": "systemProgram",
+          "writable": false,
+          "signer": false,
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": [
+        {
+          "name": "computationOffset",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolveTurnCallback",
+      "discriminator": [
+        8,
+        80,
+        199,
+        155,
+        81,
+        131,
+        153,
+        127
+      ],
+      "accounts": [
+        {
+          "name": "arciumProgram",
+          "writable": false,
+          "signer": false,
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "compDefAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "mxeAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "computationAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "clusterAccount",
+          "writable": false,
+          "signer": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "writable": false,
+          "signer": false,
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "galaxyMatch",
+          "writable": true,
+          "signer": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GalaxyMatch",
+      "discriminator": [
+        146,
+        232,
+        129,
+        249,
+        251,
+        44,
+        9,
+        205
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "MatchReady",
+      "discriminator": [
+        2,
+        60,
+        163,
+        225,
+        124,
+        75,
+        32,
+        232
+      ]
+    },
+    {
+      "name": "VisibilitySnapshotReady",
+      "discriminator": [
+        82,
+        75,
+        214,
+        64,
+        121,
+        13,
+        20,
+        150
+      ]
+    },
+    {
+      "name": "TurnResolved",
+      "discriminator": [
+        123,
+        208,
+        138,
+        8,
+        148,
+        6,
+        53,
+        10
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "AbortedComputation",
+      "msg": "The computation was aborted"
+    },
+    {
+      "code": 6001,
+      "name": "ClusterNotSet",
+      "msg": "Cluster not set"
+    },
+    {
+      "code": 6002,
+      "name": "NotAuthorized",
+      "msg": "Not authorized"
+    },
+    {
+      "code": 6003,
+      "name": "MatchNotReady",
+      "msg": "The match is not ready"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidPlayerCount",
+      "msg": "Invalid player count"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidPlayerSlot",
+      "msg": "Invalid player slot"
+    },
+    {
+      "code": 6006,
+      "name": "SlotTaken",
+      "msg": "That slot is already occupied"
+    },
+    {
+      "code": 6007,
+      "name": "AlreadyRegistered",
+      "msg": "That player is already registered"
+    },
+    {
+      "code": 6008,
+      "name": "MatchFull",
+      "msg": "The match is already full"
+    },
+    {
+      "code": 6009,
+      "name": "RegistrationClosed",
+      "msg": "Player registration has closed"
+    },
+    {
+      "code": 6010,
+      "name": "OrdersAlreadySubmitted",
+      "msg": "Orders have already been submitted for that player"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidEncryptedOrder",
+      "msg": "The encrypted order payload was rejected"
+    },
+    {
+      "code": 6012,
+      "name": "PlayerIndexMismatch",
+      "msg": "That player index does not match the caller"
+    },
+    {
+      "code": 6013,
+      "name": "PendingOrders",
+      "msg": "Not all players have submitted orders for this turn"
+    }
+  ],
+  "types": [
+    {
+      "name": "GalaxyMatch",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "matchId",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "players",
+            "type": {
+              "array": [
+                "pubkey",
+                4
+              ]
+            }
+          },
+          {
+            "name": "playerCount",
+            "type": "u8"
+          },
+          {
+            "name": "turn",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "mapSeed",
+            "type": "u64"
+          },
+          {
+            "name": "revealedSectorOwner",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "battleSummary",
+            "type": {
+              "array": [
+                "u8",
+                10
+              ]
+            }
+          },
+          {
+            "name": "submittedOrders",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "hiddenState",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                5
+              ]
+            }
+          },
+          {
+            "name": "hiddenStateNonce",
+            "type": "u128"
+          },
+          {
+            "name": "lastVisibility",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                2
+              ]
+            }
+          },
+          {
+            "name": "lastVisibilityNonce",
+            "type": "u128"
+          },
+          {
+            "name": "lastVisibilityViewer",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchReady",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "matchId",
+            "type": "u64"
+          },
+          {
+            "name": "playerCount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VisibilitySnapshotReady",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "matchId",
+            "type": "u64"
+          },
+          {
+            "name": "turn",
+            "type": "u8"
+          },
+          {
+            "name": "viewerIndex",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TurnResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "matchId",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": "u8"
+          },
+          {
+            "name": "nextTurn",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

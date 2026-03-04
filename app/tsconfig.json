@@ -20,8 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@sdk": ["../sdk/index"],
-      "@sdk/*": ["../sdk/*"]
+      "@sdk": ["./src/sdk/index"],
+      "@sdk/*": ["./src/sdk/*"]
     }
   },
   "include": [

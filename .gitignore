@@ -21,6 +21,8 @@ sdk/dist/
 .claude/
 .vscode/
 NUL
+DEV_NOTES.md
+artifacts/
 
 # Arcium build artifacts
 build/

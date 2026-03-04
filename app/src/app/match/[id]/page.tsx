@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMatch } from "@/hooks/useMatch";
 import { useGameClient } from "@/hooks/useGameClient";
 import { usePlayerKeys } from "@/hooks/usePlayerKeys";
+import ActivityLog, { type ActivityLogEntry } from "@/components/ActivityLog";
 import GameBoard from "@/components/GameBoard";
 import TurnStatus from "@/components/TurnStatus";
 import OrderPanel from "@/components/OrderPanel";
 import BattleSummary from "@/components/BattleSummary";
+import VisibilityPanel from "@/components/VisibilityPanel";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
-import { MatchStatus, type OrderParams } from "@sdk";
+import {
+  MatchStatus,
+  type DecodedVisibilityReport,
+  type OrderParams,
+} from "@sdk";
 
 export default function MatchPage() {
   const params = useParams();
@@ -19,9 +25,155 @@ export default function MatchPage() {
   const { publicKey } = useWallet();
   const client = useGameClient();
   const { match, matchPDA, loading, error, refresh } = useMatch(matchId);
-  const { ensureKeys } = usePlayerKeys();
+  const { keys, ensureKeys } = usePlayerKeys();
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionTone, setActionTone] = useState<"info" | "success" | "error">("info");
+  const [visibilityReport, setVisibilityReport] =
+    useState<DecodedVisibilityReport | null>(null);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [decryptingVisibility, setDecryptingVisibility] = useState(false);
+  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
+  const playerSlot =
+    publicKey && client && match
+      ? client.getPlayerSlot(match, publicKey) ?? null
+      : null;
+  const isPlayer = playerSlot !== null;
+
+  const appendActivity = useCallback(
+    (message: string, tone: "info" | "success" | "error" = "info") => {
+      const entry: ActivityLogEntry = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        message,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        tone,
+      };
+      setActivityLog((current) => [entry, ...current].slice(0, 8));
+    },
+    [],
+  );
+
+  const showStatus = useCallback(
+    (
+      message: string,
+      tone: "info" | "success" | "error" = "info",
+      log = false,
+    ) => {
+      setActionMessage(message);
+      setActionTone(tone);
+      if (log) {
+        appendActivity(message, tone);
+      }
+    },
+    [appendActivity],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncVisibility() {
+      if (!client || !match || !keys || !isPlayer) {
+        if (!cancelled) {
+          setVisibilityReport(null);
+          setVisibilityError(null);
+          setDecryptingVisibility(false);
+        }
+        return;
+      }
+
+      if (match.lastVisibilityNonce.isZero()) {
+        if (!cancelled) {
+          setVisibilityReport(null);
+          setVisibilityError(null);
+          setDecryptingVisibility(false);
+        }
+        return;
+      }
+
+      try {
+        if (!cancelled) {
+          setDecryptingVisibility(true);
+          setVisibilityError(null);
+        }
+        const report = await client.decryptLatestVisibility(match, keys.privateKey);
+        if (!cancelled) {
+          setVisibilityReport(report);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setVisibilityReport(null);
+          setVisibilityError(
+            err instanceof Error
+              ? err.message
+              : "Failed to decrypt visibility report",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setDecryptingVisibility(false);
+        }
+      }
+    }
+
+    syncVisibility();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, isPlayer, keys, match]);
+
+  useEffect(() => {
+    if (!client || matchId === null) return;
+
+    const matchIdText = matchId.toString();
+    const listeners = [
+      client.onMatchReady((event) => {
+        if (event.matchId.toString() !== matchIdText) return;
+        showStatus("Match initialization callback completed.", "success");
+        appendActivity(
+          `Match ready for ${event.playerCount} players.`,
+          "success",
+        );
+        void refresh();
+      }),
+      client.onTurnResolved((event) => {
+        if (event.matchId.toString() !== matchIdText) return;
+        const winnerText =
+          event.winner === 255
+            ? "No winner yet."
+            : `Player ${event.winner + 1} now leads the board.`;
+        showStatus("Turn resolution callback completed.", "success");
+        appendActivity(
+          `Turn ${event.nextTurn} is live. ${winnerText}`,
+          "success",
+        );
+        void refresh();
+      }),
+      client.onVisibilityReady((event) => {
+        if (event.matchId.toString() !== matchIdText) return;
+        const suffix =
+          playerSlot !== null && event.viewerIndex === playerSlot
+            ? " Your latest visibility report is ready."
+            : "";
+        showStatus("Visibility callback completed.", "success");
+        appendActivity(
+          `Visibility snapshot finalized for player ${event.viewerIndex + 1}.${suffix}`,
+          "success",
+        );
+        void refresh();
+      }),
+    ];
+
+    return () => {
+      for (const id of listeners) {
+        void client.removeListener(id);
+      }
+    };
+  }, [appendActivity, client, matchId, playerSlot, refresh, showStatus]);
 
   if (loading) {
     return (
@@ -53,8 +205,6 @@ export default function MatchPage() {
     );
   }
 
-  const playerSlot = publicKey ? client?.getPlayerSlot(match, publicKey) ?? null : null;
-  const isPlayer = playerSlot !== null;
   const summary = client?.parseBattleSummary(match) ?? {
     winner: 255,
     destroyedByPlayer: [0, 0, 0, 0],
@@ -71,15 +221,18 @@ export default function MatchPage() {
         (p) => p.toBase58() === "11111111111111111111111111111111",
       );
       if (emptySlot < 0) {
-        setActionMessage("No empty slots available");
+        showStatus("No empty slots available.", "error");
         return;
       }
+      showStatus(`Joining player slot ${emptySlot + 1}...`, "info", true);
       await client.registerPlayer(matchPDA, emptySlot);
-      setActionMessage(`Joined as Player ${emptySlot + 1}!`);
-      refresh();
+      showStatus(`Joined as Player ${emptySlot + 1}.`, "success", true);
+      await refresh();
     } catch (err: unknown) {
-      setActionMessage(
+      showStatus(
         `Failed to join: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
+        true,
       );
     }
   };
@@ -95,13 +248,16 @@ export default function MatchPage() {
         order,
         keys.privateKey,
       );
-      setActionMessage("Order queued. Waiting for MPC computation...");
+      showStatus("Order queued. Waiting for MPC computation...", "info", true);
       await client.awaitComputation(result.computationOffset);
-      setActionMessage("Order submitted!");
+      showStatus("Order callback confirmed.", "success");
+      appendActivity("Orders accepted for this turn.", "success");
       await refresh();
     } catch (err: unknown) {
-      setActionMessage(
+      showStatus(
         `Failed to submit order: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
+        true,
       );
     }
   };
@@ -111,13 +267,20 @@ export default function MatchPage() {
     setActionMessage(null);
     try {
       const result = await client.resolveTurn(matchPDA);
-      setActionMessage("Turn resolution queued. Waiting for MPC computation...");
+      showStatus(
+        "Turn resolution queued. Waiting for MPC computation...",
+        "info",
+        true,
+      );
       await client.awaitComputation(result.computationOffset);
-      setActionMessage("Turn resolved.");
+      showStatus("Turn resolution callback confirmed.", "success");
+      appendActivity("Turn resolution completed.", "success");
       await refresh();
     } catch (err: unknown) {
-      setActionMessage(
+      showStatus(
         `Failed to resolve: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
+        true,
       );
     }
   };
@@ -125,16 +288,39 @@ export default function MatchPage() {
   const handleVisibility = async () => {
     if (!client || !matchPDA) return;
     setActionMessage(null);
+    setVisibilityError(null);
     try {
       const keys = ensureKeys();
       const result = await client.requestVisibility(matchPDA, keys.privateKey);
-      setActionMessage("Visibility check queued. Waiting for MPC computation...");
+      showStatus(
+        "Visibility check queued. Waiting for MPC computation...",
+        "info",
+        true,
+      );
       await client.awaitComputation(result.computationOffset);
-      setActionMessage("Visibility report updated.");
+      const updatedMatch = await client.fetchMatch(matchPDA);
+      const report = await client.decryptLatestVisibility(
+        updatedMatch,
+        keys.privateKey,
+      );
+      setVisibilityReport(report);
+      showStatus("Visibility report decrypted.", "success");
+      appendActivity(
+        report.units.length === 0
+          ? "Visibility report shows no enemy contact."
+          : `Visibility report reveals ${report.units.length} enemy unit(s).`,
+        "success",
+      );
       await refresh();
     } catch (err: unknown) {
-      setActionMessage(
+      setVisibilityReport(null);
+      setVisibilityError(
+        err instanceof Error ? err.message : "Failed to decrypt visibility report",
+      );
+      showStatus(
         `Failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
+        true,
       );
     }
   };
@@ -164,7 +350,15 @@ export default function MatchPage() {
       <TurnStatus match={match} walletKey={publicKey} />
 
       {actionMessage && (
-        <div className="bg-gray-800 border border-gray-600 text-gray-300 px-4 py-2 rounded text-sm">
+        <div
+          className={`px-4 py-2 rounded text-sm border ${
+            actionTone === "success"
+              ? "bg-green-950 border-green-800 text-green-300"
+              : actionTone === "error"
+                ? "bg-red-950 border-red-800 text-red-300"
+                : "bg-gray-800 border-gray-600 text-gray-300"
+          }`}
+        >
           {actionMessage}
         </div>
       )}
@@ -222,7 +416,16 @@ export default function MatchPage() {
             </button>
           )}
 
+          {isPlayer && (
+            <VisibilityPanel
+              report={visibilityReport}
+              loading={decryptingVisibility}
+              error={visibilityError}
+            />
+          )}
+
           <BattleSummary match={match} summary={summary} />
+          <ActivityLog entries={activityLog} />
 
           {/* Player info */}
           <div className="bg-gray-900 border border-gray-700 rounded p-4 space-y-2">

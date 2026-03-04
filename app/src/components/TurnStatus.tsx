@@ -24,13 +24,14 @@ function statusLabel(status: number): string {
 export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
   const winner = match.battleSummary[0];
   const hasWinner = winner !== NO_WINNER;
+  const registeredPlayers = match.players.filter(
+    (player) => player.toBase58() !== PublicKey.default.toBase58(),
+  ).length;
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded p-4 space-y-2">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-white">
-          Turn {match.turn}
-        </h3>
+        <h3 className="text-lg font-bold text-white">Turn {match.turn}</h3>
         <span
           className={`px-2 py-1 rounded text-sm font-medium ${
             match.status === MatchStatus.Active
@@ -45,7 +46,7 @@ export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
       </div>
 
       <div className="text-sm text-gray-400">
-        Players: {match.players.filter((p) => p.toBase58() !== PublicKey.default.toBase58()).length} / {match.playerCount}
+        Players: {registeredPlayers} / {match.playerCount}
       </div>
 
       {match.status === MatchStatus.Active && (
@@ -59,11 +60,13 @@ export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
                   : "bg-gray-800 text-gray-500"
               }`}
             >
-              <span>{match.submittedOrders[i] ? "✓" : "○"}</span>
-              Player {i + 1}
-              {walletKey && match.players[i]?.toBase58() === walletKey.toBase58()
-                ? " (you)"
-                : ""}
+              <span>{match.submittedOrders[i] ? "Ready" : "Waiting"}</span>
+              <span>
+                Player {i + 1}
+                {walletKey && match.players[i]?.toBase58() === walletKey.toBase58()
+                  ? " (you)"
+                  : ""}
+              </span>
             </div>
           ))}
         </div>

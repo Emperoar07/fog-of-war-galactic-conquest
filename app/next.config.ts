@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
-import path from "path";
 
 const nextConfig: NextConfig = {
   turbopack: {
     resolveAlias: {
-      "@sdk": path.resolve(__dirname, "../sdk/index.ts"),
-      "@sdk/*": path.resolve(__dirname, "../sdk/*"),
+      fs: { browser: "./src/lib/empty-module.ts" },
+      os: { browser: "./src/lib/empty-module.ts" },
+      path: { browser: "./src/lib/empty-module.ts" },
+      crypto: { browser: "./src/lib/crypto-shim.ts" },
     },
   },
   webpack: (config) => {
@@ -15,10 +16,6 @@ const nextConfig: NextConfig = {
       os: false,
       path: false,
       crypto: false,
-    };
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@sdk": path.resolve(__dirname, "../sdk"),
     };
     return config;
   },

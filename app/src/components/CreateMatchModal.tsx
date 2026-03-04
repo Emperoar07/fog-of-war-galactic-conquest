@@ -15,6 +15,7 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
   const [mapSeed, setMapSeed] = useState("42");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -22,6 +23,7 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
     if (!client) return;
     setCreating(true);
     setError(null);
+    setStatusMessage("Preparing encrypted match initialization...");
     try {
       const matchId = BigInt(Math.floor(Math.random() * 1_000_000_000));
       const result = await client.createMatch(
@@ -29,7 +31,9 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
         2,
         BigInt(mapSeed || "42"),
       );
+      setStatusMessage("Match queued. Waiting for callback completion...");
       await client.awaitComputation(result.computationOffset);
+      setStatusMessage("Match ready. Opening battlefield...");
       router.push(`/match/${matchId.toString()}`);
       onClose();
     } catch (err: unknown) {
@@ -64,6 +68,12 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
         {error && (
           <div className="text-red-400 text-sm bg-red-900/30 border border-red-800 rounded p-2">
             {error}
+          </div>
+        )}
+
+        {statusMessage && !error && (
+          <div className="text-cyan-300 text-sm bg-cyan-950/40 border border-cyan-900 rounded p-2">
+            {statusMessage}
           </div>
         )}
 

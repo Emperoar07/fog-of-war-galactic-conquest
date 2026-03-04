@@ -1,9 +1,13 @@
-import * as anchor from "@coral-xyz/anchor";
-import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
+import { Program, AnchorProvider, BN, type Idl } from "@coral-xyz/anchor";
 import { PublicKey, Keypair } from "@solana/web3.js";
-import { randomBytes } from "crypto";
 import { awaitComputationFinalization } from "@arcium-hq/client";
-import idl from "../target/idl/fog_of_war_galactic_conquest.json";
+import idl from "./idl/fog_of_war_galactic_conquest.json";
+
+function randomBytes(n: number): Uint8Array {
+  const buf = new Uint8Array(n);
+  globalThis.crypto.getRandomValues(buf);
+  return buf;
+}
 import {
   PROGRAM_ID,
   DEFAULT_CLUSTER_OFFSET,
@@ -33,6 +37,48 @@ import { onMatchReady, onTurnResolved, onVisibilityReady, removeListener } from 
 // GameClient
 // ---------------------------------------------------------------------------
 
+type ProgramMethodBuilder = {
+  accountsPartial(accounts: unknown): ProgramMethodBuilder;
+  accounts(accounts: unknown): ProgramMethodBuilder;
+  signers(signers: Keypair[]): ProgramMethodBuilder;
+  rpc(options?: {
+    commitment?: string;
+    preflightCommitment?: string;
+  }): Promise<string>;
+};
+
+type BrowserProgramMethods = {
+  createMatch(
+    computationOffset: BN,
+    matchId: BN,
+    playerCount: number,
+    mapSeed: BN,
+  ): ProgramMethodBuilder;
+  registerPlayer(slot: number): ProgramMethodBuilder;
+  submitOrders(
+    computationOffset: BN,
+    playerIndex: number,
+    unitSlotCt: number[],
+    actionCt: number[],
+    targetXCt: number[],
+    targetYCt: number[],
+    publicKey: number[],
+    nonceBN: BN,
+  ): ProgramMethodBuilder;
+  visibilityCheck(
+    computationOffset: BN,
+    publicKey: number[],
+    nonceBN: BN,
+  ): ProgramMethodBuilder;
+  resolveTurn(computationOffset: BN): ProgramMethodBuilder;
+};
+
+type GalaxyMatchAccountAccessor = {
+  galaxyMatch: {
+    fetch(address: PublicKey): Promise<unknown>;
+  };
+};
+
 export class GameClient {
   public readonly program: Program;
   public readonly provider: AnchorProvider;
@@ -40,6 +86,14 @@ export class GameClient {
   public readonly clusterOffset: number;
 
   private mxePublicKey: Uint8Array | null = null;
+
+  private get methods(): BrowserProgramMethods {
+    return this.program.methods as unknown as BrowserProgramMethods;
+  }
+
+  private get accountAccessor(): GalaxyMatchAccountAccessor {
+    return this.program.account as unknown as GalaxyMatchAccountAccessor;
+  }
 
   constructor(
     provider: AnchorProvider,
@@ -50,10 +104,10 @@ export class GameClient {
     this.programId = programId;
     this.clusterOffset = clusterOffset;
     const programIdl = {
-      ...(idl as any),
+      ...(idl as Idl),
       address: programId.toBase58(),
     };
-    this.program = new Program(programIdl as any, provider);
+    this.program = new Program(programIdl as Idl, provider);
   }
 
   // -----------------------------------------------------------------------
@@ -104,7 +158,7 @@ export class GameClient {
       this.programId,
     );
 
-    const txSig = await (this.program.methods as any)
+    const txSig = await this.methods
       .createMatch(
         computationOffset,
         new BN(matchId.toString()),
@@ -136,7 +190,7 @@ export class GameClient {
     const player = signer?.publicKey ?? this.provider.wallet.publicKey;
     const accounts = buildRegisterPlayerAccounts(player, matchPDA);
 
-    const builder = (this.program.methods as any)
+    const builder = this.methods
       .registerPlayer(slot)
       .accounts(accounts);
 
@@ -167,7 +221,7 @@ export class GameClient {
       this.programId,
     );
 
-    const builder = (this.program.methods as any)
+    const builder = this.methods
       .submitOrders(
         computationOffset,
         playerIndex,
@@ -212,7 +266,7 @@ export class GameClient {
       this.programId,
     );
 
-    const builder = (this.program.methods as any)
+    const builder = this.methods
       .visibilityCheck(
         computationOffset,
         Array.from(publicKey),
@@ -252,7 +306,7 @@ export class GameClient {
       this.programId,
     );
 
-    const builder = (this.program.methods as any)
+    const builder = this.methods
       .resolveTurn(computationOffset)
       .accountsPartial(accounts);
 
@@ -271,7 +325,7 @@ export class GameClient {
 
   /** Fetch and parse a GalaxyMatch account. */
   async fetchMatch(matchPDA: PublicKey): Promise<GalaxyMatch> {
-    const raw = await (this.program.account as any).galaxyMatch.fetch(matchPDA);
+    const raw = await this.accountAccessor.galaxyMatch.fetch(matchPDA);
     return raw as GalaxyMatch;
   }
 
