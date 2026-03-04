@@ -25,6 +25,7 @@ import {
 } from "@/lib/demo";
 import {
   MatchStatus,
+  OrderAction,
   type DecodedVisibilityReport,
   type OrderParams,
 } from "@sdk";
@@ -35,6 +36,12 @@ export type ActivityLogEntry = {
   message: string;
   time: string;
   tone: "info" | "success" | "error";
+};
+
+type CompanionSuggestion = {
+  order: OrderParams;
+  title: string;
+  reason: string;
 };
 
 function buildInitialDemoActivity(): ActivityLogEntry[] {
@@ -126,6 +133,12 @@ function MatchPageInner() {
   const [shareToast, setShareToast] = useState(false);
   const [winnerOverlayVisible, setWinnerOverlayVisible] = useState(false);
   const [lastWinnerKey, setLastWinnerKey] = useState<string | null>(null);
+  const [companionEnabled, setCompanionEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("fog-of-war-companion-enabled") !== "0";
+  });
+  const [orderPrefill, setOrderPrefill] = useState<OrderParams | null>(null);
+  const [orderPrefillNonce, setOrderPrefillNonce] = useState(0);
   const playerSlot =
     demoMode
       ? 0
@@ -134,6 +147,14 @@ function MatchPageInner() {
       : null;
   const isPlayer = playerSlot !== null;
   const isBusy = pendingAction !== null;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "fog-of-war-companion-enabled",
+      companionEnabled ? "1" : "0",
+    );
+  }, [companionEnabled]);
 
   // Analytics: track match view
   useEffect(() => {
@@ -176,6 +197,85 @@ function MatchPageInner() {
         : null,
     [client, match],
   );
+
+  const companionSuggestion = useMemo<CompanionSuggestion | null>(() => {
+    if (!match || playerSlot === null || match.status !== MatchStatus.Active) {
+      return null;
+    }
+
+    if (visibilityReport && visibilityReport.units.length > 0) {
+      const target = visibilityReport.units[0];
+      return {
+        order: {
+          unitSlot: 2,
+          action: OrderAction.Attack,
+          targetX: target.x,
+          targetY: target.y,
+        },
+        title: `Attack sector (${target.x}, ${target.y})`,
+        reason:
+          "Visible enemy contact is already on your scanners. Strike now before the target moves.",
+      };
+    }
+
+    const size = Math.sqrt(match.revealedSectorOwner.length) || 1;
+    const center = (size - 1) / 2;
+    const tiles = match.revealedSectorOwner.map((owner, index) => {
+      const x = index % size;
+      const y = Math.floor(index / size);
+      const score = Math.abs(x - center) + Math.abs(y - center);
+      return { owner, x, y, score };
+    });
+
+    const contested =
+      tiles
+        .filter((tile) => tile.owner === 3)
+        .sort((a, b) => a.score - b.score)[0] ?? null;
+    if (contested) {
+      return {
+        order: {
+          unitSlot: 1,
+          action: OrderAction.Scout,
+          targetX: contested.x,
+          targetY: contested.y,
+        },
+        title: `Scout sector (${contested.x}, ${contested.y})`,
+        reason:
+          "A contested sector is the best place to gather intel before committing your attack line.",
+      };
+    }
+
+    const neutral =
+      tiles
+        .filter((tile) => tile.owner === 0)
+        .sort((a, b) => a.score - b.score)[0] ?? null;
+    if (neutral) {
+      return {
+        order: {
+          unitSlot: 0,
+          action: OrderAction.Move,
+          targetX: neutral.x,
+          targetY: neutral.y,
+        },
+        title: `Advance to sector (${neutral.x}, ${neutral.y})`,
+        reason:
+          "This route expands your control toward the center without exposing the command fleet too aggressively.",
+      };
+    }
+
+    const fallback = selectedCell ?? { x: 0, y: 0 };
+    return {
+      order: {
+        unitSlot: 1,
+        action: OrderAction.Scout,
+        targetX: fallback.x,
+        targetY: fallback.y,
+      },
+      title: `Probe sector (${fallback.x}, ${fallback.y})`,
+      reason:
+        "No clear public target is available, so a scout action keeps pressure on the board while preserving flexibility.",
+    };
+  }, [match, playerSlot, selectedCell, visibilityReport]);
 
   const appendActivity = useCallback(
     (message: string, tone: "info" | "success" | "error" = "info") => {
@@ -383,6 +483,18 @@ function MatchPageInner() {
     }
   };
 
+  const handleApplyCompanionSuggestion = () => {
+    if (!companionSuggestion) return;
+    setOrderPrefill(companionSuggestion.order);
+    setOrderPrefillNonce((current) => current + 1);
+    setSelectedCell({
+      x: companionSuggestion.order.targetX,
+      y: companionSuggestion.order.targetY,
+    });
+    playSound("uiTap");
+    showStatus("Companion suggestion loaded into fire control.", "info", true);
+  };
+
   const handleJoin = async () => {
     if (demoMode) {
       playSound("uiTap");
@@ -587,6 +699,7 @@ function MatchPageInner() {
       await refresh();
       if (demoMode) {
         setSelectedCell(null);
+        setOrderPrefill(null);
         setVisibilityReport(null);
         setVisibilityError(null);
         setDecryptingVisibility(false);
@@ -802,6 +915,60 @@ function MatchPageInner() {
         </div>
 
         <div className="space-y-2.5 sm:space-y-4">
+          {companionSuggestion && (
+            <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[9px]">
+                    Companion Mode
+                  </div>
+                  <div className="mt-1 font-[family-name:var(--font-vt323)] text-2xl tracking-[0.14em] text-[#00e5cc] sm:text-3xl">
+                    Tactical Assistant
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCompanionEnabled((current) => !current)}
+                  className={`border px-3 py-1.5 text-[9px] uppercase tracking-[0.22em] sm:text-[10px] ${
+                    companionEnabled
+                      ? "border-[#005f52] bg-[rgba(0,229,204,0.03)] text-[#00e5cc]"
+                      : "border-[#0e2a0e] bg-[#021202] text-[#0c6d1f]"
+                  }`}
+                >
+                  {companionEnabled ? "Companion On" : "Companion Off"}
+                </button>
+              </div>
+
+              <div className="mt-3 border border-[#0e2a0e] bg-[#021202] px-3 py-3">
+                {companionEnabled ? (
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-[8px] uppercase tracking-[0.24em] text-[#ffb000] sm:text-[9px]">
+                        Recommended Move
+                      </div>
+                      <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#00ff41] sm:text-xs">
+                        {companionSuggestion.title}
+                      </div>
+                    </div>
+                    <div className="text-xs leading-6 text-[#00cc33]">
+                      {companionSuggestion.reason}
+                    </div>
+                    <button
+                      onClick={handleApplyCompanionSuggestion}
+                      disabled={isBusy}
+                      className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-40"
+                    >
+                      Apply Suggestion
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-xs leading-6 text-[#0c6d1f]">
+                    Companion Mode is disabled. Turn it on to get local move suggestions before you commit an order.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {canJoin && (
             <button
               onClick={handleJoin}
@@ -818,6 +985,8 @@ function MatchPageInner() {
                 match={match}
                 playerSlot={playerSlot}
                 selectedCell={selectedCell}
+                prefillOrder={orderPrefill}
+                prefillNonce={orderPrefillNonce}
                 onSubmit={handleSubmitOrder}
                 disabled={!client || isBusy}
               />

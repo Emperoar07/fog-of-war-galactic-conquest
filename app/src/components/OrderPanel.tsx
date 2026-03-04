@@ -7,6 +7,13 @@ interface OrderPanelProps {
   match: GalaxyMatch;
   playerSlot: number;
   selectedCell: { x: number; y: number } | null;
+  prefillOrder?: {
+    unitSlot: number;
+    action: OrderAction;
+    targetX: number;
+    targetY: number;
+  } | null;
+  prefillNonce?: number;
   onSubmit: (order: {
     unitSlot: number;
     action: OrderAction;
@@ -32,6 +39,8 @@ export default function OrderPanel({
   match,
   playerSlot,
   selectedCell,
+  prefillOrder,
+  prefillNonce,
   onSubmit,
   disabled,
 }: OrderPanelProps) {
@@ -49,6 +58,14 @@ export default function OrderPanel({
     setTargetX(selectedCell.x);
     setTargetY(selectedCell.y);
   }, [selectedCell]);
+
+  useEffect(() => {
+    if (!prefillOrder) return;
+    setUnitSlot(prefillOrder.unitSlot);
+    setAction(prefillOrder.action);
+    setTargetX(prefillOrder.targetX);
+    setTargetY(prefillOrder.targetY);
+  }, [prefillNonce, prefillOrder]);
 
   const handleSubmit = async () => {
     setSubmitting(true);

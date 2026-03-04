@@ -94,12 +94,13 @@ Yes, you can use the project today in two ways:
 ### Fastest Way: Play The Demo
 
 1. Open the frontend.
-2. Click **Try Demo** on the landing page, or open the demo match directly.
+2. Click **Launch Demo** on the landing page, or open the demo match directly.
 3. Use the demo battlefield to:
    - select a target sector
    - queue a mock order
    - resolve a simulated turn
    - request a simulated visibility report
+   - optionally use Companion Mode to load a suggested move into Fire Control
 4. Watch the activity log and battle panels update locally.
 
 The demo does not require a wallet and does not depend on live MXE encryption.
@@ -113,6 +114,7 @@ The demo does not require a wallet and does not depend on live MXE encryption.
    - submit one encrypted order per turn
    - request visibility when needed
    - resolve the turn after all players have submitted
+   - optionally use Companion Mode for a local tactical suggestion before you commit
 
 Important:
 

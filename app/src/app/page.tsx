@@ -117,7 +117,7 @@ export default function Home() {
                 </div>
                 <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
                   <li>
-                    1. Click <span className="text-[#ffb000]">Launch Demo Loop</span> on the
+                    1. Click <span className="text-[#ffb000]">Launch Demo</span> on the
                     landing page.
                   </li>
                   <li>
@@ -146,6 +146,11 @@ export default function Home() {
                   <li>
                     7. Watch the battle summary, activity log, and board
                     updates to understand what changed after each action.
+                  </li>
+                  <li>
+                    8. If <span className="text-[#00e5cc]">Companion Mode</span> is on,
+                    use the tactical assistant to load a suggested move into
+                    Fire Control before you confirm it.
                   </li>
                 </ol>
               </div>
@@ -178,6 +183,10 @@ export default function Home() {
                     7. Request visibility when you want a scouting-style update
                     about enemy positions that your units are allowed to detect.
                   </li>
+                  <li>
+                    8. Use <span className="text-[#00e5cc]">Companion Mode</span> if you
+                    want a local tactical suggestion before you submit an order.
+                  </li>
                 </ol>
               </div>
             </div>
@@ -199,6 +208,10 @@ export default function Home() {
                   <li>
                     - The activity log records important actions like
                     submissions, visibility updates, and turn resolution.
+                  </li>
+                  <li>
+                    - Companion Mode suggests moves, but you still choose when
+                    to apply and submit them.
                   </li>
                   <li>
                     - The battle summary gives the cleanest snapshot of who is
@@ -255,7 +268,7 @@ export default function Home() {
                 onClick={() => playSound("uplink")}
                 className="inline-flex items-center justify-center border border-[#996800] bg-[rgba(255,176,0,0.05)] px-5 py-3 text-[10px] uppercase tracking-[0.28em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.11)]"
               >
-                Launch Demo Loop
+                Launch Demo
               </Link>
               <button
                 onClick={() => {
