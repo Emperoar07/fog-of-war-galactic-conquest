@@ -849,7 +849,7 @@ function MatchPageInner() {
       ) : (
         <MXEStatusBanner />
       )}
-      <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-[minmax(0,0.7fr)_minmax(260px,0.3fr)]">
+      <div className="grid grid-cols-1 gap-2 sm:gap-3 xl:grid-cols-[minmax(0,0.4fr)_minmax(240px,0.3fr)_minmax(240px,0.3fr)] xl:items-start">
         <TurnStatus match={match} walletKey={publicKey} />
 
         <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
@@ -878,6 +878,8 @@ function MatchPageInner() {
             })}
           </div>
         </div>
+
+        <BattleSummary match={match} summary={resolvedSummary} />
       </div>
 
       {actionMessage && (
@@ -1032,7 +1034,6 @@ function MatchPageInner() {
             />
           )}
 
-          <BattleSummary match={match} summary={resolvedSummary} />
           <ActivityLog entries={activityLog} />
 
           {demoMode && (

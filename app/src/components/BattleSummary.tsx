@@ -20,11 +20,11 @@ export default memo(function BattleSummary({
 
   if (!hasData) {
     return (
-      <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
-        <h3 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.14em] text-[#00ff41]">
+      <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+        <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
           BATTLE LOGIC
         </h3>
-        <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#0c6d1f]">
+        <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-[#0c6d1f] sm:text-xs sm:tracking-[0.16em]">
           No combat data recorded yet.
         </p>
       </div>
@@ -32,21 +32,21 @@ export default memo(function BattleSummary({
   }
 
   return (
-    <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
-      <h3 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.14em] text-[#00ff41]">
+    <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+      <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
         BATTLE LOGIC
       </h3>
 
-      <div className="mt-3 grid gap-2 text-sm">
+      <div className="mt-2.5 grid gap-2 text-sm sm:mt-3">
         {Array.from({ length: match.playerCount }, (_, i) => (
           <div
             key={i}
-            className="border border-[#0e2a0e] bg-[#021202] px-3 py-3"
+            className="border border-[#0e2a0e] bg-[#021202] px-3 py-2.5 sm:py-3"
           >
-            <div className="text-[9px] uppercase tracking-[0.24em] text-[#0c6d1f]">
+            <div className="text-[8px] uppercase tracking-[0.22em] text-[#0c6d1f] sm:text-[9px] sm:tracking-[0.24em]">
               Player {i + 1}
             </div>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em]">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[9px] uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.16em]">
               <span className="text-[#00aa2a]">
                 Destroyed {summary.destroyedByPlayer[i]}
               </span>
