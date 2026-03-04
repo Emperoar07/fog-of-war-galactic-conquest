@@ -119,30 +119,46 @@ export default function Lobby() {
     <div className="space-y-2">
       <Toast message={error} tone="error" />
 
+      <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
+        <div className="text-[9px] uppercase tracking-[0.34em] text-[#0c6d1f]">
+          Solo Play
+        </div>
+        <div className="mt-1 font-[family-name:var(--font-vt323)] text-3xl tracking-[0.16em] text-[#ffb000]">
+          QUICK MATCH VS AI
+        </div>
+        <p className="mt-2 text-xs leading-6 text-[#00aa2a]">
+          Play locally against an AI commander. No wallet or MPC required.
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Link
+            href={`/match/${QUICK_MATCH_IDS.easy.toString()}?quick=easy`}
+            className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] py-3 text-center text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
+          >
+            Easy
+          </Link>
+          <Link
+            href={`/match/${QUICK_MATCH_IDS.medium.toString()}?quick=medium`}
+            className="border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-center text-[10px] uppercase tracking-[0.22em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
+          >
+            Medium
+          </Link>
+          <Link
+            href={`/match/${QUICK_MATCH_IDS.hard.toString()}?quick=hard`}
+            className="border border-[#881111] bg-[rgba(255,51,51,0.03)] py-3 text-center text-[10px] uppercase tracking-[0.22em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)]"
+          >
+            Hard
+          </Link>
+        </div>
+      </div>
+
       {quickMatch && (
         <Link
           href={`/match/${quickMatch.matchId}`}
           className="block border border-[#996800] bg-[rgba(255,176,0,0.03)] px-4 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
         >
-          Quick Match
+          Quick Match — Join Open Lobby
         </Link>
       )}
-
-      <div className="grid gap-2 sm:grid-cols-3">
-        {([
-          ["easy", "Easy"],
-          ["medium", "Medium"],
-          ["hard", "Hard"],
-        ] as const).map(([difficulty, label]) => (
-          <Link
-            key={difficulty}
-            href={`/match/${QUICK_MATCH_IDS[difficulty].toString()}?quick=${difficulty}`}
-            className="block border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-3 text-center text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
-          >
-            Quick Match {label}
-          </Link>
-        ))}
-      </div>
 
       <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="border border-[#0e2a0e] bg-[#030d03] p-4">

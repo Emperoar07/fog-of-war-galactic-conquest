@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MAP_SIZE, UnitType, UNITS_PER_PLAYER } from "@sdk";
 
 interface GameBoardProps {
@@ -10,6 +10,7 @@ interface GameBoardProps {
   highlightBoard?: boolean;
   unitPositions?: { slot: number; x: number; y: number }[];
   pendingOrder?: { x: number; y: number; action: string } | null;
+  turn?: number;
 }
 
 const CELL_BG: Record<number, string> = {
@@ -155,6 +156,7 @@ export default function GameBoard({
   highlightBoard,
   unitPositions,
   pendingOrder,
+  turn,
 }: GameBoardProps) {
   const unitMap = new Map<string, string>();
   const unitTypeMap = new Map<string, UnitType>();
@@ -165,6 +167,21 @@ export default function GameBoard({
       unitTypeMap.set(`${u.x},${u.y}`, type);
     }
   }
+
+  // Radar sweep on turn change
+  const [sweeping, setSweeping] = useState(false);
+  const prevTurn = useRef(turn);
+  useEffect(() => {
+    if (turn !== undefined && prevTurn.current !== undefined && turn !== prevTurn.current) {
+      setSweeping(true);
+      const timer = setTimeout(() => setSweeping(false), 1200);
+      return () => clearTimeout(timer);
+    }
+    prevTurn.current = turn;
+  }, [turn]);
+
+  // Mobile zoom
+  const [zoomed, setZoomed] = useState(false);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -208,45 +225,66 @@ export default function GameBoard({
           : "border-[#0e2a0e]"
       }`}
     >
-      <div className="mb-2 border-b border-[#0e2a0e] pb-2 sm:mb-3">
-        <div className="text-[8px] uppercase tracking-[0.34em] text-[#0c6d1f] sm:text-[9px]">
-          Battlefield Grid
+      <div className="mb-2 flex items-center justify-between border-b border-[#0e2a0e] pb-2 sm:mb-3">
+        <div>
+          <div className="text-[8px] uppercase tracking-[0.34em] text-[#0c6d1f] sm:text-[9px]">
+            Battlefield Grid
+          </div>
+          <div
+            id="battlefield-keyboard-hint"
+            className="mt-1 text-[8px] uppercase tracking-[0.14em] text-[#084010] sm:text-[9px]"
+          >
+            Arrow keys move the selector. Press Enter to lock the current sector.
+          </div>
         </div>
-        <div
-          id="battlefield-keyboard-hint"
-          className="mt-1 text-[8px] uppercase tracking-[0.14em] text-[#084010] sm:text-[9px]"
+        <button
+          onClick={() => setZoomed((z) => !z)}
+          className="shrink-0 border border-[#0e2a0e] bg-[#021202] px-2 py-1 text-[8px] uppercase tracking-[0.18em] text-[#0c6d1f] hover:border-[#0c6d1f] hover:text-[#00aa2a] sm:hidden"
+          aria-label={zoomed ? "Zoom out battlefield" : "Zoom in battlefield"}
         >
-          Arrow keys move the selector. Press Enter to lock the current sector.
-        </div>
+          {zoomed ? "Zoom Out" : "Zoom In"}
+        </button>
       </div>
-      <div
-        className="grid gap-1 sm:gap-1.5 md:gap-2"
-        style={{ gridTemplateColumns: `repeat(${MAP_SIZE}, minmax(0, 1fr))` }}
-        role="grid"
-        aria-label="Battlefield grid"
-        aria-describedby="battlefield-keyboard-hint"
-      >
-        {Array.from({ length: MAP_SIZE * MAP_SIZE }, (_, i) => {
-          const x = i % MAP_SIZE;
-          const y = Math.floor(i / MAP_SIZE);
-          return (
-            <BoardCell
-              key={i}
-              x={x}
-              y={y}
-              owner={revealedSectorOwner[i] || 0}
-              isSelected={selectedCell?.x === x && selectedCell?.y === y}
-              unitIcon={unitMap.get(`${x},${y}`) ?? null}
-              unitType={unitTypeMap.get(`${x},${y}`) ?? null}
-              pendingAction={
-                pendingOrder && pendingOrder.x === x && pendingOrder.y === y
-                  ? pendingOrder.action
-                  : null
-              }
-              onClick={onCellClick}
-            />
-          );
-        })}
+      <div className={`relative ${zoomed ? "overflow-auto" : "overflow-hidden"}`}>
+        {/* Radar sweep overlay */}
+        {sweeping && (
+          <div
+            className="pointer-events-none absolute inset-0 z-10"
+            style={{
+              background: "linear-gradient(180deg, transparent, rgba(0,255,65,0.12), transparent)",
+              animation: "radarSweep 1.2s ease-out forwards",
+            }}
+          />
+        )}
+        <div
+          className={`grid gap-1 sm:gap-1.5 md:gap-2 ${zoomed ? "min-w-[480px]" : ""}`}
+          style={{ gridTemplateColumns: `repeat(${MAP_SIZE}, minmax(0, 1fr))` }}
+          role="grid"
+          aria-label="Battlefield grid"
+          aria-describedby="battlefield-keyboard-hint"
+        >
+          {Array.from({ length: MAP_SIZE * MAP_SIZE }, (_, i) => {
+            const x = i % MAP_SIZE;
+            const y = Math.floor(i / MAP_SIZE);
+            return (
+              <BoardCell
+                key={i}
+                x={x}
+                y={y}
+                owner={revealedSectorOwner[i] || 0}
+                isSelected={selectedCell?.x === x && selectedCell?.y === y}
+                unitIcon={unitMap.get(`${x},${y}`) ?? null}
+                unitType={unitTypeMap.get(`${x},${y}`) ?? null}
+                pendingAction={
+                  pendingOrder && pendingOrder.x === x && pendingOrder.y === y
+                    ? pendingOrder.action
+                    : null
+                }
+                onClick={onCellClick}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );

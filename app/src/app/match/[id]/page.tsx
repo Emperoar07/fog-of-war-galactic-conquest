@@ -949,6 +949,7 @@ function MatchPageInner() {
               highlightBoard={tutorialHighlight === "board"}
               unitPositions={localMode ? demoUnitPositions : visibilityUnits}
               pendingOrder={pendingOrderGhost}
+              turn={match.turn}
             />
             {selectedCell && (
               <div className="border border-[#0e2a0e] bg-[#030d03] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[#00cc33] sm:hidden">
