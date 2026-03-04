@@ -12,12 +12,7 @@ interface OrderPanelProps {
   resolveDisabled?: boolean;
   resolveLabel?: string;
   onResolve?: () => void;
-  showVisibility?: boolean;
-  visibilityDisabled?: boolean;
-  visibilityLabel?: string;
-  onVisibility?: () => void;
   highlightResolve?: boolean;
-  highlightVisibility?: boolean;
   prefillOrder?: {
     unitSlot: number;
     action: OrderAction;
@@ -55,12 +50,7 @@ export default function OrderPanel({
   resolveDisabled = false,
   resolveLabel = "Resolve Turn",
   onResolve,
-  showVisibility = false,
-  visibilityDisabled = false,
-  visibilityLabel = "Request Visibility Report",
-  onVisibility,
   highlightResolve = false,
-  highlightVisibility = false,
   prefillOrder,
   prefillNonce,
   onSubmit,
@@ -235,22 +225,6 @@ export default function OrderPanel({
           className="mt-4 w-full border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"
         >
           {submitLabel}
-        </button>
-      )}
-
-      {showVisibility && (
-        <button
-          data-sound-manual="true"
-          onClick={onVisibility}
-          disabled={visibilityDisabled}
-          aria-label={visibilityLabel}
-          className={`mt-3 w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.2em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-35 ${
-            highlightVisibility
-              ? "ring-1 ring-[#00e5cc] ring-offset-1 ring-offset-[#010801]"
-              : ""
-          }`}
-        >
-          {visibilityLabel}
         </button>
       )}
 

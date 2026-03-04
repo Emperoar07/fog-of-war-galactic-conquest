@@ -47,8 +47,9 @@ The in-app **How To Play** guide is the detailed walkthrough and is kept closest
 2. Click **Launch Demo**.
 3. Select a sector on the board.
 4. Use **Fire Control** to queue an order, resolve the turn, and request visibility.
-5. Turn **Companion Mode** on if you want a local tactical suggestion before you commit.
-6. Use the **Audio** toggle if you want ambient sound plus action cues.
+5. Use the **Enemy Signals** panel whenever you want a visibility report.
+6. Turn **Companion Mode** on if you want a local tactical suggestion before you commit.
+7. Use the **Audio** toggle if you want ambient sound plus action cues.
 
 Demo mode does not require a wallet and does not depend on live MXE encryption.
 
@@ -56,10 +57,10 @@ Demo mode does not require a wallet and does not depend on live MXE encryption.
 
 1. Open the frontend and connect a Solana wallet such as Phantom or Solflare.
 2. Browse existing matches in the lobby, or create a new one.
-3. Join a match if a player slot is open, then use **Fire Control** for actions.
+3. Join a match if a player slot is open, then use **Fire Control** for orders and turn resolution.
 4. Submit one encrypted order per turn.
 5. Resolve the turn after all players have submitted.
-6. Request visibility when needed.
+6. Use the **Enemy Signals** panel when you need visibility.
 7. Turn **Companion Mode** on if you want a local tactical suggestion with anti-repeat memory.
 
 Important:

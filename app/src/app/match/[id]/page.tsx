@@ -907,16 +907,7 @@ function MatchPageInner() {
                       : "Ready After Both Orders Lock"
                 }
                 onResolve={handleResolveTurn}
-                showVisibility={isPlayer && match.status === MatchStatus.Active}
-                visibilityDisabled={isBusy}
-                visibilityLabel={
-                  pendingAction === "visibility"
-                    ? "Requesting Visibility..."
-                    : "Request Visibility Report"
-                }
-                onVisibility={handleVisibility}
                 highlightResolve={tutorialHighlight === "resolve"}
-                highlightVisibility={tutorialHighlight === "visibility"}
                 prefillOrder={orderPrefill}
                 prefillNonce={orderPrefillNonce}
                 onSubmit={handleSubmitOrder}
@@ -930,6 +921,14 @@ function MatchPageInner() {
               report={visibilityReport}
               loading={decryptingVisibility}
               error={visibilityError}
+              actionDisabled={isBusy}
+              actionLabel={
+                pendingAction === "visibility"
+                  ? "Requesting Visibility..."
+                  : "Request Visibility Report"
+              }
+              onRequest={handleVisibility}
+              highlightAction={tutorialHighlight === "visibility"}
             />
           )}
 

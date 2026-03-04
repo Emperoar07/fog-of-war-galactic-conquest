@@ -391,7 +391,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "visibility",
     title: "REQUEST INTEL",
     message:
-      "Scout reports reveal hidden enemy positions. Use the Visibility Report to update your tactical picture.",
+      "Scout reports reveal hidden enemy positions. Use the Enemy Signals panel to request a visibility report and update your tactical picture.",
     highlight: "visibility",
   },
 ];
