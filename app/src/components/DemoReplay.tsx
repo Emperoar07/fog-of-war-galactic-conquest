@@ -54,7 +54,7 @@ export default function DemoReplay({ onApplySnapshot }: DemoReplayProps) {
   return (
     <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
       <button
-        onClick={() => setExpanded((e) => !e)}
+        onClick={() => setExpanded((open) => !open)}
         className="flex w-full items-center justify-between text-left"
       >
         <div>
@@ -65,7 +65,9 @@ export default function DemoReplay({ onApplySnapshot }: DemoReplayProps) {
             REPLAY ({history.length})
           </div>
         </div>
-        <span className="text-xs text-[#0c6d1f]">{expanded ? "▲" : "▼"}</span>
+        <span className="text-[9px] uppercase tracking-[0.18em] text-[#0c6d1f]">
+          {expanded ? "Close" : "Open"}
+        </span>
       </button>
 
       {expanded && (

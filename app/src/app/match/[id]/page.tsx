@@ -37,6 +37,18 @@ export type ActivityLogEntry = {
   tone: "info" | "success" | "error";
 };
 
+function buildInitialDemoActivity(): ActivityLogEntry[] {
+  return [
+    {
+      id: "demo-mode",
+      message:
+        "Running with simulated state. Orders, visibility, and turn resolution are mocked locally.",
+      time: "Demo",
+      tone: "info",
+    },
+  ];
+}
+
 // Lazy-load side panel components
 const TurnStatus = dynamic(() => import("@/components/TurnStatus"), {
   ssr: false,
@@ -189,15 +201,7 @@ function MatchPageInner() {
     setActivityLog((current) =>
       current.length > 0
         ? current
-        : [
-            {
-              id: "demo-mode",
-              message:
-                "Running with simulated state. Orders, visibility, and turn resolution are mocked locally.",
-              time: "Demo",
-              tone: "info",
-            },
-          ],
+        : buildInitialDemoActivity(),
     );
   }, [demoMode]);
 
@@ -554,6 +558,15 @@ function MatchPageInner() {
     setPendingAction("refresh");
     try {
       await refresh();
+      if (demoMode) {
+        setSelectedCell(null);
+        setVisibilityReport(null);
+        setVisibilityError(null);
+        setDecryptingVisibility(false);
+        setActionMessage("Demo mode is active. No MXE or wallet is required.");
+        setActionTone("info");
+        setActivityLog(buildInitialDemoActivity());
+      }
     } finally {
       setPendingAction(null);
     }
@@ -581,7 +594,7 @@ function MatchPageInner() {
     match.status === MatchStatus.Active && client?.allOrdersSubmitted(match);
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-5">
       <Toast
         message={actionTone === "error" ? actionMessage : visibilityError}
         tone="error"
@@ -598,13 +611,13 @@ function MatchPageInner() {
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <h2 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.14em] text-[#00ff41] sm:text-4xl">
+        <h2 className="font-[family-name:var(--font-vt323)] text-2xl tracking-[0.14em] text-[#00ff41] sm:text-4xl">
           Match #{matchId?.toString()}
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             onClick={handleShareLink}
-            className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)]"
+            className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] sm:w-auto"
             title="Copy match link to clipboard"
           >
             Share Link
@@ -612,7 +625,7 @@ function MatchPageInner() {
           <button
             onClick={handleRefresh}
             disabled={isBusy}
-            className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
+            className="w-full border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)] sm:w-auto"
           >
             {pendingAction === "refresh"
               ? "Syncing..."
@@ -623,7 +636,7 @@ function MatchPageInner() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 border border-[#0e2a0e] bg-[#030d03] px-3 py-2 sm:grid-cols-4 sm:px-4 sm:py-3">
+      <div className="grid grid-cols-2 gap-1.5 border border-[#0e2a0e] bg-[#030d03] px-2.5 py-2 sm:grid-cols-4 sm:gap-2 sm:px-4 sm:py-3">
         <div>
           <div className="text-[7px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[8px]">
             Mode
@@ -659,13 +672,42 @@ function MatchPageInner() {
       </div>
 
       {demoMode ? (
-        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-[#00e5cc] sm:px-4 sm:py-3 sm:text-[10px]">
+        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-2.5 py-2 text-[8px] uppercase tracking-[0.14em] text-[#00e5cc] sm:px-4 sm:py-3 sm:text-[10px] sm:tracking-[0.16em]">
           Demo mode is active. The battlefield runs on simulated state so you can test the full UI loop without MXE.
         </div>
       ) : (
         <MXEStatusBanner />
       )}
-      <TurnStatus match={match} walletKey={publicKey} />
+      <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-[minmax(0,0.7fr)_minmax(260px,0.3fr)]">
+        <TurnStatus match={match} walletKey={publicKey} />
+
+        <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+          <h3 className="font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
+            PLAYERS
+          </h3>
+          <div className="mt-2.5 space-y-2 sm:mt-3 sm:space-y-2.5">
+            {match.players.map((p, i) => {
+              const isEmpty = p.toBase58() === "11111111111111111111111111111111";
+              if (i >= match.playerCount) return null;
+              return (
+                <div key={i} className="flex justify-between gap-3 text-[9px] uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.14em]">
+                  <span className="text-[#0c6d1f]">
+                    Player {i + 1}
+                    {publicKey && p.toBase58() === publicKey.toBase58()
+                      ? " (you)"
+                      : ""}
+                  </span>
+                  <span className={`text-right ${isEmpty ? "text-[#084010]" : "text-[#00cc33]"}`}>
+                    {isEmpty
+                      ? "Empty"
+                      : `${p.toBase58().slice(0, 4)}...${p.toBase58().slice(-4)}`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {actionMessage && (
         <div
@@ -695,7 +737,7 @@ function MatchPageInner() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)]">
+      <div className="grid grid-cols-1 gap-3 sm:gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)]">
         <div className="flex justify-center">
           <GameBoard
             revealedSectorOwner={match.revealedSectorOwner}
@@ -706,7 +748,7 @@ function MatchPageInner() {
           />
         </div>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-2.5 sm:space-y-4">
           {canJoin && (
             <button
               onClick={handleJoin}
@@ -769,31 +811,6 @@ function MatchPageInner() {
           {demoMode && (
             <DemoReplay onApplySnapshot={handleReplaySnapshot} />
           )}
-
-          <div className="border border-[#0e2a0e] bg-[#030d03] p-3 space-y-2 sm:p-4">
-            <h3 className="font-[family-name:var(--font-vt323)] text-2xl tracking-[0.14em] text-[#00ff41] sm:text-3xl">
-              PLAYERS
-            </h3>
-            {match.players.map((p, i) => {
-              const isEmpty = p.toBase58() === "11111111111111111111111111111111";
-              if (i >= match.playerCount) return null;
-              return (
-                <div key={i} className="flex justify-between text-[10px] uppercase tracking-[0.14em] sm:text-xs">
-                  <span className="text-[#0c6d1f]">
-                    Player {i + 1}
-                    {publicKey && p.toBase58() === publicKey.toBase58()
-                      ? " (you)"
-                      : ""}
-                  </span>
-                  <span className={isEmpty ? "text-[#084010]" : "text-[#00cc33]"}>
-                    {isEmpty
-                      ? "Empty"
-                      : `${p.toBase58().slice(0, 4)}...${p.toBase58().slice(-4)}`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
     </div>

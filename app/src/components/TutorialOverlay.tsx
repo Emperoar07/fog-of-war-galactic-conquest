@@ -13,7 +13,6 @@ interface TutorialOverlayProps {
 }
 
 export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
-  // Use lazy initializer to avoid setState-in-effect lint error
   const [step, setStep] = useState(() => (isTutorialDone() ? -1 : 0));
   const [visible, setVisible] = useState(() => !isTutorialDone());
 
@@ -54,7 +53,7 @@ export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[8px] uppercase tracking-[0.3em] text-[#ffb000] sm:text-[9px]">
-              Tutorial — Step {step + 1}/{TUTORIAL_STEPS.length}
+              Tutorial - Step {step + 1} of {TUTORIAL_STEPS.length}
             </div>
             <h3 className="mt-1 font-[family-name:var(--font-vt323)] text-xl tracking-[0.14em] text-[#00ff41] sm:text-2xl">
               {current.title}
