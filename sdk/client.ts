@@ -17,13 +17,15 @@ import type {
   OrderParams,
   MXEStatus,
   CreateMatchResult,
+  QueuedComputationResult,
+  VisibilityRequestResult,
   MatchReadyEvent,
   TurnResolvedEvent,
   VisibilitySnapshotReadyEvent,
 } from "./types";
 import { getMatchPDA } from "./pda";
 import { buildQueueComputationAccounts, buildRegisterPlayerAccounts } from "./accounts";
-import { encryptOrder, checkMXEReady, generatePlayerKeys } from "./crypto";
+import { encryptOrder, checkMXEReady } from "./crypto";
 import { onMatchReady, onTurnResolved, onVisibilityReady, removeListener } from "./events";
 
 // ---------------------------------------------------------------------------
@@ -46,7 +48,11 @@ export class GameClient {
     this.provider = provider;
     this.programId = programId;
     this.clusterOffset = clusterOffset;
-    this.program = new Program(idl as any, provider);
+    const programIdl = {
+      ...(idl as any),
+      address: programId.toBase58(),
+    };
+    this.program = new Program(programIdl as any, provider);
   }
 
   // -----------------------------------------------------------------------
@@ -107,7 +113,7 @@ export class GameClient {
       .accountsPartial(accounts)
       .rpc({ commitment: "confirmed", preflightCommitment: "confirmed" });
 
-    return { txSig, matchPDA, matchId };
+    return { txSig, computationOffset, matchPDA, matchId };
   }
 
   /** Wait for an MPC computation to finalize on-chain. */
@@ -145,7 +151,7 @@ export class GameClient {
     order: OrderParams,
     privateKey: Uint8Array,
     signer?: Keypair,
-  ): Promise<string> {
+  ): Promise<QueuedComputationResult> {
     const mxeKey = await this.requireMXEKey();
     const encrypted = encryptOrder(order, privateKey, mxeKey);
     const computationOffset = new BN(randomBytes(8));
@@ -175,10 +181,11 @@ export class GameClient {
 
     if (signer) builder.signers([signer]);
 
-    return builder.rpc({
+    const txSig = await builder.rpc({
       commitment: "confirmed",
       preflightCommitment: "confirmed",
     });
+    return { txSig, computationOffset };
   }
 
   /** Request a visibility check for the connected wallet. */
@@ -186,12 +193,13 @@ export class GameClient {
     matchPDA: PublicKey,
     privateKey: Uint8Array,
     signer?: Keypair,
-  ): Promise<string> {
+  ): Promise<VisibilityRequestResult> {
     await this.requireMXEKey();
-    const publicKey = generatePlayerKeys().publicKey; // fresh ephemeral key for the request
     const computationOffset = new BN(randomBytes(8));
     const nonce = randomBytes(16);
-    const { deserializeLE } = await import("@arcium-hq/client");
+    const { deserializeLE, x25519 } = await import("@arcium-hq/client");
+    const publicKey = x25519.getPublicKey(privateKey);
+    const nonceBN = new BN(deserializeLE(nonce).toString());
 
     const payer = signer?.publicKey ?? this.provider.wallet.publicKey;
     const accounts = buildQueueComputationAccounts(
@@ -207,20 +215,29 @@ export class GameClient {
       .visibilityCheck(
         computationOffset,
         Array.from(publicKey),
-        new BN(deserializeLE(nonce).toString()),
+        nonceBN,
       )
       .accountsPartial(accounts);
 
     if (signer) builder.signers([signer]);
 
-    return builder.rpc({
+    const txSig = await builder.rpc({
       commitment: "confirmed",
       preflightCommitment: "confirmed",
     });
+    return {
+      txSig,
+      computationOffset,
+      nonceBN,
+      publicKey: Array.from(publicKey),
+    };
   }
 
   /** Trigger turn resolution (requires all players to have submitted). */
-  async resolveTurn(matchPDA: PublicKey, signer?: Keypair): Promise<string> {
+  async resolveTurn(
+    matchPDA: PublicKey,
+    signer?: Keypair,
+  ): Promise<QueuedComputationResult> {
     await this.requireMXEKey();
     const computationOffset = new BN(randomBytes(8));
 
@@ -240,10 +257,11 @@ export class GameClient {
 
     if (signer) builder.signers([signer]);
 
-    return builder.rpc({
+    const txSig = await builder.rpc({
       commitment: "confirmed",
       preflightCommitment: "confirmed",
     });
+    return { txSig, computationOffset };
   }
 
   // -----------------------------------------------------------------------

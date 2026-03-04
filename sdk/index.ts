@@ -36,6 +36,8 @@ export type {
   EncryptedOrder,
   MXEStatus,
   CreateMatchResult,
+  QueuedComputationResult,
+  VisibilityRequestResult,
 } from "./types";
 
 // PDA helpers

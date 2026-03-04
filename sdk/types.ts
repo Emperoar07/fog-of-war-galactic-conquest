@@ -95,6 +95,17 @@ export interface MXEStatus {
 
 export interface CreateMatchResult {
   txSig: string;
+  computationOffset: BN;
   matchPDA: PublicKey;
   matchId: bigint;
+}
+
+export interface QueuedComputationResult {
+  txSig: string;
+  computationOffset: BN;
+}
+
+export interface VisibilityRequestResult extends QueuedComputationResult {
+  nonceBN: BN;
+  publicKey: number[];
 }

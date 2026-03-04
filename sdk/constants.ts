@@ -44,10 +44,9 @@ export enum OrderAction {
 }
 
 export enum UnitType {
-  Command = 0,
+  Fighter = 0,
   Scout = 1,
-  Frigate = 2,
-  Destroyer = 3,
+  Command = 2,
 }
 
 // ---------------------------------------------------------------------------
@@ -55,10 +54,9 @@ export enum UnitType {
 // ---------------------------------------------------------------------------
 
 export const UNIT_STATS: Record<UnitType, { health: number; vision: number }> = {
-  [UnitType.Command]:   { health: 5, vision: 2 },
-  [UnitType.Scout]:     { health: 1, vision: 4 },
-  [UnitType.Frigate]:   { health: 3, vision: 2 },
-  [UnitType.Destroyer]: { health: 4, vision: 1 },
+  [UnitType.Fighter]: { health: 3, vision: 2 },
+  [UnitType.Scout]: { health: 1, vision: 4 },
+  [UnitType.Command]: { health: 5, vision: 2 },
 };
 
 // ---------------------------------------------------------------------------
