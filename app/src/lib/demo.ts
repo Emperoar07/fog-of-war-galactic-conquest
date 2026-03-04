@@ -32,7 +32,7 @@ function seededRandom(seed: number): () => number {
 }
 
 // ---------------------------------------------------------------------------
-// Richer map generation — faction territories expand/contract per turn
+// Richer map generation - faction territories expand/contract per turn
 // ---------------------------------------------------------------------------
 function makeMap(turn: number): number[] {
   const rand = seededRandom(turn * 7919 + 31);
@@ -163,7 +163,9 @@ export function markDemoOrdersSubmitted(
 ): GalaxyMatch {
   // Smarter AI: respond to the player's action
   if (playerOrder) {
-    const rand = seededRandom(match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY);
+    const rand = seededRandom(
+      match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
+    );
     const map = [...match.revealedSectorOwner];
     const targetIdx = playerOrder.targetY * MAP_SIZE + playerOrder.targetX;
 
@@ -178,7 +180,7 @@ export function markDemoOrdersSubmitted(
       ].filter((i) => i >= 0 && i < map.length);
       const pick = adjacent[Math.floor(rand() * adjacent.length)];
       if (pick !== undefined && map[pick] === 0) {
-        map[pick] = 2; // AI claims the adjacent cell
+        map[pick] = 2;
       }
     } else {
       // AI scouts or pushes forward toward player territory
@@ -207,12 +209,12 @@ export function markDemoOrdersSubmitted(
   };
 }
 
-// Generate demo unit positions for board display
-export function getDemoUnitPositions(turn: number): { slot: number; x: number; y: number }[] {
+export function getDemoUnitPositions(
+  turn: number,
+): { slot: number; x: number; y: number }[] {
   const rand = seededRandom(turn * 2003 + 41);
-  // Player 1 units (slots 0-3) cluster near top-left
-  // Player 2 units (slots 4-7) cluster near bottom-right
   const units: { slot: number; x: number; y: number }[] = [];
+
   for (let i = 0; i < 4; i++) {
     units.push({
       slot: i,
@@ -220,13 +222,21 @@ export function getDemoUnitPositions(turn: number): { slot: number; x: number; y
       y: Math.min(MAP_SIZE - 1, Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.2))),
     });
   }
+
   for (let i = 4; i < 8; i++) {
     units.push({
       slot: i,
-      x: Math.max(0, MAP_SIZE - 1 - Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.3))),
-      y: Math.max(0, MAP_SIZE - 1 - Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.2))),
+      x: Math.max(
+        0,
+        MAP_SIZE - 1 - Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.3)),
+      ),
+      y: Math.max(
+        0,
+        MAP_SIZE - 1 - Math.floor(rand() * (MAP_SIZE / 2 + turn * 0.2)),
+      ),
     });
   }
+
   return units;
 }
 
@@ -238,6 +248,7 @@ export function buildDemoVisibilityReport(turn: number): DecodedVisibilityReport
     x: Math.floor(rand() * MAP_SIZE),
     y: Math.floor(rand() * MAP_SIZE),
   }));
+
   return {
     visibleSlots: units.map((u) => u.slot),
     units,
@@ -264,15 +275,16 @@ export interface DemoSnapshot {
 export function saveDemoSnapshot(match: GalaxyMatch): void {
   try {
     const existing = loadDemoHistory();
-    // Don't duplicate the same turn
     if (existing.some((s) => s.turn === match.turn)) return;
+
     const snapshot: DemoSnapshot = {
       turn: match.turn,
       revealedSectorOwner: [...match.revealedSectorOwner],
       battleSummary: [...match.battleSummary],
       timestamp: Date.now(),
     };
-    const updated = [...existing, snapshot].slice(-20); // keep last 20
+
+    const updated = [...existing, snapshot].slice(-20);
     localStorage.setItem(DEMO_HISTORY_KEY, JSON.stringify(updated));
   } catch {
     // localStorage unavailable
@@ -344,7 +356,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "submit-order",
     title: "ISSUE AN ORDER",
     message:
-      "Use the order panel to choose an action — Move, Scout, or Attack — then submit your encrypted order.",
+      "Use the order panel to choose an action - Move, Scout, or Attack - then submit your encrypted order.",
     highlight: "orders",
   },
   {
