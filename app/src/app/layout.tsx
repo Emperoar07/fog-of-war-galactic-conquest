@@ -20,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${geistMono.variable} font-mono antialiased bg-black text-white min-h-screen`}>
+    <html lang="en">
+      <body className={`${geistMono.variable} font-mono antialiased min-h-screen`}>
         <WalletProvider>
           <NavBar />
           <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>

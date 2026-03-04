@@ -17,14 +17,14 @@ export default function MXEStatusBanner() {
 
   if (status.ready) {
     return (
-      <div className="bg-green-900/50 border border-green-700 text-green-300 px-4 py-2 rounded text-sm">
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
         Connected to Arcium MXE — encrypted operations available
       </div>
     );
   }
 
   return (
-    <div className="bg-yellow-900/50 border border-yellow-700 text-yellow-300 px-4 py-2 rounded text-sm">
+    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
       MXE cluster initializing — encrypted actions (create match, submit orders)
       are temporarily unavailable. Read-only operations work normally.
     </div>

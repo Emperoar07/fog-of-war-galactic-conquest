@@ -9,11 +9,11 @@ interface GameBoardProps {
 }
 
 const CELL_COLORS: Record<number, string> = {
-  0: "bg-slate-900 hover:bg-slate-800 border-slate-700",
-  1: "bg-blue-900/80 hover:bg-blue-800/80 border-blue-700",
-  2: "bg-rose-900/80 hover:bg-rose-800/80 border-rose-700",
-  3: "bg-emerald-900/80 hover:bg-emerald-800/80 border-emerald-700",
-  4: "bg-amber-900/80 hover:bg-amber-800/80 border-amber-700",
+  0: "bg-slate-50 hover:bg-slate-100 border-slate-200",
+  1: "bg-blue-50 hover:bg-blue-100 border-blue-200",
+  2: "bg-rose-50 hover:bg-rose-100 border-rose-200",
+  3: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
+  4: "bg-amber-50 hover:bg-amber-100 border-amber-200",
 };
 
 export default function GameBoard({
@@ -22,7 +22,7 @@ export default function GameBoard({
   onCellClick,
 }: GameBoardProps) {
   return (
-    <div className="w-full max-w-[44rem] rounded-3xl border border-gray-800 bg-gray-950/80 p-4 shadow-2xl">
+    <div className="w-full max-w-[44rem] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div
         className="grid gap-1.5 sm:gap-2"
         style={{ gridTemplateColumns: `repeat(${MAP_SIZE}, minmax(0, 1fr))` }}
@@ -40,7 +40,7 @@ export default function GameBoard({
               onClick={() => onCellClick(x, y)}
               className={`group aspect-square min-h-[42px] rounded-xl border p-1 text-left transition-all sm:min-h-[54px] ${baseColor} ${
                 isSelected
-                  ? "scale-[1.03] ring-2 ring-cyan-300 shadow-lg shadow-cyan-500/20"
+                  ? "scale-[1.03] ring-2 ring-slate-400 shadow-md"
                   : ""
               }`}
               title={`Sector (${x}, ${y})`}
@@ -52,14 +52,14 @@ export default function GameBoard({
                 <span
                   className={`h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3 ${
                     owner === 0
-                      ? "bg-slate-600"
+                      ? "bg-slate-300"
                       : owner === 1
-                        ? "bg-blue-300"
+                        ? "bg-blue-400"
                         : owner === 2
-                          ? "bg-rose-300"
+                          ? "bg-rose-400"
                           : owner === 3
-                            ? "bg-emerald-300"
-                            : "bg-amber-300"
+                            ? "bg-emerald-400"
+                            : "bg-amber-400"
                   }`}
                 />
               </div>

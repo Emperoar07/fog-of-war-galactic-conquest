@@ -29,23 +29,23 @@ export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
   ).length;
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded p-4 space-y-2">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-white">Turn {match.turn}</h3>
+        <h3 className="text-lg font-bold text-slate-800">Turn {match.turn}</h3>
         <span
           className={`px-2 py-1 rounded text-sm font-medium ${
             match.status === MatchStatus.Active
-              ? "bg-green-800 text-green-200"
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
               : match.status === MatchStatus.Completed
-                ? "bg-purple-800 text-purple-200"
-                : "bg-yellow-800 text-yellow-200"
+                ? "bg-purple-50 text-purple-700 border border-purple-200"
+                : "bg-amber-50 text-amber-700 border border-amber-200"
           }`}
         >
           {statusLabel(match.status)}
         </span>
       </div>
 
-      <div className="text-sm text-gray-400">
+      <div className="text-sm text-slate-500">
         Players: {registeredPlayers} / {match.playerCount}
       </div>
 
@@ -56,8 +56,8 @@ export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
               key={i}
               className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
                 match.submittedOrders[i]
-                  ? "bg-green-900 text-green-300"
-                  : "bg-gray-800 text-gray-500"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-slate-50 text-slate-400 border border-slate-200"
               }`}
             >
               <span>{match.submittedOrders[i] ? "Ready" : "Waiting"}</span>
@@ -73,7 +73,7 @@ export default function TurnStatus({ match, walletKey }: TurnStatusProps) {
       )}
 
       {hasWinner && (
-        <div className="text-lg font-bold text-yellow-400">
+        <div className="text-lg font-bold text-amber-600">
           Winner: Player {winner + 1}
         </div>
       )}

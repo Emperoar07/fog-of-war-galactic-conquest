@@ -10,12 +10,12 @@ export default function Toast({ message, tone = "info" }: ToastProps) {
 
   const styles =
     tone === "error"
-      ? "border-red-800 bg-red-950/95 text-red-200"
-      : "border-cyan-800 bg-cyan-950/95 text-cyan-200";
+      ? "border-red-200 bg-red-50 text-red-700"
+      : "border-slate-200 bg-white text-slate-700";
 
   return (
     <div className="pointer-events-none fixed right-4 top-20 z-50 max-w-sm">
-      <div className={`rounded-2xl border px-4 py-3 text-sm shadow-2xl ${styles}`}>
+      <div className={`rounded-2xl border px-4 py-3 text-sm shadow-lg ${styles}`}>
         {message}
       </div>
     </div>

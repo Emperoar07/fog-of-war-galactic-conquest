@@ -215,8 +215,8 @@ export default function MatchPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center gap-3 py-16 text-center text-gray-400">
-        <span className="h-10 w-10 animate-spin rounded-full border-2 border-gray-700 border-t-cyan-300" />
+      <div className="flex flex-col items-center gap-3 py-16 text-center text-slate-400">
+        <span className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
         <span>Loading match {matchId?.toString()}...</span>
       </div>
     );
@@ -225,10 +225,10 @@ export default function MatchPage() {
   if (error) {
     return (
       <div className="text-center py-12 space-y-4">
-        <div className="text-red-400">{error}</div>
+        <div className="text-red-500">{error}</div>
         <button
           onClick={refresh}
-          className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
+          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded"
         >
           Retry
         </button>
@@ -238,7 +238,7 @@ export default function MatchPage() {
 
   if (!match || !matchPDA) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-slate-400">
         Match not found
       </div>
     );
@@ -259,7 +259,6 @@ export default function MatchPage() {
     if (!client || !matchPDA || !publicKey) return;
     setActionMessage(null);
     try {
-      // Find first empty slot
       const emptySlot = match.players.findIndex(
         (p) => p.toBase58() === "11111111111111111111111111111111",
       );
@@ -421,19 +420,19 @@ export default function MatchPage() {
         tone="error"
       />
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">
+        <h2 className="text-2xl font-bold text-slate-800">
           Match #{matchId?.toString()}
         </h2>
         <button
           onClick={refresh}
-          className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded text-sm"
         >
           {demoMode ? "Reset Demo" : "Refresh"}
         </button>
       </div>
 
       {demoMode ? (
-        <div className="rounded-2xl border border-cyan-800 bg-cyan-950/60 px-4 py-3 text-sm text-cyan-200">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           Demo mode is active. The battlefield runs on simulated state so you can test the full UI loop without MXE.
         </div>
       ) : (
@@ -445,10 +444,10 @@ export default function MatchPage() {
         <div
           className={`px-4 py-2 rounded text-sm border ${
             actionTone === "success"
-              ? "bg-green-950 border-green-800 text-green-300"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
               : actionTone === "error"
-                ? "bg-red-950 border-red-800 text-red-300"
-                : "bg-gray-800 border-gray-600 text-gray-300"
+                ? "bg-red-50 border-red-200 text-red-600"
+                : "bg-slate-50 border-slate-200 text-slate-600"
           }`}
         >
           {actionMessage}
@@ -456,7 +455,6 @@ export default function MatchPage() {
       )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)]">
-        {/* Game board */}
         <div className="flex justify-center">
           <GameBoard
             revealedSectorOwner={match.revealedSectorOwner}
@@ -465,19 +463,16 @@ export default function MatchPage() {
           />
         </div>
 
-        {/* Side panel */}
         <div className="space-y-4">
-          {/* Join button */}
           {canJoin && (
             <button
               onClick={handleJoin}
-              className="w-full bg-green-700 hover:bg-green-600 text-white font-medium py-3 rounded transition-colors"
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded transition-colors"
             >
               Join Match
             </button>
           )}
 
-          {/* Order panel */}
           {canSubmitOrders && (
             <OrderPanel
               match={match}
@@ -488,21 +483,19 @@ export default function MatchPage() {
             />
           )}
 
-          {/* Resolve button */}
           {canResolve && (
             <button
               onClick={handleResolveTurn}
-              className="w-full bg-purple-700 hover:bg-purple-600 text-white font-medium py-3 rounded transition-colors"
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-3 rounded transition-colors"
             >
               Resolve Turn
             </button>
           )}
 
-          {/* Visibility button */}
           {isPlayer && match.status === MatchStatus.Active && (
             <button
               onClick={handleVisibility}
-              className="w-full bg-cyan-700 hover:bg-cyan-600 text-white font-medium py-2 rounded transition-colors text-sm"
+              className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 rounded transition-colors text-sm"
             >
               Request Visibility Report
             </button>
@@ -519,21 +512,20 @@ export default function MatchPage() {
           <BattleSummary match={match} summary={summary} />
           <ActivityLog entries={activityLog} />
 
-          {/* Player info */}
-          <div className="bg-gray-900 border border-gray-700 rounded p-4 space-y-2">
-            <h3 className="text-lg font-bold text-white">Players</h3>
+          <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-800">Players</h3>
             {match.players.map((p, i) => {
               const isEmpty = p.toBase58() === "11111111111111111111111111111111";
               if (i >= match.playerCount) return null;
               return (
                 <div key={i} className="text-sm flex justify-between">
-                  <span className="text-gray-400">
+                  <span className="text-slate-500">
                     Player {i + 1}
                     {publicKey && p.toBase58() === publicKey.toBase58()
                       ? " (you)"
                       : ""}
                   </span>
-                  <span className={isEmpty ? "text-gray-600" : "text-white"}>
+                  <span className={isEmpty ? "text-slate-300" : "text-slate-800"}>
                     {isEmpty
                       ? "Empty"
                       : `${p.toBase58().slice(0, 4)}...${p.toBase58().slice(-4)}`}

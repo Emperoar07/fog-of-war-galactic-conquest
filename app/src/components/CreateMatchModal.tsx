@@ -44,12 +44,12 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-md space-y-4">
-        <h2 className="text-xl font-bold text-white">Create New Match</h2>
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white border border-slate-200 rounded-xl p-6 w-full max-w-md space-y-4 shadow-xl">
+        <h2 className="text-xl font-bold text-slate-800">Create New Match</h2>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1">
+          <label className="block text-sm text-slate-500 mb-1">
             Map Seed (determines starting positions)
           </label>
           <input
@@ -57,22 +57,22 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
             value={mapSeed}
             onChange={(e) => setMapSeed(e.target.value)}
             disabled={creating}
-            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white disabled:opacity-50"
+            className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800 disabled:opacity-50"
           />
         </div>
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-slate-400">
           2-player match. You will be Player 1 (slot 0).
         </div>
 
         {error && (
-          <div className="text-red-400 text-sm bg-red-900/30 border border-red-800 rounded p-2">
+          <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded p-2">
             {error}
           </div>
         )}
 
         {statusMessage && !error && (
-          <div className="text-cyan-300 text-sm bg-cyan-950/40 border border-cyan-900 rounded p-2">
+          <div className="text-slate-600 text-sm bg-slate-50 border border-slate-200 rounded p-2">
             {statusMessage}
           </div>
         )}
@@ -81,14 +81,14 @@ export default function CreateMatchModal({ open, onClose }: CreateMatchModalProp
           <button
             onClick={onClose}
             disabled={creating}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded transition-colors disabled:opacity-50"
+            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating || !client}
-            className="flex-1 bg-blue-700 hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-2 rounded transition-colors"
+            className="flex-1 bg-slate-900 hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium py-2 rounded transition-colors"
           >
             {creating ? "Creating..." : "Create Match"}
           </button>
