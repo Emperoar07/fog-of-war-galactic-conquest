@@ -13,10 +13,68 @@ import {
 } from "@sdk";
 
 export const DEMO_MATCH_ID = BigInt("900000001");
+export const QUICK_MATCH_IDS = {
+  easy: BigInt("900000101"),
+  medium: BigInt("900000102"),
+  hard: BigInt("900000103"),
+} as const;
 export const DEMO_MODE_ENABLED = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
+
+export type AiDifficulty = "easy" | "medium" | "hard";
 
 const EMPTY_PLAYER = PublicKey.default;
 const DEMO_PLAYERS = [PROGRAM_ID, ARCIUM_PROGRAM_ID, EMPTY_PLAYER, EMPTY_PLAYER];
+
+type AiProfile = {
+  label: string;
+  lockDelayMs: number;
+  reinforcementBurst: number;
+  expansionChance: number;
+  winnerTurn: number;
+  preferredWinner: 0 | 1;
+};
+
+const AI_PROFILES: Record<AiDifficulty, AiProfile> = {
+  easy: {
+    label: "Easy",
+    lockDelayMs: 1400,
+    reinforcementBurst: 1,
+    expansionChance: 0.08,
+    winnerTurn: 8,
+    preferredWinner: 0,
+  },
+  medium: {
+    label: "Medium",
+    lockDelayMs: 900,
+    reinforcementBurst: 2,
+    expansionChance: 0.12,
+    winnerTurn: 9,
+    preferredWinner: 1,
+  },
+  hard: {
+    label: "Hard",
+    lockDelayMs: 500,
+    reinforcementBurst: 3,
+    expansionChance: 0.18,
+    winnerTurn: 9,
+    preferredWinner: 1,
+  },
+};
+
+export function parseAiDifficulty(value: string | null): AiDifficulty | null {
+  return value === "easy" || value === "medium" || value === "hard" ? value : null;
+}
+
+export function getQuickMatchDifficulty(matchId: bigint | null): AiDifficulty | null {
+  if (matchId === QUICK_MATCH_IDS.easy) return "easy";
+  if (matchId === QUICK_MATCH_IDS.medium) return "medium";
+  if (matchId === QUICK_MATCH_IDS.hard) return "hard";
+  return null;
+}
+
+export function getAiProfile(difficulty: AiDifficulty): AiProfile {
+  return AI_PROFILES[difficulty];
+}
 
 // ---------------------------------------------------------------------------
 // Seeded PRNG (deterministic per-turn randomness that still feels varied)
@@ -124,7 +182,10 @@ function makeBattleSummary(turn: number, winner = NO_WINNER): number[] {
 // Demo match lifecycle
 // ---------------------------------------------------------------------------
 
-export function createDemoMatch(matchId: bigint = DEMO_MATCH_ID): GalaxyMatch {
+export function createLocalMatch(
+  matchId: bigint = DEMO_MATCH_ID,
+  aiDifficulty: AiDifficulty | null = null,
+): GalaxyMatch {
   return {
     matchId: new BN(matchId.toString()),
     authority: PROGRAM_ID,
@@ -132,7 +193,7 @@ export function createDemoMatch(matchId: bigint = DEMO_MATCH_ID): GalaxyMatch {
     playerCount: 2,
     turn: 1,
     status: MatchStatus.Active,
-    mapSeed: new BN(42),
+    mapSeed: new BN(aiDifficulty ? 84 : 42),
     revealedSectorOwner: makeMap(1),
     battleSummary: makeBattleSummary(1),
     submittedOrders: [0, 0, 0, 0],
@@ -144,9 +205,28 @@ export function createDemoMatch(matchId: bigint = DEMO_MATCH_ID): GalaxyMatch {
   };
 }
 
-export function advanceDemoTurn(match: GalaxyMatch): GalaxyMatch {
+export function createDemoMatch(matchId: bigint = DEMO_MATCH_ID): GalaxyMatch {
+  return createLocalMatch(matchId, null);
+}
+
+export function advanceDemoTurn(
+  match: GalaxyMatch,
+  aiDifficulty: AiDifficulty | null = null,
+): GalaxyMatch {
   const nextTurn = match.turn + 1;
-  const winner = nextTurn >= 8 ? 0 : NO_WINNER;
+  const friendly = match.revealedSectorOwner.filter((tile) => tile === 1).length;
+  const enemy = match.revealedSectorOwner.filter((tile) => tile === 2).length;
+  const profile = aiDifficulty ? getAiProfile(aiDifficulty) : null;
+  let winner = NO_WINNER;
+  if (profile && nextTurn >= profile.winnerTurn) {
+    if (profile.preferredWinner === 1) {
+      winner = enemy >= Math.max(1, friendly - 1) ? 1 : 0;
+    } else {
+      winner = friendly >= enemy ? 0 : 1;
+    }
+  } else if (!profile && nextTurn >= 8) {
+    winner = 0;
+  }
   return {
     ...match,
     turn: nextTurn,
@@ -160,9 +240,11 @@ export function advanceDemoTurn(match: GalaxyMatch): GalaxyMatch {
 export function markDemoOrdersSubmitted(
   match: GalaxyMatch,
   playerOrder?: { targetX: number; targetY: number; action: number },
+  aiDifficulty: AiDifficulty | null = null,
 ): GalaxyMatch {
   // Smarter AI: respond to the player's action
   if (playerOrder) {
+    const profile = aiDifficulty ? getAiProfile(aiDifficulty) : null;
     const rand = seededRandom(
       match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
     );
@@ -178,16 +260,20 @@ export function markDemoOrdersSubmitted(
         targetIdx - 1,
         targetIdx + 1,
       ].filter((i) => i >= 0 && i < map.length);
-      const pick = adjacent[Math.floor(rand() * adjacent.length)];
-      if (pick !== undefined && map[pick] === 0) {
-        map[pick] = 2;
+      const burst = profile?.reinforcementBurst ?? 1;
+      for (let i = 0; i < burst; i++) {
+        const pick = adjacent[Math.floor(rand() * adjacent.length)];
+        if (pick !== undefined && map[pick] === 0) {
+          map[pick] = 2;
+        }
       }
     } else {
       // AI scouts or pushes forward toward player territory
       for (let i = 0; i < map.length; i++) {
-        if (map[i] === 0 && rand() < 0.12) {
+        const expansionChance = profile?.expansionChance ?? 0.12;
+        if (map[i] === 0 && rand() < expansionChance) {
           map[i] = 2;
-          break;
+          if (!profile || profile.reinforcementBurst <= 1) break;
         }
       }
     }

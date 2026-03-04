@@ -5,9 +5,13 @@ import { PublicKey } from "@solana/web3.js";
 import type { GalaxyMatch } from "@sdk";
 import { useGameClient } from "./useGameClient";
 import { getMatchPDA } from "@sdk";
-import { createDemoMatch } from "@/lib/demo";
+import { createLocalMatch, type AiDifficulty } from "@/lib/demo";
 
-export function useMatch(matchId: bigint | null, demoMode = false) {
+export function useMatch(
+  matchId: bigint | null,
+  options: { localMode?: boolean; aiDifficulty?: AiDifficulty | null } = {},
+) {
+  const { localMode = false, aiDifficulty = null } = options;
   const client = useGameClient();
   const [match, setMatch] = useState<GalaxyMatch | null>(null);
   const [matchPDA, setMatchPDA] = useState<PublicKey | null>(null);
@@ -26,13 +30,13 @@ export function useMatch(matchId: bigint | null, demoMode = false) {
       const [pda] = getMatchPDA(matchId);
       setMatchPDA(pda);
 
-      if (demoMode) {
+      if (localMode) {
         setLoading(true);
         setError(null);
-        const demoMatch = createDemoMatch(matchId);
-        setMatch(demoMatch);
+        const localMatch = createLocalMatch(matchId, aiDifficulty);
+        setMatch(localMatch);
         setLoading(false);
-        return demoMatch;
+        return localMatch;
       }
 
       if (!client) {
@@ -54,7 +58,7 @@ export function useMatch(matchId: bigint | null, demoMode = false) {
     } finally {
       setLoading(false);
     }
-  }, [client, demoMode, matchId]);
+  }, [aiDifficulty, client, localMode, matchId]);
 
   // Initial fetch
   useEffect(() => {
@@ -63,7 +67,7 @@ export function useMatch(matchId: bigint | null, demoMode = false) {
 
   // Subscribe to account changes
   useEffect(() => {
-    if (demoMode) return;
+    if (localMode) return;
     if (!client || !matchPDA) return;
     const subId = client.onMatchAccountChange(matchPDA, (updated) => {
       setMatch(updated);
@@ -71,7 +75,7 @@ export function useMatch(matchId: bigint | null, demoMode = false) {
     return () => {
       client.removeAccountChangeListener(subId);
     };
-  }, [client, demoMode, matchPDA]);
+  }, [client, localMode, matchPDA]);
 
   const updateMatch = useCallback(
     (updater: (current: GalaxyMatch) => GalaxyMatch) => {

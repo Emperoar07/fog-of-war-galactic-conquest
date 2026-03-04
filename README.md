@@ -30,11 +30,14 @@ The result is a verifiable game loop where hidden information remains hidden unt
 
 ## How To Play
 
-Use the app in one of two ways:
+Use the app in one of three ways:
 
 - **Demo mode**
   - Full UI loop with simulated game state.
   - Best for learning the controls and the match flow without depending on MXE readiness.
+- **Quick Match vs AI**
+  - Full local skirmish against a built-in computer opponent.
+  - Lets you choose `Easy`, `Medium`, or `Hard` so the AI pressure matches the mode you picked.
 - **Live devnet mode**
   - Connects to the deployed Solana program on devnet.
   - Public flows work normally. Full encrypted gameplay still depends on Arcium MXE readiness.
@@ -53,6 +56,19 @@ The in-app **How To Play** guide is the detailed walkthrough and is kept closest
 8. Watch the **Turn Timeline** panel to review how the map has shifted during the current session.
 
 Demo mode does not require a wallet and does not depend on live MXE encryption.
+
+### Solo Practice: Quick Match vs AI
+
+1. Open the frontend.
+2. Choose **Quick Match Easy**, **Quick Match Medium**, or **Quick Match Hard**.
+3. Select a sector on the board.
+4. Use **Fire Control** to review and confirm an order.
+5. Wait for the AI to lock in its response, then resolve the turn.
+6. Use the **Enemy Signals** panel whenever you want a local intel refresh.
+7. Turn **Companion Mode** on if you want an advisory suggestion before you commit.
+8. Easy gives you the most reaction time, Medium is balanced, and Hard locks faster with stronger counter-pressure.
+
+Quick Match is local and instant, so it is useful for solo practice when you want a more active opponent than demo mode.
 
 ### Live Devnet
 

@@ -20,9 +20,13 @@ import type { ActivityLogEntry } from "@/lib/activity";
 import {
   buildDemoVisibilityReport,
   DEMO_MODE_ENABLED,
+  getAiProfile,
+  getQuickMatchDifficulty,
   getDemoUnitPositions,
   isDemoMatchId,
+  parseAiDifficulty,
   saveDemoSnapshot,
+  type AiDifficulty,
   type DemoSnapshot,
 } from "@/lib/demo";
 import { buildWinnerOverlayKey, areOrdersReady } from "@/lib/match-state";
@@ -39,6 +43,22 @@ function buildInitialDemoActivity(): ActivityLogEntry[] {
       message:
         "Running with simulated state. Orders, visibility, and turn resolution are mocked locally.",
       time: "Demo",
+      tone: "info",
+    },
+  ];
+}
+
+function buildInitialLocalActivity(aiDifficulty: AiDifficulty | null): ActivityLogEntry[] {
+  if (!aiDifficulty) {
+    return buildInitialDemoActivity();
+  }
+
+  const profile = getAiProfile(aiDifficulty);
+  return [
+    {
+      id: `quick-${aiDifficulty}`,
+      message: `Quick Match is active. ${profile.label} AI is piloting the opposing commander locally.`,
+      time: "Quick",
       tone: "info",
     },
   ];
@@ -98,15 +118,18 @@ function MatchPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const matchId = params.id ? BigInt(params.id as string) : null;
+  const explicitDifficulty = parseAiDifficulty(searchParams.get("quick"));
+  const aiDifficulty = explicitDifficulty ?? getQuickMatchDifficulty(matchId);
   const demoMode =
     searchParams.get("demo") === "1" ||
     (DEMO_MODE_ENABLED && isDemoMatchId(matchId));
+  const localMode = demoMode || aiDifficulty !== null;
   const { publicKey } = useWallet();
   const client = useGameClient();
   const { playSound } = useSound();
   const { match, matchPDA, loading, error, refresh, updateMatch } = useMatch(
     matchId,
-    demoMode,
+    { localMode, aiDifficulty },
   );
   const { keys, ensureKeys } = usePlayerKeys();
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
@@ -143,7 +166,7 @@ function MatchPageInner() {
     setActionTone,
   } = useMatchActions();
   const playerSlot =
-    demoMode
+    localMode
       ? 0
       : publicKey && client && match
       ? client.getPlayerSlot(match, publicKey) ?? null
@@ -159,8 +182,8 @@ function MatchPageInner() {
 
   // Demo unit positions (memoized per turn)
   const demoUnitPositions = useMemo(
-    () => (demoMode && match ? getDemoUnitPositions(match.turn) : []),
-    [demoMode, match],
+    () => (localMode && match ? getDemoUnitPositions(match.turn) : []),
+    [localMode, match],
   );
 
   // Visibility-derived unit positions for live mode
@@ -187,7 +210,8 @@ function MatchPageInner() {
   });
 
   const { clearPendingLock, submitDemoOrder, resolveDemoTurn } = useDemoTurnFlow({
-    enabled: demoMode,
+    enabled: localMode,
+    aiDifficulty,
     updateMatch,
     appendActivity,
     showStatus,
@@ -196,10 +220,10 @@ function MatchPageInner() {
 
   // Save demo snapshots for replay
   useEffect(() => {
-    if (demoMode && match) {
+    if (localMode && match) {
       saveDemoSnapshot(match);
     }
-  }, [demoMode, match]);
+  }, [localMode, match]);
 
   const summary = useMemo(
     () =>
@@ -215,13 +239,19 @@ function MatchPageInner() {
   );
 
   useEffect(() => {
-    if (!demoMode) return;
-    setActionMessage("Demo mode is active. No MXE or wallet is required.");
+    if (!localMode) return;
+    if (demoMode) {
+      setActionMessage("Demo mode is active. No MXE or wallet is required.");
+    } else if (aiDifficulty) {
+      setActionMessage(
+        `Quick Match is active. ${getAiProfile(aiDifficulty).label} AI is piloting the opposing commander locally.`,
+      );
+    }
     setActionTone("info");
     if (activityLog.length === 0) {
-      resetActivity(buildInitialDemoActivity());
+      resetActivity(buildInitialLocalActivity(aiDifficulty));
     }
-  }, [activityLog.length, demoMode, resetActivity, setActionMessage, setActionTone]);
+  }, [activityLog.length, aiDifficulty, demoMode, localMode, resetActivity, setActionMessage, setActionTone]);
 
   useEffect(() => {
     if (!summary || matchId === null || !match) return;
@@ -274,7 +304,7 @@ function MatchPageInner() {
     let cancelled = false;
 
     async function syncVisibility() {
-      if (demoMode) return;
+      if (localMode) return;
       if (!client || !match || !keys || !isPlayer) {
         if (!cancelled) {
           setVisibilityReport(null);
@@ -323,10 +353,10 @@ function MatchPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [client, demoMode, isPlayer, keys, match]);
+  }, [client, isPlayer, keys, localMode, match]);
 
   useEffect(() => {
-    if (demoMode) return;
+    if (localMode) return;
     if (!client || matchId === null) return;
 
     const matchIdText = matchId.toString();
@@ -370,17 +400,17 @@ function MatchPageInner() {
         void client.removeListener(id);
       }
     };
-  }, [appendActivity, client, demoMode, matchId, playerSlot, refresh, showStatus]);
+  }, [appendActivity, client, localMode, matchId, playerSlot, refresh, showStatus]);
 
   const allOrdersReady = match
     ? areOrdersReady(match.submittedOrders, match.playerCount)
     : false;
   const canResolve =
     match?.status === MatchStatus.Active &&
-    (demoMode ? allOrdersReady : Boolean(client?.allOrdersSubmitted(match)));
+    (localMode ? allOrdersReady : Boolean(client?.allOrdersSubmitted(match)));
 
   useEffect(() => {
-    if (demoMode || !canResolve || typeof window === "undefined") return;
+    if (localMode || !canResolve || typeof window === "undefined") return;
     if (document.visibilityState === "visible") return;
     if (!("Notification" in window)) return;
 
@@ -402,7 +432,7 @@ function MatchPageInner() {
         }
       });
     }
-  }, [canResolve, demoMode, notificationPrompted]);
+  }, [canResolve, localMode, notificationPrompted]);
 
   if (loading) {
     return (
@@ -466,9 +496,9 @@ function MatchPageInner() {
   };
 
   const handleJoin = async () => {
-    if (demoMode) {
+    if (localMode) {
       playSound("uiTap");
-      showStatus("Demo crews are already locked in for this showcase.", "info", true);
+      showStatus("Local simulation already has both commanders assigned.", "info", true);
       return;
     }
     if (!client || !matchPDA || !publicKey) return;
@@ -522,7 +552,7 @@ function MatchPageInner() {
         order.action === 2 ? "Attack" : order.action === 1 ? "Scout" : "Move",
     });
 
-    if (demoMode) {
+    if (localMode) {
       submitDemoOrder(order, () => recordCompanionHistory(order, matchedSuggestion));
       return;
     }
@@ -559,7 +589,7 @@ function MatchPageInner() {
   };
 
   const handleResolveTurn = async () => {
-    if (demoMode) {
+    if (localMode) {
       resolveDemoTurn();
       setPendingOrderGhost(null);
       return;
@@ -595,7 +625,7 @@ function MatchPageInner() {
   };
 
   const handleVisibility = async () => {
-    if (demoMode) {
+    if (localMode) {
       if (!match) return;
       playSound("reveal");
       const report = buildDemoVisibilityReport(match.turn);
@@ -663,16 +693,22 @@ function MatchPageInner() {
     try {
       clearPendingLock();
       await refresh();
-      if (demoMode) {
+      if (localMode) {
         setSelectedCell(null);
         setOrderPrefill(null);
         setPendingOrderGhost(null);
         setVisibilityReport(null);
         setVisibilityError(null);
         setDecryptingVisibility(false);
-        setActionMessage("Demo mode is active. No MXE or wallet is required.");
+        if (demoMode) {
+          setActionMessage("Demo mode is active. No MXE or wallet is required.");
+        } else if (aiDifficulty) {
+          setActionMessage(
+            `Quick Match is active. ${getAiProfile(aiDifficulty).label} AI is piloting the opposing commander locally.`,
+          );
+        }
         setActionTone("info");
-        resetActivity(buildInitialDemoActivity());
+        resetActivity(buildInitialLocalActivity(aiDifficulty));
         setWinnerOverlayVisible(false);
         setLastWinnerKey(null);
       }
@@ -693,7 +729,7 @@ function MatchPageInner() {
   };
 
   const canJoin =
-    !demoMode &&
+    !localMode &&
     match.status === MatchStatus.WaitingForPlayers &&
     !isPlayer &&
     publicKey;
@@ -774,13 +810,21 @@ function MatchPageInner() {
             data-sound-manual="true"
             onClick={handleRefresh}
             disabled={isBusy}
-            aria-label={demoMode ? "Reset the local demo session" : "Refresh match state"}
+            aria-label={
+              localMode
+                ? demoMode
+                  ? "Reset the local demo session"
+                  : "Reset the local quick match"
+                : "Refresh match state"
+            }
             className="w-full border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)] sm:w-auto"
           >
             {pendingAction === "refresh"
               ? "Syncing..."
-              : demoMode
-                ? "Reset Demo"
+              : localMode
+                ? demoMode
+                  ? "Reset Demo"
+                  : "Reset Quick Match"
                 : "Refresh"}
           </button>
         </div>
@@ -792,7 +836,11 @@ function MatchPageInner() {
             Mode
           </div>
           <div className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#ffb000] sm:text-[10px]">
-            {demoMode ? "Demo Channel" : "Live Devnet"}
+            {demoMode
+              ? "Demo Channel"
+              : aiDifficulty
+                ? `Quick AI - ${getAiProfile(aiDifficulty).label}`
+                : "Live Devnet"}
           </div>
         </div>
         <div>
@@ -821,9 +869,11 @@ function MatchPageInner() {
         </div>
       </div>
 
-      {demoMode ? (
+      {localMode ? (
         <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-2.5 py-2 text-[8px] uppercase tracking-[0.14em] text-[#00e5cc] sm:px-4 sm:py-3 sm:text-[10px] sm:tracking-[0.16em]">
-          Demo mode is active. The battlefield runs on simulated state so you can test the full UI loop without MXE.
+          {demoMode
+            ? "Demo mode is active. The battlefield runs on simulated state so you can test the full UI loop without MXE."
+            : `Quick Match is active. ${getAiProfile(aiDifficulty!).label} AI is piloting the opposing side locally.`}
         </div>
       ) : (
         <MXEStatusBanner />
@@ -897,7 +947,7 @@ function MatchPageInner() {
               selectedCell={selectedCell}
               onCellClick={(x, y) => setSelectedCell({ x, y })}
               highlightBoard={tutorialHighlight === "board"}
-              unitPositions={demoMode ? demoUnitPositions : visibilityUnits}
+              unitPositions={localMode ? demoUnitPositions : visibilityUnits}
               pendingOrder={pendingOrderGhost}
             />
             {selectedCell && (
@@ -998,7 +1048,7 @@ function MatchPageInner() {
                 match={match}
                 playerSlot={playerSlot}
                 selectedCell={selectedCell}
-                allowReplaceSubmitted={demoMode}
+                allowReplaceSubmitted={localMode}
                 showResolve
                 resolveDisabled={isBusy || !canResolve}
                 resolveLabel={
@@ -1013,7 +1063,7 @@ function MatchPageInner() {
                 prefillOrder={orderPrefill}
                 prefillNonce={orderPrefillNonce}
                 onSubmit={handleSubmitOrder}
-                disabled={isBusy || (!demoMode && !client)}
+                disabled={isBusy || (!localMode && !client)}
               />
             </div>
           )}
@@ -1038,7 +1088,7 @@ function MatchPageInner() {
 
           <TurnTimeline snapshots={turnSnapshots} currentTurn={match.turn} />
 
-          {demoMode && (
+          {localMode && (
             <DemoReplay onApplySnapshot={handleReplaySnapshot} />
           )}
         </div>

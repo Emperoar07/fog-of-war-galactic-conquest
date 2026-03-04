@@ -2,11 +2,18 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
-import { advanceDemoTurn, markDemoOpponentSubmitted, markDemoOrdersSubmitted } from "@/lib/demo";
+import {
+  advanceDemoTurn,
+  getAiProfile,
+  markDemoOpponentSubmitted,
+  markDemoOrdersSubmitted,
+  type AiDifficulty,
+} from "@/lib/demo";
 import type { GalaxyMatch, OrderParams } from "@sdk";
 
 export function useDemoTurnFlow(args: {
   enabled: boolean;
+  aiDifficulty?: AiDifficulty | null;
   updateMatch: (updater: (current: GalaxyMatch) => GalaxyMatch) => void;
   appendActivity: (message: string, tone?: "info" | "success" | "error") => void;
   showStatus: (
@@ -25,7 +32,14 @@ export function useDemoTurnFlow(args: {
       | "victory",
   ) => void;
 }) {
-  const { enabled, updateMatch, appendActivity, showStatus, playSound } = args;
+  const {
+    enabled,
+    aiDifficulty = null,
+    updateMatch,
+    appendActivity,
+    showStatus,
+    playSound,
+  } = args;
   const demoOpponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearPendingLock = useCallback(() => {
@@ -53,7 +67,7 @@ export function useDemoTurnFlow(args: {
           targetX: order.targetX,
           targetY: order.targetY,
           action: order.action,
-        }),
+        }, aiDifficulty),
       );
       onQueued?.();
       appendActivity(
@@ -67,15 +81,17 @@ export function useDemoTurnFlow(args: {
         "success",
       );
 
+      const lockDelay = aiDifficulty ? getAiProfile(aiDifficulty).lockDelayMs : 900;
+
       demoOpponentTimeoutRef.current = setTimeout(() => {
         updateMatch((current) => markDemoOpponentSubmitted(current));
         appendActivity("Enemy commander has locked in a response.", "success");
         playSound("success");
         showStatus("Both orders are locked. Resolve the turn when ready.", "success");
         demoOpponentTimeoutRef.current = null;
-      }, 900);
+      }, lockDelay);
     },
-    [appendActivity, clearPendingLock, enabled, playSound, showStatus, updateMatch],
+    [aiDifficulty, appendActivity, clearPendingLock, enabled, playSound, showStatus, updateMatch],
   );
 
   const resolveDemoTurn = useCallback(() => {
@@ -84,11 +100,11 @@ export function useDemoTurnFlow(args: {
     clearPendingLock();
     playSound("resolve");
     showStatus("Resolving simulated turn...", "info", true);
-    updateMatch((current) => advanceDemoTurn(current));
+    updateMatch((current) => advanceDemoTurn(current, aiDifficulty));
     trackEvent("turnsPlayed");
     appendActivity("Recon updates and battle results refreshed locally.", "success");
     showStatus("Demo turn resolved.", "success");
-  }, [appendActivity, clearPendingLock, enabled, playSound, showStatus, updateMatch]);
+  }, [aiDifficulty, appendActivity, clearPendingLock, enabled, playSound, showStatus, updateMatch]);
 
   return {
     clearPendingLock,

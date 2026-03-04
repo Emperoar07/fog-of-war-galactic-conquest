@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSound } from "@/components/SoundProvider";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
-import { DEMO_MATCH_ID } from "@/lib/demo";
+import { DEMO_MATCH_ID, QUICK_MATCH_IDS } from "@/lib/demo";
 import { GUIDE_CARDS, GUIDE_DETAILS, GUIDE_NOTE } from "@/lib/guide";
 
 const Lobby = dynamic(() => import("@/components/Lobby"), {
@@ -204,6 +204,27 @@ export default function Home() {
               >
                 How To Play
               </button>
+            </div>
+            <div className="space-y-2">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-[#0c6d1f]">
+                Quick Match vs AI
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {([
+                  ["easy", "Easy"],
+                  ["medium", "Medium"],
+                  ["hard", "Hard"],
+                ] as const).map(([difficulty, label]) => (
+                  <Link
+                    key={difficulty}
+                    href={`/match/${QUICK_MATCH_IDS[difficulty].toString()}?quick=${difficulty}`}
+                    onClick={() => playSound("uplink")}
+                    className="inline-flex items-center justify-center border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
+                  >
+                    Quick Match {label}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
 

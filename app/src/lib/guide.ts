@@ -19,7 +19,7 @@ export const GUIDE_CARDS: GuideCard[] = [
     items: [
       "Pick a unit, choose a target, queue a turn, then read the result.",
       "Orders and visibility are designed to stay hidden until the rules allow a reveal.",
-      "If you are new, start in demo mode first. It teaches the full loop without needing a wallet.",
+      "If you are new, start in demo mode first. Then try Quick Match vs AI if you want a solo skirmish with selectable difficulty.",
     ],
   },
   {
@@ -33,6 +33,17 @@ export const GUIDE_CARDS: GuideCard[] = [
       "The demo AI locks in shortly after you queue. You can still replace your queued order before resolve.",
       "Resolve the turn after both orders lock, then use the Enemy Signals panel to request a visibility report when you want a scout update.",
       "Watch the board, battle logic, activity log, and turn timeline update in place.",
+    ],
+  },
+  {
+    eyebrow: "Quick Match vs AI",
+    title: "Solo practice with adjustable pressure.",
+    tone: "amber",
+    items: [
+      "Choose Easy, Medium, or Hard from the landing page or lobby.",
+      "Each difficulty changes how fast the AI locks in and how aggressively it pressures the map.",
+      "Easy gives you more reaction time, Medium is balanced, and Hard commits faster with stronger counter-pressure.",
+      "This mode is local and immediate, so you can practice against an active opponent without waiting on another player.",
     ],
   },
   {

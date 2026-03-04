@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { MatchStatus, NO_WINNER, OrderAction } from "@sdk";
 import {
   advanceDemoTurn,
+  getAiProfile,
+  getQuickMatchDifficulty,
+  QUICK_MATCH_IDS,
   createDemoMatch,
   markDemoOpponentSubmitted,
   markDemoOrdersSubmitted,
@@ -57,4 +60,32 @@ test("winner overlay key is emitted only once the match completes", () => {
     buildWinnerOverlayKey(BigInt("900000001"), match.battleSummary[0], match.turn, match.status),
     `900000001-${match.battleSummary[0]}-${match.turn}`,
   );
+});
+
+test("quick match ids map back to the selected AI difficulty", () => {
+  assert.equal(getQuickMatchDifficulty(QUICK_MATCH_IDS.easy), "easy");
+  assert.equal(getQuickMatchDifficulty(QUICK_MATCH_IDS.medium), "medium");
+  assert.equal(getQuickMatchDifficulty(QUICK_MATCH_IDS.hard), "hard");
+});
+
+test("hard AI locks faster than easy AI", () => {
+  assert.ok(getAiProfile("hard").lockDelayMs < getAiProfile("easy").lockDelayMs);
+});
+
+test("hard AI applies at least as much pressure as easy AI", () => {
+  const match = createDemoMatch();
+  const easy = markDemoOrdersSubmitted(match, {
+    targetX: 2,
+    targetY: 2,
+    action: OrderAction.Attack,
+  }, "easy");
+  const hard = markDemoOrdersSubmitted(match, {
+    targetX: 2,
+    targetY: 2,
+    action: OrderAction.Attack,
+  }, "hard");
+
+  const easyEnemyTiles = easy.revealedSectorOwner.filter((tile) => tile === 2).length;
+  const hardEnemyTiles = hard.revealedSectorOwner.filter((tile) => tile === 2).length;
+  assert.ok(hardEnemyTiles >= easyEnemyTiles);
 });

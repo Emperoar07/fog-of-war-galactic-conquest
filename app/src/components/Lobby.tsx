@@ -7,7 +7,7 @@ import { PROGRAM_ID, MatchStatus } from "@sdk";
 import CreateMatchModal from "./CreateMatchModal";
 import Toast from "./Toast";
 import { useGameClient } from "@/hooks/useGameClient";
-import { DEMO_MATCH_ID } from "@/lib/demo";
+import { DEMO_MATCH_ID, QUICK_MATCH_IDS } from "@/lib/demo";
 
 interface MatchEntry {
   matchId: string;
@@ -127,6 +127,22 @@ export default function Lobby() {
           Quick Match
         </Link>
       )}
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        {([
+          ["easy", "Easy"],
+          ["medium", "Medium"],
+          ["hard", "Hard"],
+        ] as const).map(([difficulty, label]) => (
+          <Link
+            key={difficulty}
+            href={`/match/${QUICK_MATCH_IDS[difficulty].toString()}?quick=${difficulty}`}
+            className="block border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-3 text-center text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
+          >
+            Quick Match {label}
+          </Link>
+        ))}
+      </div>
 
       <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
