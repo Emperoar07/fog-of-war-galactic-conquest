@@ -28,7 +28,7 @@ export default function GameBoard({
           Battlefield Grid
         </div>
         <div className="text-[9px] uppercase tracking-[0.24em] text-[#ffb000]">
-          8x8 Tactical View
+          7x7 Tactical View
         </div>
       </div>
       <div

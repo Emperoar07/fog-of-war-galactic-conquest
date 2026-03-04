@@ -7,8 +7,8 @@ mod circuits {
     const MAX_PLAYERS: usize = 4;
     const MAX_UNITS_PER_PLAYER: usize = 4;
     const TOTAL_UNITS: usize = MAX_PLAYERS * MAX_UNITS_PER_PLAYER;
-    const MAP_WIDTH: u8 = 8;
-    const MAP_HEIGHT: u8 = 8;
+    const MAP_WIDTH: u8 = 7;
+    const MAP_HEIGHT: u8 = 7;
     const NO_WINNER: u8 = 255;
     const NO_PLAYER: u8 = 255;
     const EMPTY_COORD: u8 = 255;

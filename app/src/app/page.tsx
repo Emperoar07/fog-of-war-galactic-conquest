@@ -59,7 +59,7 @@ export default function Home() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="how-to-play-title"
-            className="w-full max-w-2xl border border-[#0c6d1f] bg-[#030d03] p-6 shadow-[0_0_40px_rgba(0,255,65,0.08)]"
+            className="max-h-[88vh] w-full max-w-4xl overflow-y-auto border border-[#0c6d1f] bg-[#030d03] p-6 shadow-[0_0_40px_rgba(0,255,65,0.08)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -83,35 +83,94 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="mt-5 grid gap-4 lg:grid-cols-3">
               <div className="border border-[#0e2a0e] bg-[#021202] p-4">
                 <div className="text-[9px] uppercase tracking-[0.24em] text-[#ffb000]">
-                  Demo Mode
+                  What This Game Is
                 </div>
-                <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
-                  <li>1. Launch the demo match from the landing page.</li>
-                  <li>2. Click sectors on the battlefield to choose a target.</li>
-                  <li>3. Queue a mock order and resolve a simulated turn.</li>
-                  <li>4. Request visibility to see a fake scout report update.</li>
-                </ol>
+                <div className="mt-3 space-y-3 text-xs leading-6 text-[#00cc33]">
+                  <p>
+                    Fog of War is a turn-based strategy game. You are trying to
+                    out-position the other player, keep your important units
+                    alive, and reveal just enough information to make better
+                    decisions than your opponent.
+                  </p>
+                  <p>
+                    The core idea is simple: not every piece of information is
+                    public. Some moves and visibility checks are meant to stay
+                    hidden until the rules say they can be revealed.
+                  </p>
+                  <p>
+                    If you are new to tactical games, think of it as:
+                    <span className="text-[#b8ffc8]"> choose a unit, choose a target, submit your turn, then read the result.</span>
+                  </p>
+                </div>
               </div>
 
               <div className="border border-[#0e2a0e] bg-[#021202] p-4">
                 <div className="text-[9px] uppercase tracking-[0.24em] text-[#00e5cc]">
-                  Live Devnet
+                  Demo Mode Walkthrough
+                </div>
+                <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
+                  <li>1. Click <span className="text-[#ffb000]">Launch Demo Loop</span> on the landing page.</li>
+                  <li>2. The demo opens a simulated match instantly. No wallet and no blockchain setup are required.</li>
+                  <li>3. On the board, click a sector to choose where you want to act.</li>
+                  <li>4. Use the action controls to submit a move or attack order for the current turn.</li>
+                  <li>5. Click <span className="text-[#ffb000]">Resolve Turn</span> to see the next state of the battlefield.</li>
+                  <li>6. Click <span className="text-[#00e5cc]">Request Visibility Report</span> to simulate a scout update and reveal enemy information.</li>
+                  <li>7. Watch the battle summary, activity log, and board updates to understand what changed after each action.</li>
+                </ol>
+              </div>
+
+              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
+                <div className="text-[9px] uppercase tracking-[0.24em] text-[#00ff41]">
+                  Live Devnet Walkthrough
                 </div>
                 <ol className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
                   <li>1. Connect a Solana wallet such as Phantom or Solflare.</li>
-                  <li>2. Create or join a live match in the lobby.</li>
-                  <li>3. Submit one encrypted order for the current turn.</li>
-                  <li>4. Resolve the turn once all players have submitted.</li>
+                  <li>2. In the lobby, create a new match or join an open one.</li>
+                  <li>3. When the match is active, select a board sector and choose an action for your turn.</li>
+                  <li>4. Submit your encrypted order. This sends your instruction to the game flow without exposing everything publicly.</li>
+                  <li>5. Wait for the other player to submit their turn.</li>
+                  <li>6. Once all orders are in, resolve the turn to process the battle result.</li>
+                  <li>7. Request visibility when you want a scouting-style update about enemy positions that your units are allowed to detect.</li>
                 </ol>
               </div>
             </div>
 
-            <div className="mt-4 border border-[#005f52] bg-[rgba(0,229,204,0.03)] p-4 text-xs leading-6 text-[#00e5cc]">
-              Demo mode is fully playable today. Live encrypted gameplay works
-              when the Arcium MXE devnet cluster is ready.
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="border border-[#0e2a0e] bg-[#021202] p-4">
+                <div className="text-[9px] uppercase tracking-[0.24em] text-[#ffb000]">
+                  What To Watch While Playing
+                </div>
+                <ul className="mt-3 space-y-2 text-xs leading-6 text-[#00cc33]">
+                  <li>• The board shows which sectors are known, contested, or newly updated.</li>
+                  <li>• The status rail tells you whether you are in demo mode, live devnet, or waiting on the next turn.</li>
+                  <li>• The activity log records important actions like submissions, visibility updates, and turn resolution.</li>
+                  <li>• The battle summary gives the cleanest snapshot of who is ahead after each turn.</li>
+                </ul>
+              </div>
+
+              <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] p-4 text-xs leading-6 text-[#00e5cc]">
+                <div className="text-[9px] uppercase tracking-[0.24em] text-[#00e5cc]">
+                  Important Note
+                </div>
+                <div className="mt-3 space-y-3">
+                  <p>
+                    Demo mode is the best place to learn because it is fully
+                    playable right now and shows the complete UI flow.
+                  </p>
+                  <p>
+                    Live devnet mode uses the real network flow, but encrypted
+                    actions depend on Arcium MXE readiness. If MXE is not ready,
+                    some live encrypted steps may wait or be unavailable.
+                  </p>
+                  <p>
+                    If you are unsure where to start, begin with demo mode,
+                    learn the loop, then try a live match after that.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

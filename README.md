@@ -31,7 +31,7 @@ The result is a verifiable game loop where hidden information remains hidden unt
 The MVP uses:
 
 - 2 players
-- an 8x8 map
+- a 7x7 map
 - 4 units per player
 - deterministic combat
 - private simultaneous turns
