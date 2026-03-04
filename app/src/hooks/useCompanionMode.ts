@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { DecodedVisibilityReport, GalaxyMatch, OrderParams } from "@sdk";
 import {
   buildCompanionSuggestion,
@@ -18,10 +18,7 @@ export function useCompanionMode(args: {
 }) {
   const { match, matchId, playerSlot, selectedCell, visibilityReport } = args;
   const matchKey = matchId?.toString() ?? "no-match";
-  const [companionEnabled, setCompanionEnabled] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem("fog-of-war-companion-enabled") !== "0";
-  });
+  const [companionEnabled, setCompanionEnabled] = useState(false);
   const [companionState, setCompanionState] = useState<{
     matchKey: string;
     entries: CompanionHistoryEntry[];
@@ -29,14 +26,6 @@ export function useCompanionMode(args: {
     matchKey,
     entries: [],
   });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      "fog-of-war-companion-enabled",
-      companionEnabled ? "1" : "0",
-    );
-  }, [companionEnabled]);
 
   const companionHistory = useMemo(
     () => (companionState.matchKey === matchKey ? companionState.entries : []),

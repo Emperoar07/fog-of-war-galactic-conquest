@@ -73,6 +73,9 @@ const TutorialOverlay = dynamic(() => import("@/components/TutorialOverlay"), {
 const DemoReplay = dynamic(() => import("@/components/DemoReplay"), {
   ssr: false,
 });
+const TurnTimeline = dynamic(() => import("@/components/TurnTimeline"), {
+  ssr: false,
+});
 
 export default function MatchPage() {
   return (
@@ -120,6 +123,15 @@ function MatchPageInner() {
   const [lastWinnerKey, setLastWinnerKey] = useState<string | null>(null);
   const [orderPrefill, setOrderPrefill] = useState<OrderParams | null>(null);
   const [orderPrefillNonce, setOrderPrefillNonce] = useState(0);
+  const [pendingOrderGhost, setPendingOrderGhost] = useState<{
+    x: number;
+    y: number;
+    action: string;
+  } | null>(null);
+  const [turnSnapshots, setTurnSnapshots] = useState<
+    { turn: number; dominant: "friendly" | "enemy" | "contested"; controlled: number; contested: number }[]
+  >([]);
+  const [notificationPrompted, setNotificationPrompted] = useState(false);
   const {
     actionMessage,
     actionTone,
@@ -229,6 +241,36 @@ function MatchPageInner() {
   }, [appendActivity, lastWinnerKey, match, matchId, playSound, summary]);
 
   useEffect(() => {
+    if (!match) return;
+
+    const friendly = match.revealedSectorOwner.filter((tile) => tile === 1).length;
+    const enemy = match.revealedSectorOwner.filter((tile) => tile === 2).length;
+    const contested = match.revealedSectorOwner.filter((tile) => tile === 3).length;
+    const dominant =
+      contested >= Math.max(friendly, enemy)
+        ? "contested"
+        : friendly >= enemy
+          ? "friendly"
+          : "enemy";
+
+    setTurnSnapshots((current) => {
+      const nextSnapshot = {
+        turn: match.turn,
+        dominant,
+        controlled: friendly,
+        contested,
+      } as const;
+      const existing = current.findIndex((snapshot) => snapshot.turn === match.turn);
+      if (existing >= 0) {
+        const next = [...current];
+        next[existing] = nextSnapshot;
+        return next;
+      }
+      return [...current, nextSnapshot].slice(-8);
+    });
+  }, [match]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function syncVisibility() {
@@ -329,6 +371,38 @@ function MatchPageInner() {
       }
     };
   }, [appendActivity, client, demoMode, matchId, playerSlot, refresh, showStatus]);
+
+  const allOrdersReady = match
+    ? areOrdersReady(match.submittedOrders, match.playerCount)
+    : false;
+  const canResolve =
+    match?.status === MatchStatus.Active &&
+    (demoMode ? allOrdersReady : Boolean(client?.allOrdersSubmitted(match)));
+
+  useEffect(() => {
+    if (demoMode || !canResolve || typeof window === "undefined") return;
+    if (document.visibilityState === "visible") return;
+    if (!("Notification" in window)) return;
+
+    const notify = () =>
+      new Notification("Fog of War", {
+        body: "Your opponent submitted orders. Resolve the turn when ready.",
+      });
+
+    if (Notification.permission === "granted") {
+      notify();
+      return;
+    }
+
+    if (Notification.permission === "default" && !notificationPrompted) {
+      setNotificationPrompted(true);
+      void Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          notify();
+        }
+      });
+    }
+  }, [canResolve, demoMode, notificationPrompted]);
 
   if (loading) {
     return (
@@ -441,6 +515,13 @@ function MatchPageInner() {
         ? companionSuggestion
         : null;
 
+    setPendingOrderGhost({
+      x: order.targetX,
+      y: order.targetY,
+      action:
+        order.action === 2 ? "Attack" : order.action === 1 ? "Scout" : "Move",
+    });
+
     if (demoMode) {
       submitDemoOrder(order, () => recordCompanionHistory(order, matchedSuggestion));
       return;
@@ -480,6 +561,7 @@ function MatchPageInner() {
   const handleResolveTurn = async () => {
     if (demoMode) {
       resolveDemoTurn();
+      setPendingOrderGhost(null);
       return;
     }
 
@@ -499,6 +581,7 @@ function MatchPageInner() {
       playSound("success");
       showStatus("Turn resolution callback confirmed.", "success");
       appendActivity("Turn resolution completed.", "success");
+      setPendingOrderGhost(null);
     } catch (err: unknown) {
       playSound("error");
       showStatus(
@@ -583,6 +666,7 @@ function MatchPageInner() {
       if (demoMode) {
         setSelectedCell(null);
         setOrderPrefill(null);
+        setPendingOrderGhost(null);
         setVisibilityReport(null);
         setVisibilityError(null);
         setDecryptingVisibility(false);
@@ -615,10 +699,6 @@ function MatchPageInner() {
     publicKey;
   const canSubmitOrders =
     match.status === MatchStatus.Active && isPlayer && playerSlot !== null;
-  const allOrdersReady = areOrdersReady(match.submittedOrders, match.playerCount);
-  const canResolve =
-    match.status === MatchStatus.Active &&
-    (demoMode ? allOrdersReady : Boolean(client?.allOrdersSubmitted(match)));
 
   return (
     <div className="space-y-3 sm:space-y-5">
@@ -811,13 +891,21 @@ function MatchPageInner() {
 
       <div className="grid grid-cols-1 gap-3 sm:gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)] xl:items-start">
         <div id="tutorial-board" className="flex justify-center self-start">
-          <GameBoard
-            revealedSectorOwner={match.revealedSectorOwner}
-            selectedCell={selectedCell}
-            onCellClick={(x, y) => setSelectedCell({ x, y })}
-            highlightBoard={tutorialHighlight === "board"}
-            unitPositions={demoMode ? demoUnitPositions : visibilityUnits}
-          />
+          <div className="w-full max-w-[48rem] space-y-2">
+            <GameBoard
+              revealedSectorOwner={match.revealedSectorOwner}
+              selectedCell={selectedCell}
+              onCellClick={(x, y) => setSelectedCell({ x, y })}
+              highlightBoard={tutorialHighlight === "board"}
+              unitPositions={demoMode ? demoUnitPositions : visibilityUnits}
+              pendingOrder={pendingOrderGhost}
+            />
+            {selectedCell && (
+              <div className="border border-[#0e2a0e] bg-[#030d03] px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[#00cc33] sm:hidden">
+                Sector ({selectedCell.x}, {selectedCell.y}) selected. Review the target here before you confirm the order.
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2.5 sm:space-y-4">
@@ -890,6 +978,20 @@ function MatchPageInner() {
             </button>
           )}
 
+          {!isPlayer && (
+            <div className="border border-[#0e2a0e] bg-[#030d03] p-3 sm:p-4">
+              <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[9px]">
+                Spectator Relay
+              </div>
+              <div className="mt-1 font-[family-name:var(--font-vt323)] text-2xl tracking-[0.14em] text-[#ffb000] sm:text-3xl">
+                OBSERVER MODE
+              </div>
+              <div className="mt-3 text-xs leading-6 text-[#00cc33]">
+                You can follow the public battlefield, turn results, and the timeline below. Private scouting intel remains hidden from spectators to keep the match fair.
+              </div>
+            </div>
+          )}
+
           {canSubmitOrders && (
             <div id="tutorial-orders" className={tutorialHighlight === "orders" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""}>
               <OrderPanel
@@ -933,6 +1035,8 @@ function MatchPageInner() {
           )}
 
           <ActivityLog entries={activityLog} />
+
+          <TurnTimeline snapshots={turnSnapshots} currentTurn={match.turn} />
 
           {demoMode && (
             <DemoReplay onApplySnapshot={handleReplaySnapshot} />

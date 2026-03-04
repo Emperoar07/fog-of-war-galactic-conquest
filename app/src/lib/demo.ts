@@ -370,7 +370,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "submit-order",
     title: "ISSUE AN ORDER",
     message:
-      "Use the order panel to choose an action - Move, Scout, or Attack - then submit your encrypted order.",
+      "Use the order panel to choose an action - Move, Scout, or Attack - review the order, then confirm it before transmission.",
     highlight: "orders",
   },
   {

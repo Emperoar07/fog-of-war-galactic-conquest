@@ -28,11 +28,11 @@ export const GUIDE_CARDS: GuideCard[] = [
     tone: "cyan",
     items: [
       "Click Launch Demo. The match opens instantly with no wallet required.",
-      "Select a board sector, then use Fire Control to queue an order.",
+      "Select a board sector, then use Fire Control to review and confirm an order.",
       "Turn Companion Mode on if you want a suggested move before you commit.",
       "The demo AI locks in shortly after you queue. You can still replace your queued order before resolve.",
       "Resolve the turn after both orders lock, then use the Enemy Signals panel to request a visibility report when you want a scout update.",
-      "Watch the board, battle logic, and activity log update in place.",
+      "Watch the board, battle logic, activity log, and turn timeline update in place.",
     ],
   },
   {
@@ -41,7 +41,7 @@ export const GUIDE_CARDS: GuideCard[] = [
     tone: "green",
     items: [
       "Connect a Solana wallet, then create or join a match.",
-      "When the match is active, select a sector and use Fire Control to choose an action.",
+      "When the match is active, select a sector and use Fire Control to review and confirm an action.",
       "Submit one encrypted order for the turn, then wait for the other player.",
       "Resolve the turn after both players are ready.",
       "Use the Enemy Signals panel when you need a scouting update.",

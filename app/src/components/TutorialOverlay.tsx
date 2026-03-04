@@ -7,12 +7,14 @@ import {
   markTutorialDone,
   type TutorialStep,
 } from "@/lib/demo";
+import { useSound } from "@/components/SoundProvider";
 
 interface TutorialOverlayProps {
   onHighlight?: (area: TutorialStep["highlight"] | null) => void;
 }
 
 export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
+  const { playSound } = useSound();
   const [step, setStep] = useState(() => (isTutorialDone() ? -1 : 0));
   const [visible, setVisible] = useState(() => !isTutorialDone());
 
@@ -25,11 +27,15 @@ export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
   }, [step, onHighlight]);
 
   const goBack = useCallback(() => {
-    if (step > 0) setStep(step - 1);
-  }, [step]);
+    if (step > 0) {
+      playSound("uiTap");
+      setStep(step - 1);
+    }
+  }, [playSound, step]);
 
   const advance = useCallback(() => {
     const next = step + 1;
+    playSound("uiTap");
     if (next >= TUTORIAL_STEPS.length) {
       markTutorialDone();
       setVisible(false);
@@ -38,14 +44,15 @@ export default function TutorialOverlay({ onHighlight }: TutorialOverlayProps) {
     } else {
       setStep(next);
     }
-  }, [step, onHighlight]);
+  }, [onHighlight, playSound, step]);
 
   const dismiss = useCallback(() => {
+    playSound("uiTap");
     markTutorialDone();
     setVisible(false);
     onHighlight?.(null);
     setStep(-1);
-  }, [onHighlight]);
+  }, [onHighlight, playSound]);
 
   if (!visible || step < 0 || step >= TUTORIAL_STEPS.length) return null;
 

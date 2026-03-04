@@ -62,6 +62,7 @@ export default function OrderPanel({
   const [targetY, setTargetY] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const alreadySubmitted = match.submittedOrders[playerSlot] !== 0;
 
@@ -79,7 +80,15 @@ export default function OrderPanel({
     setTargetY(prefillOrder.targetY);
   }, [prefillNonce, prefillOrder]);
 
+  useEffect(() => {
+    setConfirming(false);
+  }, [unitSlot, action, targetX, targetY, alreadySubmitted]);
+
   const handleSubmit = async () => {
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -93,13 +102,22 @@ export default function OrderPanel({
 
   const isLocked = alreadySubmitted && !allowReplaceSubmitted;
   const isDisabled = disabled || submitting || isLocked;
-  const submitLabel = submitting
+  const baseSubmitLabel = submitting
     ? "Transmitting..."
     : alreadySubmitted
       ? allowReplaceSubmitted
         ? "Replace Queued Order"
         : "Orders Locked"
       : "Queue Order";
+  const submitLabel = submitting
+    ? baseSubmitLabel
+    : confirming
+      ? alreadySubmitted && allowReplaceSubmitted
+        ? "Confirm Replace"
+        : "Confirm Order"
+      : alreadySubmitted && allowReplaceSubmitted
+        ? "Review Replacement"
+        : "Review Order";
 
   return (
     <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
@@ -191,6 +209,12 @@ export default function OrderPanel({
         Keyboard: use arrow keys on the board to move selection, then press Enter to target the current sector.
       </div>
 
+      {confirming && !submitting && !isLocked && (
+        <div className="mt-3 border border-[#996800] bg-[rgba(255,176,0,0.04)] px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-[#ffb000]">
+          Confirm {ACTION_LABELS[action].toLowerCase()} with {UNIT_LABELS[unitSlot]} at ({targetX}, {targetY}).
+        </div>
+      )}
+
       {showResolve ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button
@@ -225,6 +249,16 @@ export default function OrderPanel({
           className="mt-4 w-full border border-[#881111] bg-[rgba(255,51,51,0.04)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ff3333] hover:bg-[rgba(255,51,51,0.08)] disabled:opacity-30"
         >
           {submitLabel}
+        </button>
+      )}
+
+      {confirming && !submitting && !isLocked && (
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          className="mt-3 w-full border border-[#0e2a0e] bg-[#021202] py-2 text-[9px] uppercase tracking-[0.18em] text-[#0c6d1f] hover:border-[#0c6d1f] hover:text-[#00aa2a]"
+        >
+          Adjust Order
         </button>
       )}
 

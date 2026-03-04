@@ -9,6 +9,7 @@ interface GameBoardProps {
   onCellClick: (x: number, y: number) => void;
   highlightBoard?: boolean;
   unitPositions?: { slot: number; x: number; y: number }[];
+  pendingOrder?: { x: number; y: number; action: string } | null;
 }
 
 const CELL_BG: Record<number, string> = {
@@ -56,12 +57,20 @@ function hapticTap() {
   }
 }
 
+const UNIT_STATUS_COLORS: Record<UnitType, string> = {
+  [UnitType.Fighter]: "#ffb000",
+  [UnitType.Scout]: "#00e5cc",
+  [UnitType.Command]: "#00ff41",
+};
+
 const BoardCell = memo(function BoardCell({
   x,
   y,
   owner,
   isSelected,
   unitIcon,
+  unitType,
+  pendingAction,
   onClick,
 }: {
   x: number;
@@ -69,6 +78,8 @@ const BoardCell = memo(function BoardCell({
   owner: number;
   isSelected: boolean;
   unitIcon: string | null;
+  unitType: UnitType | null;
+  pendingAction: string | null;
   onClick: (x: number, y: number) => void;
 }) {
   const dot = DOT_COLORS[owner] || DOT_COLORS[0];
@@ -89,6 +100,7 @@ const BoardCell = memo(function BoardCell({
         borderColor: isSelected
           ? "#ff3333"
           : CELL_BORDER[owner] || CELL_BORDER[0],
+        transitionDelay: `${(x + y) * 18}ms`,
         transition:
           "background-color 500ms ease, border-color 500ms ease, transform 140ms ease, box-shadow 140ms ease",
       }}
@@ -100,20 +112,37 @@ const BoardCell = memo(function BoardCell({
           <span className="text-[8px] font-semibold text-[#0c6d1f] sm:text-[10px] md:text-xs">
             {x},{y}
           </span>
-          {unitIcon && (
-            <span className="text-[8px] font-bold text-[#b8ffc8] sm:text-[10px]">
-              {unitIcon}
+          <div className="flex items-center gap-1">
+            {unitType !== null && (
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: UNIT_STATUS_COLORS[unitType] }}
+                title="Unit status"
+              />
+            )}
+            {unitIcon && (
+              <span className="text-[8px] font-bold text-[#b8ffc8] sm:text-[10px]">
+                {unitIcon}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-end justify-between">
+          <span
+            className="h-2 w-2 rounded-full border sm:h-2.5 sm:w-2.5 md:h-3 md:w-3"
+            style={{
+              borderColor: dot.border,
+              backgroundColor: dot.bg,
+              transitionDelay: `${(x + y) * 18}ms`,
+              transition: "background-color 500ms ease, border-color 500ms ease",
+            }}
+          />
+          {pendingAction && (
+            <span className="rounded border border-[#996800] bg-[rgba(255,176,0,0.05)] px-1 py-0.5 text-[6px] uppercase tracking-[0.14em] text-[#ffb000] sm:text-[7px]">
+              {pendingAction}
             </span>
           )}
         </div>
-        <span
-          className="h-2 w-2 rounded-full border sm:h-2.5 sm:w-2.5 md:h-3 md:w-3"
-          style={{
-            borderColor: dot.border,
-            backgroundColor: dot.bg,
-            transition: "background-color 500ms ease, border-color 500ms ease",
-          }}
-        />
       </div>
     </button>
   );
@@ -125,12 +154,15 @@ export default function GameBoard({
   onCellClick,
   highlightBoard,
   unitPositions,
+  pendingOrder,
 }: GameBoardProps) {
   const unitMap = new Map<string, string>();
+  const unitTypeMap = new Map<string, UnitType>();
   if (unitPositions) {
     for (const u of unitPositions) {
       const type = slotToUnitType(u.slot);
       unitMap.set(`${u.x},${u.y}`, UNIT_ICONS[type]);
+      unitTypeMap.set(`${u.x},${u.y}`, type);
     }
   }
 
@@ -205,6 +237,12 @@ export default function GameBoard({
               owner={revealedSectorOwner[i] || 0}
               isSelected={selectedCell?.x === x && selectedCell?.y === y}
               unitIcon={unitMap.get(`${x},${y}`) ?? null}
+              unitType={unitTypeMap.get(`${x},${y}`) ?? null}
+              pendingAction={
+                pendingOrder && pendingOrder.x === x && pendingOrder.y === y
+                  ? pendingOrder.action
+                  : null
+              }
               onClick={onCellClick}
             />
           );

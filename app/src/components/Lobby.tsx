@@ -111,9 +111,22 @@ export default function Lobby() {
     }
   };
 
+  const quickMatch = matches.find(
+    (match) => match.status === MatchStatus.WaitingForPlayers,
+  );
+
   return (
     <div className="space-y-2">
       <Toast message={error} tone="error" />
+
+      {quickMatch && (
+        <Link
+          href={`/match/${quickMatch.matchId}`}
+          className="block border border-[#996800] bg-[rgba(255,176,0,0.03)] px-4 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
+        >
+          Quick Match
+        </Link>
+      )}
 
       <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="border border-[#0e2a0e] bg-[#030d03] p-4">
