@@ -13,7 +13,7 @@ export default function NavBar() {
   const { audioEnabled, toggleAudio, playSound } = useSound();
 
   return (
-    <nav className="relative overflow-hidden border border-[#0e2a0e] bg-[#030d03] px-4 py-3 sm:px-5">
+    <nav className="relative z-40 overflow-visible border border-[#0e2a0e] bg-[#030d03] px-4 py-3 sm:px-5">
       <div className="pointer-events-none absolute inset-y-0 left-[-40%] w-1/3 animate-[scanner_6s_linear_infinite] bg-linear-to-r from-transparent via-[rgba(0,255,65,0.05)] to-transparent" />
       <div className="relative grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
         <div className="flex flex-col leading-none">
@@ -24,7 +24,7 @@ export default function NavBar() {
             FOG OF WAR
           </Link>
           <span className="mt-1 text-[9px] uppercase tracking-[0.38em] text-[#0c6d1f]">
-            Galactic Conquest // Solana Network
+            Galactic Conquest
           </span>
         </div>
 

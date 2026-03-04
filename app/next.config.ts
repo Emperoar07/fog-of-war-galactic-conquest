@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   compress: true,
   poweredByHeader: false,
   turbopack: {
-    root: __dirname,
+    root: path.join(__dirname, ".."),
     resolveAlias: {
       fs: { browser: "./src/lib/empty-module.ts" },
       os: { browser: "./src/lib/empty-module.ts" },
