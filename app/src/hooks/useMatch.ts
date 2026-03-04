@@ -22,31 +22,31 @@ export function useMatch(matchId: bigint | null, demoMode = false) {
       return;
     }
 
-    const [pda] = getMatchPDA(matchId);
-    setMatchPDA(pda);
-
-    if (demoMode) {
-      setLoading(true);
-      setError(null);
-      setMatch(createDemoMatch(matchId));
-      setLoading(false);
-      return;
-    }
-
-    if (!client) {
-      setLoading(false);
-      setError("Connect a wallet to load live match state.");
-      setMatch(null);
-      return;
-    }
-
     try {
+      const [pda] = getMatchPDA(matchId);
+      setMatchPDA(pda);
+
+      if (demoMode) {
+        setLoading(true);
+        setError(null);
+        setMatch(createDemoMatch(matchId));
+        setLoading(false);
+        return;
+      }
+
+      if (!client) {
+        setLoading(false);
+        setError("Connect a wallet to load live match state.");
+        setMatch(null);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       const data = await client.fetchMatch(pda);
       setMatch(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to fetch match");
+      setError(err instanceof Error ? err.message : "Failed to load match");
       setMatch(null);
     } finally {
       setLoading(false);
