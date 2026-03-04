@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameClient } from "@/hooks/useGameClient";
+import { useSound } from "@/components/SoundProvider";
 
 interface CreateMatchModalProps {
   open: boolean;
@@ -14,6 +15,7 @@ export default function CreateMatchModal({
   onClose,
 }: CreateMatchModalProps) {
   const client = useGameClient();
+  const { playSound } = useSound();
   const router = useRouter();
   const [mapSeed, setMapSeed] = useState("42");
   const [creating, setCreating] = useState(false);
@@ -27,15 +29,18 @@ export default function CreateMatchModal({
     setCreating(true);
     setError(null);
     setStatusMessage("Preparing encrypted match initialization...");
+    playSound("uplink");
     try {
       const matchId = BigInt(Math.floor(Math.random() * 1_000_000_000));
       const result = await client.createMatch(matchId, 2, BigInt(mapSeed || "42"));
       setStatusMessage("Match queued. Waiting for callback completion...");
       await client.awaitComputation(result.computationOffset);
       setStatusMessage("Match ready. Opening battlefield...");
+      playSound("success");
       router.push(`/match/${matchId.toString()}`);
       onClose();
     } catch (err: unknown) {
+      playSound("error");
       setError(err instanceof Error ? err.message : "Failed to create match");
     } finally {
       setCreating(false);
@@ -80,7 +85,10 @@ export default function CreateMatchModal({
 
         <div className="mt-5 flex gap-3">
           <button
-            onClick={onClose}
+            onClick={() => {
+              playSound("uiTap");
+              onClose();
+            }}
             disabled={creating}
             className="flex-1 border border-[#0e2a0e] bg-[#021202] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00aa2a] disabled:opacity-40"
           >

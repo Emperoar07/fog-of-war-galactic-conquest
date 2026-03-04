@@ -28,11 +28,8 @@ export function getMatchPDA(
   matchId: bigint | BN,
   programId: PublicKey = PROGRAM_ID,
 ): [PublicKey, number] {
-  const id = typeof matchId === "bigint" ? matchId : BigInt(matchId.toString());
   const buf = Buffer.alloc(8);
-  for (let i = 0; i < 8; i++) {
-    buf[i] = Number((id >> BigInt(i * 8)) & BigInt(0xff));
-  }
+  buf.writeBigUInt64LE(typeof matchId === "bigint" ? matchId : BigInt(matchId.toString()));
   return PublicKey.findProgramAddressSync(
     [Buffer.from(GALAXY_MATCH_SEED), buf],
     programId,

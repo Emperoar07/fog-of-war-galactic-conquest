@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useSound } from "@/components/SoundProvider";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
 import { DEMO_MATCH_ID } from "@/lib/demo";
 
@@ -17,24 +18,65 @@ const Lobby = dynamic(() => import("@/components/Lobby"), {
 
 export default function Home() {
   const { connected } = useWallet();
+  const { playSound } = useSound();
   const [showGuide, setShowGuide] = useState(false);
+  const closeGuideButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const closeGuide = useCallback(() => {
+    playSound("uiTap");
+    setShowGuide(false);
+  }, [playSound]);
+
+  useEffect(() => {
+    if (!showGuide) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeGuideButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowGuide(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showGuide]);
 
   return (
     <div className="space-y-2">
       {showGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="w-full max-w-2xl border border-[#0c6d1f] bg-[#030d03] p-6 shadow-[0_0_40px_rgba(0,255,65,0.08)]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4"
+          onClick={closeGuide}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="how-to-play-title"
+            className="w-full max-w-2xl border border-[#0c6d1f] bg-[#030d03] p-6 shadow-[0_0_40px_rgba(0,255,65,0.08)]"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="text-[9px] uppercase tracking-[0.34em] text-[#0c6d1f]">
                   Mission Briefing
                 </div>
-                <h2 className="mt-1 font-[family-name:var(--font-vt323)] text-4xl tracking-[0.14em] text-[#00ff41]">
+                <h2
+                  id="how-to-play-title"
+                  className="mt-1 font-[family-name:var(--font-vt323)] text-4xl tracking-[0.14em] text-[#00ff41]"
+                >
                   HOW TO PLAY
                 </h2>
               </div>
               <button
-                onClick={() => setShowGuide(false)}
+                ref={closeGuideButtonRef}
+                onClick={closeGuide}
                 className="border border-[#0e2a0e] bg-[#021202] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00aa2a] hover:border-[#0c6d1f] hover:text-[#00ff41]"
               >
                 Close
@@ -95,12 +137,16 @@ export default function Home() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href={`/match/${DEMO_MATCH_ID.toString()}?demo=1`}
+                onClick={() => playSound("uplink")}
                 className="inline-flex items-center justify-center border border-[#996800] bg-[rgba(255,176,0,0.05)] px-5 py-3 text-[10px] uppercase tracking-[0.28em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.11)]"
               >
                 Launch Demo Loop
               </Link>
               <button
-                onClick={() => setShowGuide(true)}
+                onClick={() => {
+                  playSound("modal");
+                  setShowGuide(true);
+                }}
                 className="inline-flex items-center justify-center border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-5 py-3 text-[10px] uppercase tracking-[0.24em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)]"
               >
                 How To Play

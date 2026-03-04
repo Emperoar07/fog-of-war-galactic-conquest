@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   turbopack: {
+    root: __dirname,
     resolveAlias: {
       fs: { browser: "./src/lib/empty-module.ts" },
       os: { browser: "./src/lib/empty-module.ts" },

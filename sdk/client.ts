@@ -1,7 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
 import { PublicKey, Keypair } from "@solana/web3.js";
-import { randomBytes } from "crypto";
 import { awaitComputationFinalization } from "@arcium-hq/client";
 import idl from "../target/idl/fog_of_war_galactic_conquest.json";
 import {
@@ -28,6 +27,12 @@ import { getMatchPDA } from "./pda";
 import { buildQueueComputationAccounts, buildRegisterPlayerAccounts } from "./accounts";
 import { decryptVisibilityReport, encryptOrder, checkMXEReady } from "./crypto";
 import { onMatchReady, onTurnResolved, onVisibilityReady, removeListener } from "./events";
+
+function randomBytes(length: number): Uint8Array {
+  const bytes = new Uint8Array(length);
+  globalThis.crypto.getRandomValues(bytes);
+  return bytes;
+}
 
 // ---------------------------------------------------------------------------
 // GameClient

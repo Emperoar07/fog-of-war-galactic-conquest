@@ -14,12 +14,12 @@ export function useMatch(matchId: bigint | null, demoMode = false) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<GalaxyMatch | null> => {
     if (matchId === null) {
       setLoading(false);
       setMatch(null);
       setMatchPDA(null);
-      return;
+      return null;
     }
 
     try {
@@ -29,25 +29,28 @@ export function useMatch(matchId: bigint | null, demoMode = false) {
       if (demoMode) {
         setLoading(true);
         setError(null);
-        setMatch(createDemoMatch(matchId));
+        const demoMatch = createDemoMatch(matchId);
+        setMatch(demoMatch);
         setLoading(false);
-        return;
+        return demoMatch;
       }
 
       if (!client) {
         setLoading(false);
         setError("Connect a wallet to load live match state.");
         setMatch(null);
-        return;
+        return null;
       }
 
       setLoading(true);
       setError(null);
       const data = await client.fetchMatch(pda);
       setMatch(data);
+      return data;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load match");
       setMatch(null);
+      return null;
     } finally {
       setLoading(false);
     }

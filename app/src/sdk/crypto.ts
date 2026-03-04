@@ -1,11 +1,6 @@
 import { BN } from "@coral-xyz/anchor";
 import { AnchorProvider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-function randomBytes(n: number): Uint8Array {
-  const buf = new Uint8Array(n);
-  globalThis.crypto.getRandomValues(buf);
-  return buf;
-}
 import {
   x25519,
   RescueCipher,
@@ -20,6 +15,12 @@ import type {
   MXEStatus,
   DecodedVisibilityReport,
 } from "./types";
+
+function randomBytes(length: number): Uint8Array {
+  const bytes = new Uint8Array(length);
+  globalThis.crypto.getRandomValues(bytes);
+  return bytes;
+}
 
 const TOTAL_UNITS = 16;
 const VISIBILITY_PRESENT_OFFSET = 0;

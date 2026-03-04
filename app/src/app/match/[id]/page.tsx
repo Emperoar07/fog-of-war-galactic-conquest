@@ -6,6 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useMatch } from "@/hooks/useMatch";
 import { useGameClient } from "@/hooks/useGameClient";
 import { usePlayerKeys } from "@/hooks/usePlayerKeys";
+import { useSound } from "@/components/SoundProvider";
 import ActivityLog, { type ActivityLogEntry } from "@/components/ActivityLog";
 import GameBoard from "@/components/GameBoard";
 import TurnStatus from "@/components/TurnStatus";
@@ -51,6 +52,7 @@ function MatchPageInner() {
     (DEMO_MODE_ENABLED && isDemoMatchId(matchId));
   const { publicKey } = useWallet();
   const client = useGameClient();
+  const { playSound } = useSound();
   const { match, matchPDA, loading, error, refresh, updateMatch } = useMatch(
     matchId,
     demoMode,
@@ -63,6 +65,9 @@ function MatchPageInner() {
     useState<DecodedVisibilityReport | null>(null);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [decryptingVisibility, setDecryptingVisibility] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    null | "join" | "orders" | "resolve" | "visibility" | "refresh"
+  >(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const playerSlot =
     demoMode
@@ -71,6 +76,7 @@ function MatchPageInner() {
       ? client.getPlayerSlot(match, publicKey) ?? null
       : null;
   const isPlayer = playerSlot !== null;
+  const isBusy = pendingAction !== null;
 
   const appendActivity = useCallback(
     (message: string, tone: "info" | "success" | "error" = "info") => {
@@ -191,7 +197,6 @@ function MatchPageInner() {
           `Match ready for ${event.playerCount} players.`,
           "success",
         );
-        void refresh();
       }),
       client.onTurnResolved((event) => {
         if (event.matchId.toString() !== matchIdText) return;
@@ -204,7 +209,6 @@ function MatchPageInner() {
           `Turn ${event.nextTurn} is live. ${winnerText}`,
           "success",
         );
-        void refresh();
       }),
       client.onVisibilityReady((event) => {
         if (event.matchId.toString() !== matchIdText) return;
@@ -217,7 +221,6 @@ function MatchPageInner() {
           `Visibility snapshot finalized for player ${event.viewerIndex + 1}.${suffix}`,
           "success",
         );
-        void refresh();
       }),
     ];
 
@@ -268,74 +271,94 @@ function MatchPageInner() {
 
   const handleJoin = async () => {
     if (demoMode) {
+      playSound("uiTap");
       showStatus("Demo crews are already locked in for this showcase.", "info", true);
       return;
     }
     if (!client || !matchPDA || !publicKey) return;
     setActionMessage(null);
+    setPendingAction("join");
     try {
       const emptySlot = match.players.findIndex(
         (p) => p.toBase58() === "11111111111111111111111111111111",
       );
-      if (emptySlot < 0) {
-        showStatus("No empty slots available.", "error");
-        return;
-      }
-      showStatus(`Joining player slot ${emptySlot + 1}...`, "info", true);
-      await client.registerPlayer(matchPDA, emptySlot);
-      showStatus(`Joined as Player ${emptySlot + 1}.`, "success", true);
-      await refresh();
-    } catch (err: unknown) {
-      showStatus(
-        `Failed to join: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error",
+        if (emptySlot < 0) {
+          playSound("error");
+          showStatus("No empty slots available.", "error");
+          return;
+        }
+        showStatus(`Joining player slot ${emptySlot + 1}...`, "info", true);
+        playSound("uplink");
+        await client.registerPlayer(matchPDA, emptySlot);
+        updateMatch((current) => {
+          const players = [...current.players];
+          players[emptySlot] = publicKey;
+          return { ...current, players };
+        });
+        playSound("success");
+        showStatus(`Joined as Player ${emptySlot + 1}.`, "success", true);
+      } catch (err: unknown) {
+        playSound("error");
+        showStatus(
+          `Failed to join: ${err instanceof Error ? err.message : "Unknown error"}`,
+          "error",
         true,
       );
+    } finally {
+      setPendingAction(null);
     }
   };
 
   const handleSubmitOrder = async (order: OrderParams) => {
     if (demoMode) {
+      playSound("uplink");
       showStatus(
         `Simulating ${order.action === 2 ? "attack" : "maneuver"} from unit ${order.unitSlot + 1}...`,
         "info",
         true,
       );
       updateMatch((current) => markDemoOrdersSubmitted(current));
-      appendActivity(
-        `Enemy commander mirrors your move toward sector (${order.targetX}, ${order.targetY}).`,
-        "info",
-      );
-      showStatus("Demo orders locked in. Resolve the turn to continue.", "success");
-      return;
-    }
+        appendActivity(
+          `Enemy commander mirrors your move toward sector (${order.targetX}, ${order.targetY}).`,
+          "info",
+        );
+        playSound("success");
+        showStatus("Demo orders locked in. Resolve the turn to continue.", "success");
+        return;
+      }
 
     if (!client || !matchPDA || playerSlot === null) return;
     setActionMessage(null);
-    try {
-      const keys = ensureKeys();
-      const result = await client.submitOrders(
-        matchPDA,
-        playerSlot,
+      setPendingAction("orders");
+      try {
+        const keys = ensureKeys();
+        playSound("uplink");
+        const result = await client.submitOrders(
+          matchPDA,
+          playerSlot,
         order,
         keys.privateKey,
-      );
-      showStatus("Order queued. Waiting for MPC computation...", "info", true);
-      await client.awaitComputation(result.computationOffset);
-      showStatus("Order callback confirmed.", "success");
-      appendActivity("Orders accepted for this turn.", "success");
-      await refresh();
-    } catch (err: unknown) {
-      showStatus(
-        `Failed to submit order: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error",
+        );
+        showStatus("Order queued. Waiting for MPC computation...", "info", true);
+        await client.awaitComputation(result.computationOffset);
+        playSound("success");
+        showStatus("Order callback confirmed.", "success");
+        appendActivity("Orders accepted for this turn.", "success");
+      } catch (err: unknown) {
+        playSound("error");
+        showStatus(
+          `Failed to submit order: ${err instanceof Error ? err.message : "Unknown error"}`,
+          "error",
         true,
       );
+    } finally {
+      setPendingAction(null);
     }
   };
 
   const handleResolveTurn = async () => {
     if (demoMode) {
+      playSound("resolve");
       showStatus("Resolving simulated turn...", "info", true);
       updateMatch((current) => advanceDemoTurn(current));
       appendActivity("Recon updates and battle results refreshed locally.", "success");
@@ -345,7 +368,9 @@ function MatchPageInner() {
 
     if (!client || !matchPDA) return;
     setActionMessage(null);
+    setPendingAction("resolve");
     try {
+      playSound("resolve");
       const result = await client.resolveTurn(matchPDA);
       showStatus(
         "Turn resolution queued. Waiting for MPC computation...",
@@ -353,21 +378,25 @@ function MatchPageInner() {
         true,
       );
       await client.awaitComputation(result.computationOffset);
+      playSound("success");
       showStatus("Turn resolution callback confirmed.", "success");
       appendActivity("Turn resolution completed.", "success");
-      await refresh();
     } catch (err: unknown) {
+      playSound("error");
       showStatus(
         `Failed to resolve: ${err instanceof Error ? err.message : "Unknown error"}`,
         "error",
         true,
       );
+    } finally {
+      setPendingAction(null);
     }
   };
 
   const handleVisibility = async () => {
     if (demoMode) {
       if (!match) return;
+      playSound("reveal");
       const report = buildDemoVisibilityReport(match.turn);
       setVisibilityError(null);
       setVisibilityReport(report);
@@ -382,8 +411,10 @@ function MatchPageInner() {
     if (!client || !matchPDA) return;
     setActionMessage(null);
     setVisibilityError(null);
+    setPendingAction("visibility");
     try {
       const keys = ensureKeys();
+      playSound("reveal");
       const result = await client.requestVisibility(matchPDA, keys.privateKey);
       showStatus(
         "Visibility check queued. Waiting for MPC computation...",
@@ -391,12 +422,16 @@ function MatchPageInner() {
         true,
       );
       await client.awaitComputation(result.computationOffset);
-      const updatedMatch = await client.fetchMatch(matchPDA);
+      const updatedMatch = await refresh();
+      if (!updatedMatch) {
+        throw new Error("Visibility report is not available yet.");
+      }
       const report = await client.decryptLatestVisibility(
         updatedMatch,
         keys.privateKey,
       );
-      setVisibilityReport(report);
+        setVisibilityReport(report);
+      playSound("success");
       showStatus("Visibility report decrypted.", "success");
       appendActivity(
         report.units.length === 0
@@ -404,17 +439,28 @@ function MatchPageInner() {
           : `Visibility report reveals ${report.units.length} enemy unit(s).`,
         "success",
       );
-      await refresh();
-    } catch (err: unknown) {
-      setVisibilityReport(null);
-      setVisibilityError(
-        err instanceof Error ? err.message : "Failed to decrypt visibility report",
-      );
-      showStatus(
-        `Failed: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error",
+      } catch (err: unknown) {
+        setVisibilityReport(null);
+        setVisibilityError(
+          err instanceof Error ? err.message : "Failed to decrypt visibility report",
+        );
+        playSound("error");
+        showStatus(
+          `Failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+          "error",
         true,
       );
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setPendingAction("refresh");
+    try {
+      await refresh();
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -439,10 +485,15 @@ function MatchPageInner() {
           Match #{matchId?.toString()}
         </h2>
         <button
-          onClick={refresh}
+          onClick={handleRefresh}
+          disabled={isBusy}
           className="border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
         >
-          {demoMode ? "Reset Demo" : "Refresh"}
+          {pendingAction === "refresh"
+            ? "Syncing..."
+            : demoMode
+              ? "Reset Demo"
+              : "Refresh"}
         </button>
       </div>
 
@@ -504,6 +555,21 @@ function MatchPageInner() {
         </div>
       )}
 
+      {isBusy && (
+        <div className="border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-4 py-3 text-[10px] uppercase tracking-[0.16em] text-[#00e5cc]">
+          Uplink active: {pendingAction === "orders"
+            ? "submitting encrypted orders"
+            : pendingAction === "resolve"
+              ? "resolving turn"
+              : pendingAction === "visibility"
+                ? "requesting visibility"
+                : pendingAction === "join"
+                  ? "joining match"
+                  : "refreshing match state"}
+          ...
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)]">
         <div className="flex justify-center">
           <GameBoard
@@ -517,9 +583,10 @@ function MatchPageInner() {
           {canJoin && (
             <button
               onClick={handleJoin}
+              disabled={isBusy}
               className="w-full border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
             >
-              Join Match
+              {pendingAction === "join" ? "Joining..." : "Join Match"}
             </button>
           )}
 
@@ -529,25 +596,29 @@ function MatchPageInner() {
               playerSlot={playerSlot}
               selectedCell={selectedCell}
               onSubmit={handleSubmitOrder}
-              disabled={!client}
+              disabled={!client || isBusy}
             />
           )}
 
           {canResolve && (
             <button
               onClick={handleResolveTurn}
+              disabled={isBusy}
               className="w-full border border-[#996800] bg-[rgba(255,176,0,0.03)] py-3 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
             >
-              Resolve Turn
+              {pendingAction === "resolve" ? "Resolving..." : "Resolve Turn"}
             </button>
           )}
 
           {isPlayer && match.status === MatchStatus.Active && (
             <button
               onClick={handleVisibility}
+              disabled={isBusy}
               className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] py-3 text-[10px] uppercase tracking-[0.22em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)]"
             >
-              Request Visibility Report
+              {pendingAction === "visibility"
+                ? "Requesting Visibility..."
+                : "Request Visibility Report"}
             </button>
           )}
 
