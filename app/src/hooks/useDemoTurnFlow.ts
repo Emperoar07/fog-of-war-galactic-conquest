@@ -82,10 +82,16 @@ export function useDemoTurnFlow(args: {
       );
 
       const lockDelay = aiDifficulty ? getAiProfile(aiDifficulty).lockDelayMs : 900;
+      const difficultyLabel = aiDifficulty
+        ? getAiProfile(aiDifficulty).label
+        : "Demo";
 
       demoOpponentTimeoutRef.current = setTimeout(() => {
         updateMatch((current) => markDemoOpponentSubmitted(current));
-        appendActivity("Enemy commander has locked in a response.", "success");
+        appendActivity(
+          `${difficultyLabel} enemy commander has locked in a response.`,
+          "success",
+        );
         playSound("success");
         showStatus("Both orders are locked. Resolve the turn when ready.", "success");
         demoOpponentTimeoutRef.current = null;

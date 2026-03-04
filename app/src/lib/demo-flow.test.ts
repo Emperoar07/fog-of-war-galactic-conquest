@@ -89,3 +89,21 @@ test("hard AI applies at least as much pressure as easy AI", () => {
   const hardEnemyTiles = hard.revealedSectorOwner.filter((tile) => tile === 2).length;
   assert.ok(hardEnemyTiles >= easyEnemyTiles);
 });
+
+test("easy AI is more conservative than hard AI near player territory", () => {
+  const match = createDemoMatch();
+  const easy = markDemoOrdersSubmitted(
+    match,
+    { targetX: 3, targetY: 3, action: OrderAction.Move },
+    "easy",
+  );
+  const hard = markDemoOrdersSubmitted(
+    match,
+    { targetX: 3, targetY: 3, action: OrderAction.Move },
+    "hard",
+  );
+
+  const easyContested = easy.revealedSectorOwner.filter((tile) => tile === 3).length;
+  const hardContested = hard.revealedSectorOwner.filter((tile) => tile === 3).length;
+  assert.ok(hardContested >= easyContested);
+});

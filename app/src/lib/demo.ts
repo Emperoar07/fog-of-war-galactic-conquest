@@ -28,8 +28,12 @@ const DEMO_PLAYERS = [PROGRAM_ID, ARCIUM_PROGRAM_ID, EMPTY_PLAYER, EMPTY_PLAYER]
 type AiProfile = {
   label: string;
   lockDelayMs: number;
+  tacticalDepth: number;
+  aggression: number;
+  caution: number;
   reinforcementBurst: number;
   expansionChance: number;
+  contestedPushChance: number;
   winnerTurn: number;
   preferredWinner: 0 | 1;
 };
@@ -38,28 +42,153 @@ const AI_PROFILES: Record<AiDifficulty, AiProfile> = {
   easy: {
     label: "Easy",
     lockDelayMs: 1400,
+    tacticalDepth: 1,
+    aggression: 0.2,
+    caution: 0.8,
     reinforcementBurst: 1,
     expansionChance: 0.08,
+    contestedPushChance: 0.2,
     winnerTurn: 8,
     preferredWinner: 0,
   },
   medium: {
     label: "Medium",
     lockDelayMs: 900,
+    tacticalDepth: 2,
+    aggression: 0.45,
+    caution: 0.5,
     reinforcementBurst: 2,
     expansionChance: 0.12,
+    contestedPushChance: 0.35,
     winnerTurn: 9,
     preferredWinner: 1,
   },
   hard: {
     label: "Hard",
     lockDelayMs: 500,
+    tacticalDepth: 3,
+    aggression: 0.72,
+    caution: 0.25,
     reinforcementBurst: 3,
     expansionChance: 0.18,
+    contestedPushChance: 0.55,
     winnerTurn: 9,
     preferredWinner: 1,
   },
 };
+
+function toIndex(x: number, y: number): number {
+  return y * MAP_SIZE + x;
+}
+
+function fromIndex(index: number): { x: number; y: number } {
+  return { x: index % MAP_SIZE, y: Math.floor(index / MAP_SIZE) };
+}
+
+function neighbors(index: number): number[] {
+  const { x, y } = fromIndex(index);
+  return [
+    y > 0 ? toIndex(x, y - 1) : -1,
+    y < MAP_SIZE - 1 ? toIndex(x, y + 1) : -1,
+    x > 0 ? toIndex(x - 1, y) : -1,
+    x < MAP_SIZE - 1 ? toIndex(x + 1, y) : -1,
+  ].filter((i) => i >= 0);
+}
+
+function scoreAiTarget(
+  map: number[],
+  index: number,
+  profile: AiProfile,
+  playerOrder: { targetX: number; targetY: number; action: number },
+): number {
+  const tile = map[index];
+  const adjacent = neighbors(index).map((i) => map[i]);
+  const nearPlayerPressure = adjacent.filter((n) => n === 1 || n === 3).length;
+  const nearAiPresence = adjacent.filter((n) => n === 2 || n === 3).length;
+  const isContested = tile === 3;
+  const isNeutral = tile === 0;
+  const isEnemy = tile === 1;
+  const targetIndex = toIndex(playerOrder.targetX, playerOrder.targetY);
+  const distanceToPlayerOrder = Math.abs(index - targetIndex);
+
+  let score = 0;
+  if (isEnemy) score += 1.5 + profile.aggression * 2.2;
+  if (isNeutral) score += 0.8 + profile.aggression;
+  if (isContested) score += profile.contestedPushChance * 2;
+  score += nearPlayerPressure * (0.5 + profile.aggression);
+  score += nearAiPresence * (0.35 + profile.caution * 0.4);
+  score += Math.max(0, 8 - Math.min(8, distanceToPlayerOrder)) * 0.05;
+
+  if (playerOrder.action === 2) {
+    score += nearPlayerPressure * (0.5 + profile.aggression);
+  } else if (playerOrder.action === 1) {
+    score += isContested ? 0.8 : 0;
+  } else {
+    score += nearAiPresence * 0.4;
+  }
+
+  return score;
+}
+
+function applyAiTurnByDifficulty(
+  map: number[],
+  profile: AiProfile,
+  playerOrder: { targetX: number; targetY: number; action: number },
+  rand: () => number,
+): number[] {
+  const next = [...map];
+  const targetIndex = toIndex(playerOrder.targetX, playerOrder.targetY);
+  const frontier = new Set<number>([targetIndex, ...neighbors(targetIndex)]);
+
+  // Strict difficulty behavior:
+  // - Easy: mostly reinforce and avoid heavy conversion.
+  // - Medium: mix reinforcements and selective pushes.
+  // - Hard: evaluate and push contested/enemy lanes aggressively.
+  if (profile.label === "Easy") {
+    for (const idx of frontier) {
+      if (next[idx] === 0 && rand() < 0.55) {
+        next[idx] = 2;
+      } else if (next[idx] === 1 && rand() < 0.15) {
+        next[idx] = 3;
+      }
+    }
+    return next;
+  }
+
+  const candidateIndexes = Array.from({ length: next.length }, (_, i) => i)
+    .filter((i) => next[i] !== 4)
+    .sort((a, b) =>
+      scoreAiTarget(next, b, profile, playerOrder) -
+      scoreAiTarget(next, a, profile, playerOrder),
+    );
+
+  const steps = Math.max(1, profile.tacticalDepth + profile.reinforcementBurst);
+  let applied = 0;
+  for (const idx of candidateIndexes) {
+    if (applied >= steps) break;
+    const tile = next[idx];
+
+    if (tile === 0 && rand() < profile.expansionChance + profile.aggression * 0.3) {
+      next[idx] = 2;
+      applied++;
+      continue;
+    }
+
+    if (tile === 1 && rand() < 0.2 + profile.aggression * 0.45) {
+      next[idx] = rand() < profile.contestedPushChance ? 3 : 2;
+      applied++;
+      continue;
+    }
+
+    if (tile === 3 && rand() < profile.contestedPushChance) {
+      next[idx] = 2;
+      applied++;
+      continue;
+    }
+  }
+
+  return next;
+}
 
 export function parseAiDifficulty(value: string | null): AiDifficulty | null {
   return value === "easy" || value === "medium" || value === "hard" ? value : null;
@@ -248,33 +377,21 @@ export function markDemoOrdersSubmitted(
     const rand = seededRandom(
       match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
     );
-    const map = [...match.revealedSectorOwner];
-    const targetIdx = playerOrder.targetY * MAP_SIZE + playerOrder.targetX;
+    const map = profile
+      ? applyAiTurnByDifficulty(
+          [...match.revealedSectorOwner],
+          profile,
+          playerOrder,
+          rand,
+        )
+      : [...match.revealedSectorOwner];
 
-    // If player attacks, AI has a chance to reinforce or counter-attack nearby
-    if (playerOrder.action === 2) {
-      // AI reinforces a random adjacent cell
-      const adjacent = [
-        targetIdx - MAP_SIZE,
-        targetIdx + MAP_SIZE,
-        targetIdx - 1,
-        targetIdx + 1,
-      ].filter((i) => i >= 0 && i < map.length);
-      const burst = profile?.reinforcementBurst ?? 1;
-      for (let i = 0; i < burst; i++) {
-        const pick = adjacent[Math.floor(rand() * adjacent.length)];
-        if (pick !== undefined && map[pick] === 0) {
-          map[pick] = 2;
-        }
-      }
-    } else {
-      // AI scouts or pushes forward toward player territory
-      for (let i = 0; i < map.length; i++) {
-        const expansionChance = profile?.expansionChance ?? 0.12;
-        if (map[i] === 0 && rand() < expansionChance) {
-          map[i] = 2;
-          if (!profile || profile.reinforcementBurst <= 1) break;
-        }
+    if (!profile) {
+      const targetIdx = playerOrder.targetY * MAP_SIZE + playerOrder.targetX;
+      const adjacent = neighbors(targetIdx);
+      const pick = adjacent[Math.floor(rand() * adjacent.length)];
+      if (pick !== undefined && map[pick] === 0) {
+        map[pick] = 2;
       }
     }
 
