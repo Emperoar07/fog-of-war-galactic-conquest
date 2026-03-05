@@ -32,6 +32,8 @@ import {
 import { buildWinnerOverlayKey, areOrdersReady } from "@/lib/match-state";
 import {
   MatchStatus,
+  NO_WINNER,
+  SUMMARY,
   type DecodedVisibilityReport,
   type OrderParams,
 } from "@sdk";
@@ -234,15 +236,33 @@ function MatchPageInner() {
   }, [localMode, match]);
 
   const summary = useMemo(
-    () =>
-      match
-        ? client?.parseBattleSummary(match) ?? {
-            winner: 255,
-            destroyedByPlayer: [0, 0, 0, 0],
-            commandFleetAlive: [true, true, true, true],
-            nextTurn: 0,
-          }
-        : null,
+    () => {
+      if (!match) return null;
+
+      // In local/demo flows there may be no client instance (no wallet),
+      // so parse directly from the account layout instead of forcing NO_WINNER.
+      if (client) {
+        return client.parseBattleSummary(match);
+      }
+
+      const s = match.battleSummary;
+      return {
+        winner: s[SUMMARY.WINNER] ?? NO_WINNER,
+        destroyedByPlayer: [
+          s[SUMMARY.DESTROYED_START] ?? 0,
+          s[SUMMARY.DESTROYED_START + 1] ?? 0,
+          s[SUMMARY.DESTROYED_START + 2] ?? 0,
+          s[SUMMARY.DESTROYED_START + 3] ?? 0,
+        ],
+        commandFleetAlive: [
+          (s[SUMMARY.CMD_ALIVE_START] ?? 1) !== 0,
+          (s[SUMMARY.CMD_ALIVE_START + 1] ?? 1) !== 0,
+          (s[SUMMARY.CMD_ALIVE_START + 2] ?? 1) !== 0,
+          (s[SUMMARY.CMD_ALIVE_START + 3] ?? 1) !== 0,
+        ],
+        nextTurn: s[SUMMARY.NEXT_TURN] ?? match.turn + 1,
+      };
+    },
     [client, match],
   );
 
@@ -509,7 +529,7 @@ function MatchPageInner() {
   }
 
   const resolvedSummary = summary ?? {
-    winner: 255,
+    winner: NO_WINNER,
     destroyedByPlayer: [0, 0, 0, 0],
     commandFleetAlive: [true, true, true, true],
     nextTurn: 0,
@@ -787,7 +807,7 @@ function MatchPageInner() {
         tone="error"
       />
 
-      {winnerOverlayVisible && resolvedSummary.winner !== 255 && (
+      {winnerOverlayVisible && resolvedSummary.winner !== NO_WINNER && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(1,8,1,0.86)] px-4">
           <div className="w-full max-w-md border border-[#996800] bg-[#030d03] p-4 text-center shadow-[0_0_28px_rgba(255,176,0,0.14)] sm:p-5">
             <div className="border border-[rgba(255,176,0,0.2)] p-4">
