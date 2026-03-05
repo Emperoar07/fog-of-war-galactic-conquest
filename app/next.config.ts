@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   compress: true,
   poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   turbopack: {
     root: path.join(__dirname, ".."),
     resolveAlias: {
@@ -54,6 +55,7 @@ const nextConfig: NextConfig = {
         },
         { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
         { key: "X-DNS-Prefetch-Control", value: "on" },
+        { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
       ],
     },
     {

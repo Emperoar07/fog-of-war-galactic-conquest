@@ -47,6 +47,12 @@ export function deriveSharedSecret(
   privateKey: Uint8Array,
   mxePublicKey: Uint8Array,
 ): Uint8Array {
+  if (privateKey.length !== 32 || privateKey.every((b) => b === 0)) {
+    throw new Error("Invalid private key: must be 32 non-zero bytes");
+  }
+  if (mxePublicKey.length !== 32 || mxePublicKey.every((b) => b === 0)) {
+    throw new Error("Invalid MXE public key: must be 32 non-zero bytes");
+  }
   return x25519.getSharedSecret(privateKey, new Uint8Array(mxePublicKey));
 }
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { generatePlayerKeys } from "@sdk";
 
 /**
  * Manage ephemeral x25519 keys for encrypted order submission.
- * Keys are generated per-session and stored in component state.
+ * Keys are generated per-session and zeroed on unmount.
  */
 export function usePlayerKeys() {
   const [keys, setKeys] = useState<{
@@ -13,7 +13,13 @@ export function usePlayerKeys() {
     publicKey: Uint8Array;
   } | null>(null);
 
+  const keysRef = useRef(keys);
+  keysRef.current = keys;
+
   const generate = useCallback(() => {
+    if (keysRef.current) {
+      keysRef.current.privateKey.fill(0);
+    }
     const newKeys = generatePlayerKeys();
     setKeys(newKeys);
     return newKeys;
@@ -23,6 +29,14 @@ export function usePlayerKeys() {
     if (keys) return keys;
     return generate();
   }, [keys, generate]);
+
+  useEffect(() => {
+    return () => {
+      if (keysRef.current) {
+        keysRef.current.privateKey.fill(0);
+      }
+    };
+  }, []);
 
   return { keys, generate, ensureKeys };
 }

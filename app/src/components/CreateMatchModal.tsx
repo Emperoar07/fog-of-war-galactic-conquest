@@ -31,7 +31,9 @@ export default function CreateMatchModal({
     setStatusMessage("Preparing encrypted match initialization...");
     playSound("uplink");
     try {
-      const matchId = BigInt(Math.floor(Math.random() * 1_000_000_000));
+      const buf = new Uint8Array(8);
+      crypto.getRandomValues(buf);
+      const matchId = BigInt(new DataView(buf.buffer).getBigUint64(0, true)) % BigInt(1_000_000_000_000);
       const result = await client.createMatch(matchId, 2, BigInt(mapSeed || "42"));
       setStatusMessage("Match queued. Waiting for callback completion...");
       await client.awaitComputation(result.computationOffset);

@@ -124,7 +124,15 @@ export default function MatchPage() {
 function MatchPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const matchId = params.id ? BigInt(params.id as string) : null;
+  const matchId = (() => {
+    try {
+      const raw = params.id as string;
+      if (!raw || !/^\d{1,20}$/.test(raw)) return null;
+      return BigInt(raw);
+    } catch {
+      return null;
+    }
+  })();
   const explicitDifficulty = parseAiDifficulty(searchParams.get("quick"));
   const aiDifficulty = explicitDifficulty ?? getQuickMatchDifficulty(matchId);
   const demoMode =

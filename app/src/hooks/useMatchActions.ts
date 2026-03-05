@@ -11,7 +11,7 @@ export function useMatchActions() {
   const appendActivity = useCallback(
     (message: string, tone: "info" | "success" | "error" = "info") => {
       const entry: ActivityLogEntry = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `${Date.now()}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`,
         message,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",

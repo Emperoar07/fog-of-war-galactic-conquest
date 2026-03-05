@@ -31,13 +31,14 @@ export default function Lobby() {
     setError(null);
     try {
       const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
-        filters: [{ dataSize: 522 }],
+        filters: [{ dataSize: 530 }],
       });
 
       const entries: MatchEntry[] = [];
       for (const { account } of accounts) {
         try {
           const data = account.data;
+          if (data.length < 180) continue;
           const matchId = data.readBigUInt64LE(8).toString();
           const playerCount = data[176];
           const turn = data[177];
@@ -71,7 +72,7 @@ export default function Lobby() {
 
       setMatches(entries);
     } catch (err: unknown) {
-      console.error("Failed to load matches:", err);
+      console.error("Failed to load matches:", err instanceof Error ? err.message : "unknown error");
       setError(
         err instanceof Error
           ? err.message

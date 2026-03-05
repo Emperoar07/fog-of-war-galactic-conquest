@@ -408,7 +408,7 @@ pub mod fog_of_war_galactic_conquest {
         let command_fleet_alive = summary.field_2;
         let next_turn = summary.field_3;
 
-        galaxy_match.turn = next_turn;
+        galaxy_match.turn = next_turn.min(254);
         galaxy_match.battle_summary = [
             winner,
             destroyed_by_player[0],
