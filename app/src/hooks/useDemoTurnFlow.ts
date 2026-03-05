@@ -8,6 +8,7 @@ import {
   getAiProfile,
   markDemoOpponentSubmitted,
   markDemoOrdersSubmitted,
+  summarizeAiMoves,
   type AiDifficulty,
 } from "@/lib/demo";
 import type { GalaxyMatch, OrderParams } from "@sdk";
@@ -96,7 +97,9 @@ export function useDemoTurnFlow(args: {
         : "Demo";
 
       demoOpponentTimeoutRef.current = setTimeout(() => {
+        let aiSummary = "";
         updateMatch((current) => {
+          const beforeMap = [...current.revealedSectorOwner];
           const withAiMove =
             aiDifficulty && pendingQuickOrderRef.current
               ? applyDemoAiResponse(
@@ -109,11 +112,12 @@ export function useDemoTurnFlow(args: {
                   aiDifficulty,
                 )
               : current;
+          aiSummary = summarizeAiMoves(beforeMap, withAiMove.revealedSectorOwner);
           return markDemoOpponentSubmitted(withAiMove);
         });
         pendingQuickOrderRef.current = null;
         appendActivity(
-          `${difficultyLabel} enemy commander has locked in a response.`,
+          `${difficultyLabel} enemy commander has locked in a response. ${aiSummary}`,
           "success",
         );
         playSound("success");

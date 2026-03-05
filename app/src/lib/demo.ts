@@ -194,25 +194,32 @@ function applyPlayerAction(
   const target = toIndex(order.targetX, order.targetY);
 
   if (order.action === 2) {
-    // ATTACK: capture the target tile + up to 1 adjacent tile
-    if (next[target] === 2 || next[target] === 3 || next[target] === 0) {
-      next[target] = 1;
-    }
-    // Bonus: also capture one adjacent non-player tile
-    const adjTargets = neighbors(target).filter((n) => next[n] === 0 || next[n] === 3);
-    if (adjTargets.length > 0) {
-      next[adjTargets[Math.floor(rand() * adjTargets.length)]] = 1;
+    // ATTACK: capture the target tile (even enemy) + up to 2 adjacent tiles
+    if (next[target] !== 4) next[target] = 1;
+    // Capture up to 2 adjacent non-player tiles (prioritize enemy over neutral)
+    const adjAll = neighbors(target).filter((n) => next[n] !== 1 && next[n] !== 4);
+    const adjEnemy = adjAll.filter((n) => next[n] === 2);
+    const adjOther = adjAll.filter((n) => next[n] !== 2);
+    const sorted = [...adjEnemy, ...adjOther];
+    const captureCount = Math.min(2, sorted.length);
+    for (let i = 0; i < captureCount; i++) {
+      const pick = i < sorted.length ? sorted[i] : sorted[Math.floor(rand() * sorted.length)];
+      next[pick] = 1;
     }
   } else if (order.action === 1) {
     // SCOUT: contest the target + reveal (contest nearby enemy tiles)
     if (next[target] === 2) next[target] = 3;
     else if (next[target] === 0) next[target] = 1;
     for (const n of neighbors(target)) {
-      if (next[n] === 2 && rand() < 0.3) next[n] = 3;
+      if (next[n] === 2 && rand() < 0.4) next[n] = 3;
     }
   } else {
-    // MOVE: claim the target if neutral/contested
+    // MOVE: claim the target if neutral/contested, + 1 adjacent neutral
     if (next[target] === 0 || next[target] === 3) next[target] = 1;
+    const adjNeutral = neighbors(target).filter((n) => next[n] === 0);
+    if (adjNeutral.length > 0) {
+      next[adjNeutral[Math.floor(rand() * adjNeutral.length)]] = 1;
+    }
   }
 
   // Ensure player base stays
@@ -403,6 +410,27 @@ export function getQuickMatchDifficulty(matchId: bigint | null): AiDifficulty | 
   if (matchId === QUICK_MATCH_IDS.medium) return "medium";
   if (matchId === QUICK_MATCH_IDS.hard) return "hard";
   return null;
+}
+
+export function summarizeAiMoves(before: number[], after: number[]): string {
+  let captured = 0;
+  let contested = 0;
+  let expanded = 0;
+  let lost = 0;
+  for (let i = 0; i < before.length; i++) {
+    if (before[i] === after[i]) continue;
+    if (after[i] === 2 && before[i] === 1) captured++;
+    else if (after[i] === 2 && before[i] === 3) contested++;
+    else if (after[i] === 2 && before[i] === 0) expanded++;
+    else if (before[i] === 2 && after[i] !== 2) lost++;
+  }
+  const parts: string[] = [];
+  if (captured > 0) parts.push(`captured ${captured} of your tiles`);
+  if (contested > 0) parts.push(`resolved ${contested} contested`);
+  if (expanded > 0) parts.push(`expanded into ${expanded} neutral`);
+  if (lost > 0) parts.push(`lost ${lost} tiles`);
+  if (parts.length === 0) return "AI held position — no territory changed.";
+  return `AI ${parts.join(", ")}.`;
 }
 
 export function getAiProfile(difficulty: AiDifficulty): AiProfile {

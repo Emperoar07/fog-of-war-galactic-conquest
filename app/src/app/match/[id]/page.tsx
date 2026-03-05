@@ -64,6 +64,11 @@ function buildInitialLocalActivity(aiDifficulty: AiDifficulty | null): ActivityL
   ];
 }
 
+const TerritoryBar = dynamic(() => import("@/components/TerritoryBar"), {
+  ssr: false,
+  loading: () => <div className="h-12 animate-pulse border border-[#0e2a0e] bg-[#030d03]" />,
+});
+
 // Lazy-load side panel components
 const TurnStatus = dynamic(() => import("@/components/TurnStatus"), {
   ssr: false,
@@ -917,6 +922,9 @@ function MatchPageInner() {
       ) : (
         <MXEStatusBanner />
       )}
+
+      <TerritoryBar revealedSectorOwner={match.revealedSectorOwner} />
+
       <div className="grid grid-cols-1 gap-2 sm:gap-3 xl:grid-cols-[minmax(0,0.4fr)_minmax(240px,0.3fr)_minmax(240px,0.3fr)] xl:items-start">
         <TurnStatus match={match} walletKey={publicKey} />
 
