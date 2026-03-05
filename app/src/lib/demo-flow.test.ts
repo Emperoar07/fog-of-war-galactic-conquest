@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MatchStatus, NO_WINNER, OrderAction } from "@sdk";
+import { NO_WINNER, OrderAction } from "@sdk";
 import {
   applyDemoAiResponse,
-  advanceDemoTurn,
   getAiProfile,
   getQuickMatchDifficulty,
   QUICK_MATCH_IDS,
@@ -49,17 +48,18 @@ test("queued demo orders can be replaced before resolve", () => {
   assert.notDeepEqual(second.revealedSectorOwner, first.revealedSectorOwner);
 });
 
-test("winner overlay key is emitted only once the match completes", () => {
-  let match = createDemoMatch();
-  for (let i = 0; i < 7; i++) {
-    match = advanceDemoTurn(match);
-  }
+test("winner overlay key is emitted when a winner appears", () => {
+  const match = createDemoMatch();
+  const winner = 1;
+  match.battleSummary[0] = winner;
 
-  assert.equal(match.status, MatchStatus.Completed);
-  assert.notEqual(match.battleSummary[0], NO_WINNER);
   assert.equal(
-    buildWinnerOverlayKey(BigInt("900000001"), match.battleSummary[0], match.turn, match.status),
-    `900000001-${match.battleSummary[0]}-${match.turn}`,
+    buildWinnerOverlayKey(BigInt("900000001"), winner, match.turn),
+    `900000001-${winner}-${match.turn}`,
+  );
+  assert.equal(
+    buildWinnerOverlayKey(BigInt("900000001"), NO_WINNER, match.turn),
+    null,
   );
 });
 

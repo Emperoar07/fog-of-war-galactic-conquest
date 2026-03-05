@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:state": "tsx --test src/lib/demo-flow.test.ts src/lib/companion.test.ts"
+    "test:state": "tsx --test src/lib/demo-flow.test.ts src/lib/companion.test.ts src/lib/sound-mode.test.ts"
   },
   "dependencies": {
     "@arcium-hq/client": "0.8.5",

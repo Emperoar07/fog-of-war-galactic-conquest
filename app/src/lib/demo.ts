@@ -255,7 +255,6 @@ function generateMoves(
 
     const adj = neighbors(idx);
     const aiAdj = adj.filter((n) => map[n] === 2).length;
-    const playerAdj = adj.filter((n) => map[n] === 1).length;
     const { x, y } = fromIndex(idx);
     const centerDist = Math.abs(x - center) + Math.abs(y - center);
 
@@ -627,8 +626,10 @@ export function markDemoOrdersSubmitted(
   }
 
   // 1) Apply PLAYER's action to the board first
+  const difficultySalt =
+    aiDifficulty === "hard" ? 73 : aiDifficulty === "medium" ? 37 : 0;
   const rand = seededRandom(
-    match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
+    match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY + difficultySalt,
   );
   const mapAfterPlayer = applyPlayerAction(
     [...match.revealedSectorOwner],
