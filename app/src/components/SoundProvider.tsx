@@ -38,15 +38,13 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return true;
     const explicit = window.localStorage.getItem(STORAGE_MUSIC_KEY);
     if (explicit !== null) return explicit === "1";
-    const legacy = window.localStorage.getItem(STORAGE_AUDIO_KEY);
-    return legacy !== "0";
+    return true;
   });
   const [sfxEnabled, setSfxEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
     const explicit = window.localStorage.getItem(STORAGE_SFX_KEY);
     if (explicit !== null) return explicit === "1";
-    const legacy = window.localStorage.getItem(STORAGE_AUDIO_KEY);
-    return legacy !== "0";
+    return true;
   });
   const audioEnabled = musicEnabled || sfxEnabled;
 
@@ -133,9 +131,10 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!engineRef.current) {
       engineRef.current = new TacticalSoundEngine();
+      engineRef.current.setMusicVolume(0.46);
     }
 
-    engineRef.current.setAmbient(musicEnabled);
+    engineRef.current.setMusicEnabled(musicEnabled);
   }, [musicEnabled]);
 
   useEffect(() => {
@@ -143,14 +142,15 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       if (!engineRef.current) {
         engineRef.current = new TacticalSoundEngine();
       }
-      engineRef.current.setAmbient(musicEnabledRef.current);
+      engineRef.current.setMusicEnabled(musicEnabledRef.current);
     };
 
     const primeAudio = () => {
       if (!engineRef.current) {
         engineRef.current = new TacticalSoundEngine();
       }
-      engineRef.current.setAmbient(musicEnabledRef.current);
+      engineRef.current.primeMusic();
+      engineRef.current.setMusicEnabled(musicEnabledRef.current);
     };
 
     const handlePointerDown = (event: PointerEvent) => {

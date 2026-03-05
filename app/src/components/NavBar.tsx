@@ -84,28 +84,30 @@ export default function NavBar() {
             Uplink Live
           </span>
         </div>
-        <div ref={audioMenuRef} className="relative">
+        <div ref={audioMenuRef} className="relative bg-[#021202]">
           <button
             data-sound-ignore="true"
             onClick={() => setAudioMenuOpen((open) => !open)}
-            className="flex items-center gap-2 bg-[#021202] px-3 py-1.5"
+            className="flex w-full items-center justify-between gap-2 bg-[#021202] px-3 py-1.5"
             aria-expanded={audioMenuOpen}
             aria-haspopup="menu"
             aria-label="Open audio controls"
           >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                musicEnabled || sfxEnabled
-                  ? "animate-pulse bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.7)]"
-                  : "bg-[#0c6d1f]"
-              }`}
-            />
-            <span
-              className={`text-[8px] uppercase tracking-[0.18em] sm:text-[9px] ${
-                musicEnabled || sfxEnabled ? "text-[#00ff41]" : "text-[#0c6d1f]"
-              }`}
-            >
-              Audio
+            <span className="flex items-center gap-2">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  musicEnabled || sfxEnabled
+                    ? "animate-pulse bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.7)]"
+                    : "bg-[#0c6d1f]"
+                }`}
+              />
+              <span
+                className={`text-[8px] uppercase tracking-[0.18em] sm:text-[9px] ${
+                  musicEnabled || sfxEnabled ? "text-[#00ff41]" : "text-[#0c6d1f]"
+                }`}
+              >
+                Audio
+              </span>
             </span>
             <span className="text-[8px] text-[#0c6d1f] sm:text-[9px]">
               {audioMenuOpen ? "^" : "v"}
