@@ -26,7 +26,10 @@ export default function TurnTimer({
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const autoForfeitFired = useRef(false);
   const onForfeitRef = useRef(onForfeit);
-  onForfeitRef.current = onForfeit;
+
+  useEffect(() => {
+    onForfeitRef.current = onForfeit;
+  }, [onForfeit]);
 
   // Reset auto-forfeit flag when turn changes
   useEffect(() => {

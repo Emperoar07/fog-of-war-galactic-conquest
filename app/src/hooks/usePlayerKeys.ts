@@ -14,7 +14,10 @@ export function usePlayerKeys() {
   } | null>(null);
 
   const keysRef = useRef(keys);
-  keysRef.current = keys;
+
+  useEffect(() => {
+    keysRef.current = keys;
+  }, [keys]);
 
   const generate = useCallback(() => {
     if (keysRef.current) {

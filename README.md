@@ -145,7 +145,7 @@ The live onchain experience is real, but the full encrypted turn loop still depe
 The MVP uses:
 
 - 2 players
-- a 7x7 map
+- a 6x6 map
 - 4 units per player
 - deterministic combat
 - private simultaneous turns

@@ -19,7 +19,7 @@ export const DEFAULT_CLUSTER_OFFSET = 456;
 // ---------------------------------------------------------------------------
 
 export const MAX_PLAYERS = 4;
-export const MAP_SIZE = 7;
+export const MAP_SIZE = 6;
 export const UNITS_PER_PLAYER = 4;
 export const TOTAL_UNITS = MAX_PLAYERS * UNITS_PER_PLAYER;
 export const HIDDEN_STATE_WORDS = 5;

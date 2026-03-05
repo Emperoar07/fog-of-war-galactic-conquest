@@ -8,7 +8,7 @@ const COMP_DEF_OFFSET_VISIBILITY_CHECK: u32 = comp_def_offset("visibility_check"
 const COMP_DEF_OFFSET_RESOLVE_TURN: u32 = comp_def_offset("resolve_turn");
 
 const MAX_PLAYERS: usize = 4;
-const MAP_TILES: usize = 49;
+const MAP_TILES: usize = 36;
 const HIDDEN_STATE_WORDS: usize = 5;
 const VISIBILITY_REPORT_WORDS: usize = 2;
 const NO_WINNER: u8 = 255;
