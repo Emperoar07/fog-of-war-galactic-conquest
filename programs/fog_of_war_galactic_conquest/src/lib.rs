@@ -109,6 +109,7 @@ pub mod fog_of_war_galactic_conquest {
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
+        require!(galaxy_match.status == 0, ErrorCode::MatchNotReady);
         galaxy_match.hidden_state = state.ciphertexts;
         galaxy_match.hidden_state_nonce = state.nonce;
 
@@ -233,6 +234,7 @@ pub mod fog_of_war_galactic_conquest {
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
         galaxy_match.hidden_state = state.ciphertexts;
         galaxy_match.hidden_state_nonce = state.nonce;
         require!(submitted_player != NO_PLAYER, ErrorCode::InvalidEncryptedOrder);
@@ -316,6 +318,7 @@ pub mod fog_of_war_galactic_conquest {
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
         require!(
             (viewer_index as usize) < galaxy_match.player_count as usize || viewer_index == NO_PLAYER,
             ErrorCode::InvalidPlayerSlot
@@ -394,6 +397,7 @@ pub mod fog_of_war_galactic_conquest {
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
         galaxy_match.hidden_state = state.ciphertexts;
         galaxy_match.hidden_state_nonce = state.nonce;
         let winner = summary.field_0;
