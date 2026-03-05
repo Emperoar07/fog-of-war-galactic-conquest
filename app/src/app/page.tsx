@@ -172,14 +172,9 @@ export default function Home() {
       <section className="relative z-10 border border-[#0e2a0e] bg-[#030d03] px-3 py-5 sm:px-5 sm:py-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_260px] lg:items-center">
           <div className="space-y-5">
-            <div className="space-y-2">
-              <p className="font-[family-name:var(--font-vt323)] text-2xl tracking-[0.22em] text-[#00ff41] sm:text-5xl">
-                FOG OF WAR
-              </p>
-              <h1 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.16em] text-[#ffb000] sm:text-6xl">
-                GALACTIC CONQUEST
-              </h1>
-            </div>
+            <h1 className="font-[family-name:var(--font-vt323)] text-3xl tracking-[0.16em] text-[#ffb000] sm:text-6xl">
+              GALACTIC CONQUEST
+            </h1>
             <p className="max-w-3xl text-sm leading-7 text-[#00cc33]">
               Hidden information is what makes strategy feel real. Fog of War:
               Galactic Conquest uses Arcium-powered private computation to keep

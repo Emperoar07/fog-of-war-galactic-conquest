@@ -94,7 +94,7 @@ const BoardCell = memo(function BoardCell({
         hapticTap();
         onClick(x, y);
       }}
-      className={`group relative aspect-square min-h-[36px] border p-0.5 text-left sm:min-h-[48px] sm:p-1 md:min-h-[56px] ${
+      className={`group relative aspect-square border p-0.5 text-left sm:p-1 ${
         isSelected
           ? "scale-[1.02] border-[#ff3333] shadow-[0_0_18px_rgba(255,51,51,0.18)]"
           : ""
@@ -251,7 +251,7 @@ export default function GameBoard({
           {zoomed ? "Zoom Out" : "Zoom In"}
         </button>
       </div>
-      <div className={`relative ${zoomed ? "overflow-auto" : "overflow-hidden"}`}>
+      <div className={`relative ${zoomed ? "overflow-auto" : ""}`}>
         {/* Radar sweep overlay */}
         {turn !== undefined && (
           <div

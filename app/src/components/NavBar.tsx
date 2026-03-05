@@ -24,17 +24,14 @@ export default function NavBar() {
 
       {/* Primary bar: logo + wallet */}
       <div className="relative flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
-        <div className="flex flex-col leading-none">
-          <Link
-            href="/"
-            className="font-[family-name:var(--font-vt323)] text-2xl tracking-[0.28em] text-[#00ff41] drop-shadow-[0_0_10px_rgba(0,255,65,0.28)] sm:text-3xl"
-          >
+        <Link href="/" className="flex flex-col leading-none">
+          <span className="font-[family-name:var(--font-vt323)] text-2xl tracking-[0.22em] text-[#00ff41] drop-shadow-[0_0_10px_rgba(0,255,65,0.28)] sm:text-3xl">
             FOG OF WAR
-          </Link>
-          <span className="mt-0.5 text-[8px] uppercase tracking-[0.38em] text-[#0c6d1f] sm:mt-1 sm:text-[9px]">
-            Galactic Conquest
           </span>
-        </div>
+          <span className="mt-0.5 font-[family-name:var(--font-vt323)] text-[11px] tracking-[0.16em] text-[#ffb000] drop-shadow-[0_0_10px_rgba(255,176,0,0.22)] sm:mt-1 sm:text-sm">
+            GALACTIC CONQUEST
+          </span>
+        </Link>
         <WalletButton />
       </div>
 
