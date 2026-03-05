@@ -131,7 +131,7 @@ function MatchPageInner() {
   const localMode = demoMode || aiDifficulty !== null;
   const { publicKey } = useWallet();
   const client = useGameClient();
-  const { playSound, setMusicProfile } = useSound();
+  const { playSound } = useSound();
   const { match, matchPDA, loading, error, refresh, updateMatch } = useMatch(
     matchId,
     { localMode, aiDifficulty },
@@ -225,13 +225,6 @@ function MatchPageInner() {
     showStatus,
     playSound,
   });
-
-  useEffect(() => {
-    setMusicProfile("gameplay");
-    return () => {
-      setMusicProfile("landing");
-    };
-  }, [setMusicProfile]);
 
   // Save demo snapshots for replay
   useEffect(() => {

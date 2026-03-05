@@ -19,7 +19,7 @@ const Lobby = dynamic(() => import("@/components/Lobby"), {
 
 export default function Home() {
   const { connected } = useWallet();
-  const { playSound, setMusicProfile } = useSound();
+  const { playSound } = useSound();
   const [showGuide, setShowGuide] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const closeGuideButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -28,10 +28,6 @@ export default function Home() {
     playSound("uiTap");
     setShowGuide(false);
   }, [playSound]);
-
-  useEffect(() => {
-    setMusicProfile("landing");
-  }, [setMusicProfile]);
 
   useEffect(() => {
     if (!showGuide) return;

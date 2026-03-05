@@ -14,6 +14,7 @@ import {
   type MusicProfile,
   type SoundCue,
 } from "@/lib/sound";
+import { usePathname } from "next/navigation";
 
 const STORAGE_AUDIO_KEY = "fog-of-war-audio-enabled";
 const STORAGE_MUSIC_KEY = "fog-of-war-music-enabled";
@@ -36,6 +37,7 @@ type SoundContextValue = {
 const SoundContext = createContext<SoundContextValue | null>(null);
 
 export function SoundProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const engineRef = useRef<TacticalSoundEngine | null>(null);
   const musicEnabledRef = useRef(true);
   const sfxEnabledRef = useRef(true);
@@ -142,6 +144,16 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       playSound,
     ],
   );
+
+  useEffect(() => {
+    if (!engineRef.current) {
+      engineRef.current = new TacticalSoundEngine();
+      engineRef.current.setMusicVolume(0.38);
+    }
+    const profile: MusicProfile =
+      pathname?.startsWith("/match/") ? "gameplay" : "landing";
+    engineRef.current.setMusicProfile(profile);
+  }, [pathname]);
 
   useEffect(() => {
     if (!engineRef.current) {
