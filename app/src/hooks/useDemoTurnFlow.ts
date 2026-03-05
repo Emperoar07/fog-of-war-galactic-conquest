@@ -65,22 +65,19 @@ export function useDemoTurnFlow(args: {
         "info",
         true,
       );
-      if (aiDifficulty) {
-        pendingQuickOrderRef.current = order;
-        updateMatch((current) => markDemoOrdersSubmitted(current));
-      } else {
-        updateMatch((current) =>
-          markDemoOrdersSubmitted(
-            current,
-            {
-              targetX: order.targetX,
-              targetY: order.targetY,
-              action: order.action,
-            },
-            aiDifficulty,
-          ),
-        );
-      }
+      pendingQuickOrderRef.current = order;
+      // Always apply the player's action to the board immediately
+      updateMatch((current) =>
+        markDemoOrdersSubmitted(
+          current,
+          {
+            targetX: order.targetX,
+            targetY: order.targetY,
+            action: order.action,
+          },
+          aiDifficulty,
+        ),
+      );
       onQueued?.();
       appendActivity(
         `Your order is staged for sector (${order.targetX}, ${order.targetY}).`,

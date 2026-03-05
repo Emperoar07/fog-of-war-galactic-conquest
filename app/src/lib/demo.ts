@@ -28,68 +28,68 @@ const DEMO_PLAYERS = [PROGRAM_ID, ARCIUM_PROGRAM_ID, EMPTY_PLAYER, EMPTY_PLAYER]
 type AiProfile = {
   label: string;
   lockDelayMs: number;
-  tacticalDepth: number;
   aggression: number;
-  caution: number;
-  reinforcementBurst: number;
+  captureChance: number;
+  contestResolveChance: number;
   moveBudgetMin: number;
   moveBudgetMax: number;
   waveCount: number;
-  interiorReinforcementChance: number;
-  expansionChance: number;
-  contestedPushChance: number;
-  winnerTurn: number;
-  preferredWinner: 0 | 1;
+  playerCaptureRadius: number;
+  playerCaptureCount: number;
+  counterAttackBonus: number;
+  flankingBonus: number;
+  cutOffBonus: number;
+  minTurnsToWin: number;
 };
 
 const AI_PROFILES: Record<AiDifficulty, AiProfile> = {
   easy: {
     label: "Easy",
     lockDelayMs: 1400,
-    tacticalDepth: 1,
-    aggression: 0.2,
-    caution: 0.8,
-    reinforcementBurst: 1,
+    aggression: 0.25,
+    captureChance: 0.15,
+    contestResolveChance: 0.3,
     moveBudgetMin: 1,
-    moveBudgetMax: 2,
+    moveBudgetMax: 3,
     waveCount: 1,
-    interiorReinforcementChance: 0.08,
-    expansionChance: 0.08,
-    contestedPushChance: 0.2,
-    winnerTurn: 8,
-    preferredWinner: 0,
+    playerCaptureRadius: 2,
+    playerCaptureCount: 2,
+    counterAttackBonus: 0,
+    flankingBonus: 0,
+    cutOffBonus: 0,
+    minTurnsToWin: 10,
   },
   medium: {
     label: "Medium",
     lockDelayMs: 900,
-    tacticalDepth: 2,
-    aggression: 0.45,
-    caution: 0.5,
-    reinforcementBurst: 2,
-    moveBudgetMin: 2,
-    moveBudgetMax: 4,
+    aggression: 0.55,
+    captureChance: 0.5,
+    contestResolveChance: 0.6,
+    moveBudgetMin: 3,
+    moveBudgetMax: 6,
     waveCount: 2,
-    interiorReinforcementChance: 0.16,
-    expansionChance: 0.12,
-    contestedPushChance: 0.35,
-    winnerTurn: 9,
-    preferredWinner: 1,
+    playerCaptureRadius: 2,
+    playerCaptureCount: 2,
+    counterAttackBonus: 1.5,
+    flankingBonus: 1.0,
+    cutOffBonus: 0.5,
+    minTurnsToWin: 8,
   },
   hard: {
     label: "Hard",
     lockDelayMs: 500,
-    tacticalDepth: 3,
-    aggression: 0.72,
-    caution: 0.25,
-    reinforcementBurst: 3,
-    moveBudgetMin: 3,
-    moveBudgetMax: 6,
+    aggression: 0.85,
+    captureChance: 0.85,
+    contestResolveChance: 0.9,
+    moveBudgetMin: 5,
+    moveBudgetMax: 10,
     waveCount: 3,
-    interiorReinforcementChance: 0.24,
-    expansionChance: 0.18,
-    contestedPushChance: 0.55,
-    winnerTurn: 9,
-    preferredWinner: 1,
+    playerCaptureRadius: 3,
+    playerCaptureCount: 3,
+    counterAttackBonus: 3.0,
+    flankingBonus: 2.5,
+    cutOffBonus: 2.0,
+    minTurnsToWin: 6,
   },
 };
 
@@ -112,19 +112,18 @@ function neighbors(index: number): number[] {
 }
 
 // ---------------------------------------------------------------------------
-// Board analysis helpers
+// Board analysis
 // ---------------------------------------------------------------------------
 
 interface BoardAnalysis {
-  aiTiles: number[];       // indices owned by AI (owner=2)
-  playerTiles: number[];   // indices owned by player (owner=1)
-  contested: number[];     // indices that are contested (owner=3)
-  neutral: number[];       // indices that are empty (owner=0)
-  aiFrontier: number[];    // neutral/player/contested tiles adjacent to AI territory
-  playerFrontier: number[];// neutral/AI/contested tiles adjacent to player territory
-  aiTerritory: number;
-  playerTerritory: number;
-  borderPressure: Map<number, number>; // index → count of enemy-adjacent edges
+  aiTiles: number[];
+  playerTiles: number[];
+  contested: number[];
+  neutral: number[];
+  aiFrontier: Set<number>;    // non-AI tiles adjacent to AI territory
+  playerFrontier: Set<number>;// non-player tiles adjacent to player territory
+  aiConnected: Set<number>;   // all AI tiles reachable from AI base
+  playerConnected: Set<number>;
 }
 
 function analyzeBoard(map: number[]): BoardAnalysis {
@@ -132,9 +131,8 @@ function analyzeBoard(map: number[]): BoardAnalysis {
   const playerTiles: number[] = [];
   const contested: number[] = [];
   const neutral: number[] = [];
-  const aiFrontierSet = new Set<number>();
-  const playerFrontierSet = new Set<number>();
-  const borderPressure = new Map<number, number>();
+  const aiFrontier = new Set<number>();
+  const playerFrontier = new Set<number>();
 
   for (let i = 0; i < map.length; i++) {
     switch (map[i]) {
@@ -145,114 +143,36 @@ function analyzeBoard(map: number[]): BoardAnalysis {
     }
   }
 
-  // Build frontiers: tiles reachable from each side's territory
   for (const idx of aiTiles) {
     for (const n of neighbors(idx)) {
-      if (map[n] !== 2 && map[n] !== 4) aiFrontierSet.add(n);
+      if (map[n] !== 2 && map[n] !== 4) aiFrontier.add(n);
     }
   }
   for (const idx of playerTiles) {
     for (const n of neighbors(idx)) {
-      if (map[n] !== 1 && map[n] !== 4) playerFrontierSet.add(n);
+      if (map[n] !== 1 && map[n] !== 4) playerFrontier.add(n);
     }
   }
 
-  // Border pressure: how many enemy neighbors each AI tile has
-  for (const idx of aiTiles) {
-    const enemyNeighbors = neighbors(idx).filter((n) => map[n] === 1 || map[n] === 3).length;
-    if (enemyNeighbors > 0) borderPressure.set(idx, enemyNeighbors);
-  }
+  // Flood fill connectivity from bases
+  const aiConnected = floodFill(map, map.length - 1, 2);
+  const playerConnected = floodFill(map, 0, 1);
 
-  return {
-    aiTiles,
-    playerTiles,
-    contested,
-    neutral,
-    aiFrontier: Array.from(aiFrontierSet),
-    playerFrontier: Array.from(playerFrontierSet),
-    aiTerritory: aiTiles.length,
-    playerTerritory: playerTiles.length,
-    borderPressure,
-  };
+  return { aiTiles, playerTiles, contested, neutral, aiFrontier, playerFrontier, aiConnected, playerConnected };
 }
 
-// ---------------------------------------------------------------------------
-// Move types and scoring
-// ---------------------------------------------------------------------------
-
-interface AiMove {
-  index: number;
-  newOwner: number;  // what the tile becomes (2=AI, 3=contested)
-  score: number;
-  type: "expand" | "contest" | "capture" | "defend";
-}
-
-function generateMoves(
-  map: number[],
-  analysis: BoardAnalysis,
-  profile: AiProfile,
-  playerOrder: { targetX: number; targetY: number; action: number },
-): AiMove[] {
-  const moves: AiMove[] = [];
-  const playerTarget = toIndex(playerOrder.targetX, playerOrder.targetY);
-
-  for (const idx of analysis.aiFrontier) {
-    const tile = map[idx];
-    if (tile === 4) continue; // skip destroyed
-
-    const adj = neighbors(idx);
-    const aiAdj = adj.filter((n) => map[n] === 2).length;
-    const playerAdj = adj.filter((n) => map[n] === 1).length;
-    const dist = gridDistance(idx, playerTarget);
-
-    if (tile === 0) {
-      // Expand into neutral
-      let score = 1.0 + aiAdj * 0.6;
-      // Prefer tiles that block player expansion
-      if (analysis.playerFrontier.includes(idx)) score += 1.2;
-      // Slight preference for center tiles
-      const { x, y } = fromIndex(idx);
-      const cx = Math.abs(x - (MAP_SIZE - 1) / 2);
-      const cy = Math.abs(y - (MAP_SIZE - 1) / 2);
-      score += Math.max(0, 2 - (cx + cy) * 0.3);
-      moves.push({ index: idx, newOwner: 2, score, type: "expand" });
-    }
-
-    if (tile === 1) {
-      // Capture enemy territory
-      let score = 2.0 + profile.aggression * 2.5;
-      score += aiAdj * 0.8; // backed by AI territory
-      score -= playerAdj * 0.5 * profile.caution; // risk from player presence
-      // React to player's attack: counter near their target
-      if (playerOrder.action === 2 && dist <= 2) score += 1.5;
-      moves.push({ index: idx, newOwner: 2, score, type: "capture" });
-    }
-
-    if (tile === 3) {
-      // Resolve contested in AI's favor
-      let score = 1.8 + profile.aggression * 1.5;
-      score += aiAdj * 0.5;
-      moves.push({ index: idx, newOwner: 2, score, type: "contest" });
-    }
+function floodFill(map: number[], start: number, owner: number): Set<number> {
+  const visited = new Set<number>();
+  if (map[start] !== owner) return visited;
+  const stack = [start];
+  while (stack.length > 0) {
+    const idx = stack.pop()!;
+    if (visited.has(idx)) continue;
+    if (map[idx] !== owner) continue;
+    visited.add(idx);
+    for (const n of neighbors(idx)) stack.push(n);
   }
-
-  // Defensive moves: contest tiles where player is pushing into AI territory
-  for (const [idx, pressure] of analysis.borderPressure) {
-    if (pressure >= 2) {
-      // Reinforce threatened border by contesting adjacent enemy tiles
-      for (const n of neighbors(idx)) {
-        if (map[n] === 1) {
-          let score = 1.5 + pressure * 0.8 + profile.caution * 2.0;
-          // Higher priority if player is actively attacking nearby
-          const dist = gridDistance(n, playerTarget);
-          if (playerOrder.action === 2 && dist <= 2) score += 2.0;
-          moves.push({ index: n, newOwner: 3, score, type: "defend" });
-        }
-      }
-    }
-  }
-
-  return moves;
+  return visited;
 }
 
 function gridDistance(a: number, b: number): number {
@@ -262,103 +182,215 @@ function gridDistance(a: number, b: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Difficulty-specific move selection
+// Player action application — the player's order actually changes the board
 // ---------------------------------------------------------------------------
 
-function applyAiTurnByDifficulty(
+function applyPlayerAction(
+  map: number[],
+  order: { targetX: number; targetY: number; action: number },
+  rand: () => number,
+): number[] {
+  const next = [...map];
+  const target = toIndex(order.targetX, order.targetY);
+
+  if (order.action === 2) {
+    // ATTACK: capture the target tile + up to 1 adjacent tile
+    if (next[target] === 2 || next[target] === 3 || next[target] === 0) {
+      next[target] = 1;
+    }
+    // Bonus: also capture one adjacent non-player tile
+    const adjTargets = neighbors(target).filter((n) => next[n] === 0 || next[n] === 3);
+    if (adjTargets.length > 0) {
+      next[adjTargets[Math.floor(rand() * adjTargets.length)]] = 1;
+    }
+  } else if (order.action === 1) {
+    // SCOUT: contest the target + reveal (contest nearby enemy tiles)
+    if (next[target] === 2) next[target] = 3;
+    else if (next[target] === 0) next[target] = 1;
+    for (const n of neighbors(target)) {
+      if (next[n] === 2 && rand() < 0.3) next[n] = 3;
+    }
+  } else {
+    // MOVE: claim the target if neutral/contested
+    if (next[target] === 0 || next[target] === 3) next[target] = 1;
+  }
+
+  // Ensure player base stays
+  next[0] = 1;
+  return next;
+}
+
+// ---------------------------------------------------------------------------
+// AI move generation with strategic scoring
+// ---------------------------------------------------------------------------
+
+interface AiMove {
+  index: number;
+  newOwner: number;
+  score: number;
+}
+
+function generateMoves(
+  map: number[],
+  analysis: BoardAnalysis,
+  profile: AiProfile,
+  playerTarget: number,
+  playerAction: number,
+): AiMove[] {
+  const moves: AiMove[] = [];
+  const totalTiles = MAP_SIZE * MAP_SIZE;
+  const center = (MAP_SIZE - 1) / 2;
+
+  for (const idx of analysis.aiFrontier) {
+    const tile = map[idx];
+    if (tile === 4) continue;
+
+    const adj = neighbors(idx);
+    const aiAdj = adj.filter((n) => map[n] === 2).length;
+    const playerAdj = adj.filter((n) => map[n] === 1).length;
+    const { x, y } = fromIndex(idx);
+    const centerDist = Math.abs(x - center) + Math.abs(y - center);
+
+    if (tile === 0) {
+      // Expand into neutral
+      let score = 1.0 + aiAdj * 0.5;
+      // Block player expansion — high priority
+      if (analysis.playerFrontier.has(idx)) score += 2.0 + profile.aggression;
+      // Center control
+      score += Math.max(0, 3 - centerDist * 0.4);
+      moves.push({ index: idx, newOwner: 2, score });
+    }
+
+    if (tile === 1) {
+      // Capture enemy territory
+      let score = 2.5 + profile.aggression * 3.0;
+      score += aiAdj * 1.0;
+      // FLANKING: if player tile is only connected from one side, bonus
+      const playerSupportAdj = adj.filter((n) => map[n] === 1).length;
+      if (playerSupportAdj <= 1) score += profile.flankingBonus;
+      // CUT OFF: if capturing disconnects player tiles from their base
+      if (!analysis.playerConnected.has(idx)) score += profile.cutOffBonus;
+      // Counter-attack near player's target
+      const distToTarget = gridDistance(idx, playerTarget);
+      if (playerAction === 2 && distToTarget <= 2) score += profile.counterAttackBonus;
+      // Penalize captures only on easy
+      if (rand_dummy() < (1 - profile.captureChance)) score *= 0.1;
+      moves.push({ index: idx, newOwner: 2, score });
+    }
+
+    if (tile === 3) {
+      // Resolve contested tile
+      let score = 2.0 + profile.aggression * 2.0;
+      score += aiAdj * 0.6;
+      if (rand_dummy() < (1 - profile.contestResolveChance)) score *= 0.1;
+      moves.push({ index: idx, newOwner: 2, score });
+    }
+  }
+
+  // Recapture tiles near AI base that were lost
+  const aiBase = totalTiles - 1;
+  for (const n of neighbors(aiBase)) {
+    if (map[n] === 1 || map[n] === 3) {
+      moves.push({ index: n, newOwner: 2, score: 8.0 + profile.aggression * 2.0 });
+    }
+    for (const nn of neighbors(n)) {
+      if (nn !== aiBase && (map[nn] === 1 || map[nn] === 3) && !moves.some(m => m.index === nn)) {
+        moves.push({ index: nn, newOwner: 2, score: 5.0 + profile.aggression });
+      }
+    }
+  }
+
+  return moves;
+}
+
+// Placeholder used for probability gating in scoring (actual rand passed to apply function)
+function rand_dummy(): number { return 0; }
+
+// ---------------------------------------------------------------------------
+// AI turn execution — multi-wave with re-analysis
+// ---------------------------------------------------------------------------
+
+function applyAiTurn(
   map: number[],
   profile: AiProfile,
   playerOrder: { targetX: number; targetY: number; action: number },
   rand: () => number,
 ): number[] {
   const next = [...map];
-  const usedIndices = new Set<number>();
+  const used = new Set<number>();
+  const playerTarget = toIndex(playerOrder.targetX, playerOrder.targetY);
 
-  const baseBudget = profile.moveBudgetMin;
-  const extraBudget = Math.floor(
-    rand() * Math.max(1, profile.moveBudgetMax - profile.moveBudgetMin + 1),
-  );
-  const budget = baseBudget + extraBudget;
+  const budget = profile.moveBudgetMin +
+    Math.floor(rand() * (profile.moveBudgetMax - profile.moveBudgetMin + 1));
   let remaining = budget;
 
   for (let wave = 0; wave < profile.waveCount && remaining > 0; wave++) {
     const analysis = analyzeBoard(next);
-    const allMoves = generateMoves(next, analysis, profile, playerOrder);
+    const allMoves = generateMoves(next, analysis, profile, playerTarget, playerOrder.action);
     if (allMoves.length === 0) break;
+
+    // Apply actual randomness to probability-gated moves
+    for (const m of allMoves) {
+      if (m.score < 1.0) {
+        // This was probability-gated, re-roll with real rand
+        const tile = next[m.index];
+        if (tile === 1 && rand() < profile.captureChance) m.score = 2.5 + profile.aggression * 3.0;
+        else if (tile === 3 && rand() < profile.contestResolveChance) m.score = 2.0 + profile.aggression * 2.0;
+      }
+    }
 
     allMoves.sort((a, b) => b.score - a.score);
 
-    // Difficulty-specific shaping within each wave
-    let pool = allMoves;
+    // Easy: shuffle to make moves suboptimal
     if (profile.label === "Easy") {
-      for (let i = pool.length - 1; i > 0; i--) {
+      for (let i = allMoves.length - 1; i > 0; i--) {
         const j = Math.floor(rand() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
+        [allMoves[i], allMoves[j]] = [allMoves[j], allMoves[i]];
       }
-      pool = pool.filter((m) => {
-        if (m.type === "capture") return rand() < 0.12;
-        if (m.type === "contest") return rand() < 0.3;
-        return true;
-      });
-      if (pool.length === 0) pool = allMoves.slice(0, 2);
-    } else if (profile.label === "Medium") {
-      const topCount = Math.max(3, Math.ceil(pool.length * 0.6));
-      pool = pool.slice(0, topCount);
+    }
+    // Medium: partial shuffle of top candidates
+    else if (profile.label === "Medium") {
+      const top = Math.max(3, Math.ceil(allMoves.length * 0.65));
+      const pool = allMoves.slice(0, top);
       for (let i = pool.length - 1; i > 1; i--) {
-        if (rand() < 0.35) {
+        if (rand() < 0.3) {
           const j = Math.floor(rand() * (i + 1));
           [pool[i], pool[j]] = [pool[j], pool[i]];
         }
       }
-    } else {
-      // Hard mode re-prioritizes counters near player target and frontier blocking.
-      const playerTarget = toIndex(playerOrder.targetX, playerOrder.targetY);
-      for (const move of pool) {
-        if (gridDistance(move.index, playerTarget) <= 2) {
-          move.score += 1.2;
-        }
-        if (analysis.playerFrontier.includes(move.index) && move.type === "expand") {
-          move.score += 0.9;
-        }
-      }
-      pool.sort((a, b) => b.score - a.score);
+      allMoves.splice(0, top, ...pool);
     }
+    // Hard: optimal ordering, no shuffle
 
-    const perWaveBudget = Math.max(
-      1,
-      Math.min(remaining, Math.ceil(budget / profile.waveCount)),
-    );
-    let waveApplied = 0;
-    for (const move of pool) {
-      if (waveApplied >= perWaveBudget || remaining <= 0) break;
-      if (usedIndices.has(move.index)) continue;
-      next[move.index] = move.newOwner;
-      usedIndices.add(move.index);
-      waveApplied++;
+    const perWave = Math.max(1, Math.ceil(budget / profile.waveCount));
+    let applied = 0;
+    for (const m of allMoves) {
+      if (applied >= perWave || remaining <= 0) break;
+      if (used.has(m.index)) continue;
+      if (m.score < 0.5) continue; // skip terrible moves
+      next[m.index] = m.newOwner;
+      used.add(m.index);
+      applied++;
       remaining--;
     }
+  }
 
-    // Interior reinforcement: deepen control behind the frontier.
-    if (remaining > 0) {
-      const postAnalysis = analyzeBoard(next);
-      const interior = postAnalysis.aiTiles.filter((idx) => {
-        const adj = neighbors(idx);
-        return adj.every((n) => next[n] === 2 || next[n] === 4);
-      });
-      for (const idx of interior) {
-        if (remaining <= 0) break;
-        if (rand() > profile.interiorReinforcementChance) continue;
-        const ring = neighbors(idx).filter((n) => next[n] === 0 || next[n] === 3);
-        if (ring.length === 0) continue;
-        const pick = ring[Math.floor(rand() * ring.length)];
-        if (usedIndices.has(pick)) continue;
-        next[pick] = 2;
-        usedIndices.add(pick);
+  // Hard mode bonus: also contest player tiles that are isolated (not connected to player base)
+  if (profile.label === "Hard" && remaining > 0) {
+    const postAnalysis = analyzeBoard(next);
+    for (const idx of postAnalysis.playerTiles) {
+      if (remaining <= 0) break;
+      if (used.has(idx)) continue;
+      if (!postAnalysis.playerConnected.has(idx)) {
+        next[idx] = 2;
+        used.add(idx);
         remaining--;
       }
     }
   }
 
+  // Ensure AI base stays
+  next[next.length - 1] = 2;
   return next;
 }
 
@@ -515,26 +547,50 @@ export function advanceDemoTurn(
   aiDifficulty: AiDifficulty | null = null,
 ): GalaxyMatch {
   const nextTurn = match.turn + 1;
-  const friendly = match.revealedSectorOwner.filter((tile) => tile === 1).length;
-  const enemy = match.revealedSectorOwner.filter((tile) => tile === 2).length;
-  const profile = aiDifficulty ? getAiProfile(aiDifficulty) : null;
-  let winner = NO_WINNER;
-  if (profile && nextTurn >= profile.winnerTurn) {
-    if (profile.preferredWinner === 1) {
-      winner = enemy >= Math.max(1, friendly - 1) ? 1 : 0;
-    } else {
-      winner = friendly >= enemy ? 0 : 1;
+  // PRESERVE the current board — do NOT regenerate from scratch
+  const map = [...match.revealedSectorOwner];
+
+  // Natural decay: contested tiles (3) randomly resolve or go neutral
+  const rand = seededRandom(nextTurn * 7919 + 31);
+  for (let i = 0; i < map.length; i++) {
+    if (map[i] === 3) {
+      const r = rand();
+      const aiAdj = neighbors(i).filter((n) => map[n] === 2).length;
+      const plAdj = neighbors(i).filter((n) => map[n] === 1).length;
+      if (aiAdj > plAdj && r < 0.4) map[i] = 2;
+      else if (plAdj > aiAdj && r < 0.4) map[i] = 1;
+      else if (r < 0.15) map[i] = 0;
     }
-  } else if (!profile && nextTurn >= 8) {
-    winner = 0;
   }
+
+  // Ensure bases stay
+  map[0] = 1;
+  map[map.length - 1] = 2;
+
+  const friendly = map.filter((t) => t === 1).length;
+  const enemy = map.filter((t) => t === 2).length;
+  const total = MAP_SIZE * MAP_SIZE;
+  const profile = aiDifficulty ? getAiProfile(aiDifficulty) : null;
+  const minTurns = profile ? profile.minTurnsToWin : 8;
+
+  // Winner determined by ACTUAL territory control
+  let winner = NO_WINNER;
+  if (nextTurn >= minTurns) {
+    const majorityThreshold = Math.floor(total * 0.55);
+    if (enemy >= majorityThreshold) winner = 1;      // AI wins
+    else if (friendly >= majorityThreshold) winner = 0; // Player wins
+  }
+  // Also end if one side is nearly eliminated
+  if (friendly <= 2 && nextTurn >= 4) winner = 1;
+  if (enemy <= 2 && nextTurn >= 4) winner = 0;
+
   return {
     ...match,
     turn: nextTurn,
     status: winner === NO_WINNER ? MatchStatus.Active : MatchStatus.Completed,
     battleSummary: makeBattleSummary(nextTurn, winner),
     submittedOrders: [0, 0, 0, 0],
-    revealedSectorOwner: makeMap(nextTurn),
+    revealedSectorOwner: map,
   };
 }
 
@@ -543,44 +599,24 @@ export function markDemoOrdersSubmitted(
   playerOrder?: { targetX: number; targetY: number; action: number },
   aiDifficulty: AiDifficulty | null = null,
 ): GalaxyMatch {
-  // Smarter AI: respond to the player's action
-  if (playerOrder) {
-    const profile = aiDifficulty ? getAiProfile(aiDifficulty) : null;
-    const rand = seededRandom(
-      match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
-    );
-    const map = profile
-      ? applyAiTurnByDifficulty(
-          [...match.revealedSectorOwner],
-          profile,
-          playerOrder,
-          rand,
-        )
-      : [...match.revealedSectorOwner];
-
-    if (!profile) {
-      const targetIdx = playerOrder.targetY * MAP_SIZE + playerOrder.targetX;
-      const adjacent = neighbors(targetIdx);
-      const pick = adjacent[Math.floor(rand() * adjacent.length)];
-      if (pick !== undefined && map[pick] === 0) {
-        map[pick] = 2;
-      }
-    }
-
-    // Ensure bases stay
-    map[0] = 1;
-    map[map.length - 1] = 2;
-
-    return {
-      ...match,
-      submittedOrders: [1, 0, 0, 0],
-      revealedSectorOwner: map,
-    };
+  if (!playerOrder) {
+    return { ...match, submittedOrders: [1, 0, 0, 0] };
   }
+
+  // 1) Apply PLAYER's action to the board first
+  const rand = seededRandom(
+    match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
+  );
+  const mapAfterPlayer = applyPlayerAction(
+    [...match.revealedSectorOwner],
+    playerOrder,
+    rand,
+  );
 
   return {
     ...match,
     submittedOrders: [1, 0, 0, 0],
+    revealedSectorOwner: mapAfterPlayer,
   };
 }
 
@@ -591,34 +627,26 @@ export function applyDemoAiResponse(
 ): GalaxyMatch {
   const profile = aiDifficulty ? getAiProfile(aiDifficulty) : null;
   const rand = seededRandom(
-    match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY,
+    match.turn * 3331 + playerOrder.targetX * 7 + playerOrder.targetY + 997,
   );
-  const map = profile
-    ? applyAiTurnByDifficulty(
-        [...match.revealedSectorOwner],
-        profile,
-        playerOrder,
-        rand,
-      )
-    : [...match.revealedSectorOwner];
 
-  if (!profile) {
-    const targetIdx = playerOrder.targetY * MAP_SIZE + playerOrder.targetX;
+  let map: number[];
+  if (profile) {
+    // 2) AI responds to the board (which already has player's action applied)
+    map = applyAiTurn([...match.revealedSectorOwner], profile, playerOrder, rand);
+  } else {
+    // Demo fallback: AI grabs one adjacent neutral tile
+    map = [...match.revealedSectorOwner];
+    const targetIdx = toIndex(playerOrder.targetX, playerOrder.targetY);
     const adjacent = neighbors(targetIdx);
     const pick = adjacent[Math.floor(rand() * adjacent.length)];
-    if (pick !== undefined && map[pick] === 0) {
-      map[pick] = 2;
-    }
+    if (pick !== undefined && map[pick] === 0) map[pick] = 2;
   }
 
-  // Ensure bases stay
   map[0] = 1;
   map[map.length - 1] = 2;
 
-  return {
-    ...match,
-    revealedSectorOwner: map,
-  };
+  return { ...match, revealedSectorOwner: map };
 }
 
 export function markDemoOpponentSubmitted(match: GalaxyMatch): GalaxyMatch {
