@@ -11,10 +11,18 @@ import {
 } from "react";
 import { TacticalSoundEngine, type SoundCue } from "@/lib/sound";
 
-const STORAGE_KEY = "fog-of-war-audio-enabled";
+const STORAGE_AUDIO_KEY = "fog-of-war-audio-enabled";
+const STORAGE_MUSIC_KEY = "fog-of-war-music-enabled";
+const STORAGE_SFX_KEY = "fog-of-war-sfx-enabled";
 
 type SoundContextValue = {
+  musicEnabled: boolean;
+  sfxEnabled: boolean;
   audioEnabled: boolean;
+  setMusicEnabled: (enabled: boolean) => void;
+  setSfxEnabled: (enabled: boolean) => void;
+  toggleMusic: () => void;
+  toggleSfx: () => void;
   setAudioEnabled: (enabled: boolean) => void;
   toggleAudio: () => void;
   playSound: (cue: SoundCue) => void;
@@ -24,45 +32,102 @@ const SoundContext = createContext<SoundContextValue | null>(null);
 
 export function SoundProvider({ children }: { children: React.ReactNode }) {
   const engineRef = useRef<TacticalSoundEngine | null>(null);
-  const audioEnabledRef = useRef(true);
-  const [audioEnabled, setAudioEnabledState] = useState(() => {
+  const musicEnabledRef = useRef(true);
+  const sfxEnabledRef = useRef(true);
+  const [musicEnabled, setMusicEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(STORAGE_KEY) !== "0";
+    const explicit = window.localStorage.getItem(STORAGE_MUSIC_KEY);
+    if (explicit !== null) return explicit === "1";
+    const legacy = window.localStorage.getItem(STORAGE_AUDIO_KEY);
+    return legacy !== "0";
   });
+  const [sfxEnabled, setSfxEnabledState] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const explicit = window.localStorage.getItem(STORAGE_SFX_KEY);
+    if (explicit !== null) return explicit === "1";
+    const legacy = window.localStorage.getItem(STORAGE_AUDIO_KEY);
+    return legacy !== "0";
+  });
+  const audioEnabled = musicEnabled || sfxEnabled;
 
   useEffect(() => {
-    audioEnabledRef.current = audioEnabled;
-  }, [audioEnabled]);
+    musicEnabledRef.current = musicEnabled;
+  }, [musicEnabled]);
 
-  const setAudioEnabled = useCallback((enabled: boolean) => {
-    setAudioEnabledState(enabled);
-    window.localStorage.setItem(STORAGE_KEY, enabled ? "1" : "0");
+  useEffect(() => {
+    sfxEnabledRef.current = sfxEnabled;
+  }, [sfxEnabled]);
+
+  const setMusicEnabled = useCallback((enabled: boolean) => {
+    setMusicEnabledState(enabled);
+    window.localStorage.setItem(STORAGE_MUSIC_KEY, enabled ? "1" : "0");
   }, []);
 
-  const toggleAudio = useCallback(() => {
-    setAudioEnabledState((current) => {
+  const setSfxEnabled = useCallback((enabled: boolean) => {
+    setSfxEnabledState(enabled);
+    window.localStorage.setItem(STORAGE_SFX_KEY, enabled ? "1" : "0");
+  }, []);
+
+  const setAudioEnabled = useCallback((enabled: boolean) => {
+    setMusicEnabled(enabled);
+    setSfxEnabled(enabled);
+    window.localStorage.setItem(STORAGE_AUDIO_KEY, enabled ? "1" : "0");
+  }, [setMusicEnabled, setSfxEnabled]);
+
+  const toggleMusic = useCallback(() => {
+    setMusicEnabledState((current) => {
       const next = !current;
-      window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      window.localStorage.setItem(STORAGE_MUSIC_KEY, next ? "1" : "0");
       return next;
     });
   }, []);
 
+  const toggleSfx = useCallback(() => {
+    setSfxEnabledState((current) => {
+      const next = !current;
+      window.localStorage.setItem(STORAGE_SFX_KEY, next ? "1" : "0");
+      return next;
+    });
+  }, []);
+
+  const toggleAudio = useCallback(() => {
+    const next = !(musicEnabledRef.current || sfxEnabledRef.current);
+    setAudioEnabled(next);
+  }, [setAudioEnabled]);
+
   const playSound = useCallback((cue: SoundCue) => {
-    if (!audioEnabled) return;
+    if (!sfxEnabled) return;
     if (!engineRef.current) {
       engineRef.current = new TacticalSoundEngine();
     }
     engineRef.current.play(cue);
-  }, [audioEnabled]);
+  }, [sfxEnabled]);
 
   const value = useMemo(
     () => ({
+      musicEnabled,
+      sfxEnabled,
       audioEnabled,
+      setMusicEnabled,
+      setSfxEnabled,
+      toggleMusic,
+      toggleSfx,
       setAudioEnabled,
       toggleAudio,
       playSound,
     }),
-    [audioEnabled, playSound, setAudioEnabled, toggleAudio],
+    [
+      musicEnabled,
+      sfxEnabled,
+      audioEnabled,
+      setMusicEnabled,
+      setSfxEnabled,
+      toggleMusic,
+      toggleSfx,
+      setAudioEnabled,
+      toggleAudio,
+      playSound,
+    ],
   );
 
   useEffect(() => {
@@ -70,22 +135,22 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       engineRef.current = new TacticalSoundEngine();
     }
 
-    engineRef.current.setAmbient(audioEnabled && !document.hidden);
-  }, [audioEnabled]);
+    engineRef.current.setAmbient(musicEnabled);
+  }, [musicEnabled]);
 
   useEffect(() => {
     const handleVisibility = () => {
       if (!engineRef.current) {
         engineRef.current = new TacticalSoundEngine();
       }
-      engineRef.current.setAmbient(audioEnabledRef.current && !document.hidden);
+      engineRef.current.setAmbient(musicEnabledRef.current);
     };
 
     const primeAudio = () => {
       if (!engineRef.current) {
         engineRef.current = new TacticalSoundEngine();
       }
-      engineRef.current.setAmbient(audioEnabledRef.current && !document.hidden);
+      engineRef.current.setAmbient(musicEnabledRef.current);
     };
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -93,7 +158,7 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       if (target?.closest("[data-sound-ignore='true']")) return;
       if (target?.closest("[data-sound-manual='true']")) return;
       if (!target?.closest("button")) return;
-      if (!audioEnabledRef.current) return;
+      if (!sfxEnabledRef.current) return;
       if (!engineRef.current) {
         engineRef.current = new TacticalSoundEngine();
       }

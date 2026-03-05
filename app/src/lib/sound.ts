@@ -138,8 +138,9 @@ export class TacticalSoundEngine {
     bassGain.connect(masterGain);
     bassOsc.start();
 
-    const pulsePattern = [156, 174, 196, 174, 156, 174, 220, 196];
-    const leadPattern = [392, 440, 392, 330, 349, 392, 440, 523];
+    // Tactical minor-mode loop with restrained motion to fit strategy gameplay.
+    const pulsePattern = [147, 165, 175, 165, 147, 165, 196, 175];
+    const leadPattern = [294, 330, 349, 330, 294, 262, 294, 392];
 
     const playPulse = () => {
       const nodes = this.ambientNodes;
@@ -153,7 +154,7 @@ export class TacticalSoundEngine {
       osc.type = "square";
       osc.frequency.setValueAtTime(frequency, now);
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.0018, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0015, now + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
       osc.connect(gain);
       gain.connect(nodes.masterGain);
@@ -173,7 +174,7 @@ export class TacticalSoundEngine {
       osc.type = "sine";
       osc.frequency.setValueAtTime(frequency, now);
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.0014, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0012, now + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
       osc.connect(gain);
       gain.connect(nodes.masterGain);
@@ -181,8 +182,8 @@ export class TacticalSoundEngine {
       osc.stop(now + 0.3);
     };
 
-    const pulseTimer = window.setInterval(playPulse, 260);
-    const leadTimer = window.setInterval(playLead, 1040);
+    const pulseTimer = window.setInterval(playPulse, 240);
+    const leadTimer = window.setInterval(playLead, 960);
 
     playPulse();
 

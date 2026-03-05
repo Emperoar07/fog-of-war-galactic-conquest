@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 type TurnSnapshot = {
   turn: number;
   dominant: "friendly" | "enemy" | "contested";
@@ -22,6 +24,50 @@ export default function TurnTimeline({
   snapshots,
   currentTurn,
 }: TurnTimelineProps) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollButtons = () => {
+    const el = scrollRef.current;
+    if (!el) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    const maxLeft = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(maxLeft - el.scrollLeft > 4);
+  };
+
+  const scrollByStep = (direction: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const amount = Math.max(140, Math.floor(el.clientWidth * 0.7));
+    el.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const onScroll = () => updateScrollButtons();
+    const onResize = () => updateScrollButtons();
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    const frame = window.requestAnimationFrame(() => updateScrollButtons());
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [snapshots.length]);
+
   if (snapshots.length === 0) return null;
 
   return (
@@ -40,7 +86,20 @@ export default function TurnTimeline({
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          data-sound-manual="true"
+          onClick={() => scrollByStep("left")}
+          disabled={!canScrollLeft}
+          aria-label="Scroll timeline left"
+          className="shrink-0 border border-[#0e2a0e] bg-[#021202] px-2 py-2 text-[10px] uppercase tracking-[0.2em] text-[#00cc33] hover:border-[#0c6d1f] hover:text-[#00ff41] disabled:opacity-35"
+        >
+          ‹
+        </button>
+        <div
+          ref={scrollRef}
+          className="flex flex-1 gap-2 overflow-x-auto pb-1"
+        >
         {snapshots.map((snapshot) => (
           <div
             key={snapshot.turn}
@@ -60,6 +119,16 @@ export default function TurnTimeline({
             </div>
           </div>
         ))}
+        </div>
+        <button
+          data-sound-manual="true"
+          onClick={() => scrollByStep("right")}
+          disabled={!canScrollRight}
+          aria-label="Scroll timeline right"
+          className="shrink-0 border border-[#0e2a0e] bg-[#021202] px-2 py-2 text-[10px] uppercase tracking-[0.2em] text-[#00cc33] hover:border-[#0c6d1f] hover:text-[#00ff41] disabled:opacity-35"
+        >
+          ›
+        </button>
       </div>
     </div>
   );
