@@ -235,6 +235,7 @@ interface AiMove {
   index: number;
   newOwner: number;
   score: number;
+  _gated?: "capture" | "contest";
 }
 
 function generateMoves(
@@ -280,17 +281,15 @@ function generateMoves(
       // Counter-attack near player's target
       const distToTarget = gridDistance(idx, playerTarget);
       if (playerAction === 2 && distToTarget <= 2) score += profile.counterAttackBonus;
-      // Penalize captures only on easy
-      if (rand_dummy() < (1 - profile.captureChance)) score *= 0.1;
-      moves.push({ index: idx, newOwner: 2, score });
+      // Mark as needing probability gate (applied in applyAiTurn with real rand)
+      moves.push({ index: idx, newOwner: 2, score, _gated: "capture" as const });
     }
 
     if (tile === 3) {
       // Resolve contested tile
       let score = 2.0 + profile.aggression * 2.0;
       score += aiAdj * 0.6;
-      if (rand_dummy() < (1 - profile.contestResolveChance)) score *= 0.1;
-      moves.push({ index: idx, newOwner: 2, score });
+      moves.push({ index: idx, newOwner: 2, score, _gated: "contest" as const });
     }
   }
 
@@ -309,9 +308,6 @@ function generateMoves(
 
   return moves;
 }
-
-// Placeholder used for probability gating in scoring (actual rand passed to apply function)
-function rand_dummy(): number { return 0; }
 
 // ---------------------------------------------------------------------------
 // AI turn execution — multi-wave with re-analysis
@@ -336,13 +332,13 @@ function applyAiTurn(
     const allMoves = generateMoves(next, analysis, profile, playerTarget, playerOrder.action);
     if (allMoves.length === 0) break;
 
-    // Apply actual randomness to probability-gated moves
+    // Apply probability gating with real randomness
     for (const m of allMoves) {
-      if (m.score < 1.0) {
-        // This was probability-gated, re-roll with real rand
-        const tile = next[m.index];
-        if (tile === 1 && rand() < profile.captureChance) m.score = 2.5 + profile.aggression * 3.0;
-        else if (tile === 3 && rand() < profile.contestResolveChance) m.score = 2.0 + profile.aggression * 2.0;
+      if (m._gated === "capture" && rand() >= profile.captureChance) {
+        m.score *= 0.1; // Failed capture roll — deprioritize
+      }
+      if (m._gated === "contest" && rand() >= profile.contestResolveChance) {
+        m.score *= 0.1;
       }
     }
 
@@ -456,57 +452,55 @@ function seededRandom(seed: number): () => number {
 function makeMap(turn: number): number[] {
   const rand = seededRandom(turn * 7919 + 31);
   const tiles = Array.from({ length: MAP_SIZE * MAP_SIZE }, () => 0);
+  const mid = Math.floor(MAP_SIZE / 2);
 
-  // Seed player 1 base (top-left quadrant)
-  tiles[0] = 1;
-  tiles[1] = 1;
-  tiles[MAP_SIZE] = 1;
+  // Player 1 fills top-left quadrant
+  for (let y = 0; y < MAP_SIZE; y++) {
+    for (let x = 0; x < MAP_SIZE; x++) {
+      const dist = x + y;
+      if (dist <= mid) tiles[y * MAP_SIZE + x] = 1;
+    }
+  }
+  // Player 2 fills bottom-right quadrant
+  for (let y = 0; y < MAP_SIZE; y++) {
+    for (let x = 0; x < MAP_SIZE; x++) {
+      const dist = (MAP_SIZE - 1 - x) + (MAP_SIZE - 1 - y);
+      if (dist <= mid) tiles[y * MAP_SIZE + x] = 2;
+    }
+  }
 
-  // Seed player 2 base (bottom-right quadrant)
-  tiles[tiles.length - 1] = 2;
-  tiles[tiles.length - 2] = 2;
-  tiles[tiles.length - 1 - MAP_SIZE] = 2;
+  // Middle band becomes contested or neutral
+  for (let y = 0; y < MAP_SIZE; y++) {
+    for (let x = 0; x < MAP_SIZE; x++) {
+      const idx = y * MAP_SIZE + x;
+      const distP1 = x + y;
+      const distP2 = (MAP_SIZE - 1 - x) + (MAP_SIZE - 1 - y);
+      // Tiles equidistant from both bases: contested or neutral
+      if (distP1 === distP2) {
+        tiles[idx] = rand() < 0.5 ? 3 : 0;
+      } else if (Math.abs(distP1 - distP2) <= 1) {
+        // Near the border: some become contested
+        if (rand() < 0.35) tiles[idx] = 3;
+      }
+    }
+  }
 
-  // Expand territories based on turn
+  // Additional expansion passes based on turn
   for (let pass = 0; pass < turn; pass++) {
     for (let i = 0; i < tiles.length; i++) {
       if (tiles[i] !== 0) continue;
       const x = i % MAP_SIZE;
       const y = Math.floor(i / MAP_SIZE);
-      const neighbors = [
+      const adj = [
         y > 0 ? tiles[i - MAP_SIZE] : 0,
         y < MAP_SIZE - 1 ? tiles[i + MAP_SIZE] : 0,
         x > 0 ? tiles[i - 1] : 0,
         x < MAP_SIZE - 1 ? tiles[i + 1] : 0,
       ];
-      const p1Adjacent = neighbors.filter((n) => n === 1).length;
-      const p2Adjacent = neighbors.filter((n) => n === 2).length;
-      if (p1Adjacent > 0 && rand() < 0.25 + p1Adjacent * 0.1) tiles[i] = 1;
-      else if (p2Adjacent > 0 && rand() < 0.25 + p2Adjacent * 0.1) tiles[i] = 2;
-    }
-  }
-
-  // Contested zones (owner=3) where territories overlap
-  for (let i = 0; i < tiles.length; i++) {
-    if (tiles[i] === 0) continue;
-    const x = i % MAP_SIZE;
-    const y = Math.floor(i / MAP_SIZE);
-    const adj = [
-      y > 0 ? tiles[i - MAP_SIZE] : 0,
-      y < MAP_SIZE - 1 ? tiles[i + MAP_SIZE] : 0,
-      x > 0 ? tiles[i - 1] : 0,
-      x < MAP_SIZE - 1 ? tiles[i + 1] : 0,
-    ];
-    const hasEnemy =
-      (tiles[i] === 1 && adj.includes(2)) ||
-      (tiles[i] === 2 && adj.includes(1));
-    if (hasEnemy && rand() < 0.35) tiles[i] = 3;
-  }
-
-  // Sprinkle some destroyed sectors (owner=4) from past battles
-  if (turn > 1) {
-    for (let i = 0; i < tiles.length; i++) {
-      if (tiles[i] === 3 && rand() < 0.2) tiles[i] = 4;
+      const p1Adjacent = adj.filter((n) => n === 1).length;
+      const p2Adjacent = adj.filter((n) => n === 2).length;
+      if (p1Adjacent > 0 && rand() < 0.3 + p1Adjacent * 0.15) tiles[i] = 1;
+      else if (p2Adjacent > 0 && rand() < 0.3 + p2Adjacent * 0.15) tiles[i] = 2;
     }
   }
 
