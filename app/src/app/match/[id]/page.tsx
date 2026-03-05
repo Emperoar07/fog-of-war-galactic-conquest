@@ -1015,6 +1015,109 @@ function MatchPageInner() {
                 Sector ({selectedCell.x}, {selectedCell.y}) selected. Review the target here before you confirm the order.
               </div>
             )}
+
+            {/* Fire control + companion panels: shown directly under board on mobile only */}
+            {canSubmitOrders && (
+              <div className="space-y-2.5 xl:hidden" id="tutorial-orders-mobile">
+                <div className={tutorialHighlight === "orders" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""}>
+                  <OrderPanel
+                    match={match}
+                    playerSlot={playerSlot}
+                    selectedCell={selectedCell}
+                    allowReplaceSubmitted={localMode}
+                    showResolve
+                    resolveDisabled={isBusy || !canResolve}
+                    resolveLabel={
+                      pendingAction === "resolve"
+                        ? "Resolving..."
+                        : canResolve
+                          ? "Resolve Turn"
+                          : "Ready After Both Orders Lock"
+                    }
+                    onResolve={handleResolveTurn}
+                    highlightResolve={tutorialHighlight === "resolve"}
+                    prefillOrder={orderPrefill}
+                    prefillNonce={orderPrefillNonce}
+                    onSubmit={handleSubmitOrder}
+                    disabled={isBusy || (!localMode && !client)}
+                  />
+                </div>
+                <div className="border border-[#0e2a0e] bg-[#030d03] p-2.5 sm:p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[9px]">
+                        Companion Mode
+                      </div>
+                      <div className="mt-1 font-[family-name:var(--font-vt323)] text-xl tracking-[0.12em] text-[#00e5cc] sm:text-2xl">
+                        Tactical Assistant
+                      </div>
+                    </div>
+                    <button
+                      data-sound-manual="true"
+                      onClick={() => setCompanionEnabled((current) => !current)}
+                      aria-label={companionEnabled ? "Turn companion mode off" : "Turn companion mode on"}
+                      className={`border px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] sm:px-3 sm:py-1.5 sm:text-[9px] ${
+                        companionEnabled
+                          ? "border-[#005f52] bg-[rgba(0,229,204,0.03)] text-[#00e5cc]"
+                          : "border-[#0e2a0e] bg-[#021202] text-[#0c6d1f]"
+                      }`}
+                    >
+                      {companionEnabled ? "Companion On" : "Companion Off"}
+                    </button>
+                  </div>
+                  <div className="mt-2.5 border border-[#0e2a0e] bg-[#021202] px-2.5 py-2.5 sm:px-3 sm:py-3">
+                    {companionEnabled && companionSuggestion ? (
+                      <div className="space-y-2.5">
+                        <div>
+                          <div className="text-[8px] uppercase tracking-[0.24em] text-[#ffb000] sm:text-[9px]">
+                            Recommended Move
+                          </div>
+                          <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[#00ff41] sm:text-[11px]">
+                            {companionSuggestion.title}
+                          </div>
+                        </div>
+                        <div className="text-[11px] leading-5 text-[#00cc33] sm:text-xs sm:leading-6">
+                          {companionSuggestion.reason}
+                        </div>
+                        <button
+                          data-sound-manual="true"
+                          onClick={handleApplyCompanionSuggestion}
+                          disabled={isBusy}
+                          aria-label="Load the suggested move into fire control"
+                          className="w-full border border-[#005f52] bg-[rgba(0,229,204,0.03)] px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-[#00e5cc] hover:bg-[rgba(0,229,204,0.08)] disabled:opacity-40"
+                        >
+                          Apply Suggestion
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] leading-5 text-[#0c6d1f] sm:text-xs sm:leading-6">
+                        Companion Mode is off. Turn it on when you want a tactical recommendation. It will not suggest or apply moves until you enable it.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Visibility panel: shown under companion on mobile only */}
+            {isPlayer && (
+              <div className="xl:hidden">
+                <VisibilityPanel
+                  report={visibilityReport}
+                  loading={decryptingVisibility}
+                  error={visibilityError}
+                  actionDisabled={isBusy}
+                  actionLabel={
+                    pendingAction === "visibility"
+                      ? "Requesting Visibility..."
+                      : "Request Visibility Report"
+                  }
+                  onRequest={handleVisibility}
+                  highlightAction={tutorialHighlight === "visibility"}
+                />
+              </div>
+            )}
+
             <div className={`grid gap-2.5 sm:gap-3 ${localMode ? "lg:grid-cols-2" : ""}`}>
               <TurnTimeline snapshots={turnSnapshots} currentTurn={match.turn} />
               {localMode && (
@@ -1025,8 +1128,9 @@ function MatchPageInner() {
         </div>
 
         <div className="space-y-2.5 sm:space-y-4">
+          {/* Companion Mode: desktop sidebar only (mobile copy is under the board) */}
           {canSubmitOrders && (
-            <div className="border border-[#0e2a0e] bg-[#030d03] p-2.5 sm:p-3">
+            <div className="hidden xl:block border border-[#0e2a0e] bg-[#030d03] p-2.5 sm:p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-[8px] uppercase tracking-[0.28em] text-[#0c6d1f] sm:text-[9px]">
@@ -1108,46 +1212,52 @@ function MatchPageInner() {
             </div>
           )}
 
+          {/* Fire control panel: shown in sidebar on desktop only */}
           {canSubmitOrders && (
-            <div id="tutorial-orders" className={tutorialHighlight === "orders" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""}>
-              <OrderPanel
-                match={match}
-                playerSlot={playerSlot}
-                selectedCell={selectedCell}
-                allowReplaceSubmitted={localMode}
-                showResolve
-                resolveDisabled={isBusy || !canResolve}
-                resolveLabel={
-                  pendingAction === "resolve"
-                    ? "Resolving..."
-                    : canResolve
-                      ? "Resolve Turn"
-                      : "Ready After Both Orders Lock"
-                }
-                onResolve={handleResolveTurn}
-                highlightResolve={tutorialHighlight === "resolve"}
-                prefillOrder={orderPrefill}
-                prefillNonce={orderPrefillNonce}
-                onSubmit={handleSubmitOrder}
-                disabled={isBusy || (!localMode && !client)}
-              />
+            <div className="hidden xl:block" id="tutorial-orders">
+              <div className={tutorialHighlight === "orders" ? "ring-1 ring-[#ffb000] ring-offset-1 ring-offset-[#010801]" : ""}>
+                <OrderPanel
+                  match={match}
+                  playerSlot={playerSlot}
+                  selectedCell={selectedCell}
+                  allowReplaceSubmitted={localMode}
+                  showResolve
+                  resolveDisabled={isBusy || !canResolve}
+                  resolveLabel={
+                    pendingAction === "resolve"
+                      ? "Resolving..."
+                      : canResolve
+                        ? "Resolve Turn"
+                        : "Ready After Both Orders Lock"
+                  }
+                  onResolve={handleResolveTurn}
+                  highlightResolve={tutorialHighlight === "resolve"}
+                  prefillOrder={orderPrefill}
+                  prefillNonce={orderPrefillNonce}
+                  onSubmit={handleSubmitOrder}
+                  disabled={isBusy || (!localMode && !client)}
+                />
+              </div>
             </div>
           )}
 
+          {/* Visibility panel: desktop sidebar only (mobile copy is under the board) */}
           {isPlayer && (
-            <VisibilityPanel
-              report={visibilityReport}
-              loading={decryptingVisibility}
-              error={visibilityError}
-              actionDisabled={isBusy}
-              actionLabel={
-                pendingAction === "visibility"
-                  ? "Requesting Visibility..."
-                  : "Request Visibility Report"
-              }
-              onRequest={handleVisibility}
-              highlightAction={tutorialHighlight === "visibility"}
-            />
+            <div className="hidden xl:block">
+              <VisibilityPanel
+                report={visibilityReport}
+                loading={decryptingVisibility}
+                error={visibilityError}
+                actionDisabled={isBusy}
+                actionLabel={
+                  pendingAction === "visibility"
+                    ? "Requesting Visibility..."
+                    : "Request Visibility Report"
+                }
+                onRequest={handleVisibility}
+                highlightAction={tutorialHighlight === "visibility"}
+              />
+            </div>
           )}
 
           <ActivityLog entries={activityLog} />
