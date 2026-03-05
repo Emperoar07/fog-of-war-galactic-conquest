@@ -133,7 +133,7 @@ function MatchPageInner() {
   const localMode = demoMode || aiDifficulty !== null;
   const { publicKey } = useWallet();
   const client = useGameClient();
-  const { playSound } = useSound();
+  const { playSound, startVictoryMusic, stopVictoryMusic } = useSound();
   const { match, matchPDA, loading, error, refresh, updateMatch } = useMatch(
     matchId,
     { localMode, aiDifficulty },
@@ -293,9 +293,21 @@ function MatchPageInner() {
 
     setLastWinnerKey(winnerKey);
     setWinnerOverlayVisible(true);
-    playSound("victory");
+    startVictoryMusic();
     appendActivity(`Victory confirmed for Player ${summary.winner + 1}.`, "success");
-  }, [appendActivity, lastWinnerKey, match, matchId, playSound, summary]);
+  }, [appendActivity, lastWinnerKey, match, matchId, startVictoryMusic, summary]);
+
+  useEffect(() => {
+    if (winnerOverlayVisible) return;
+    stopVictoryMusic();
+  }, [stopVictoryMusic, winnerOverlayVisible]);
+
+  useEffect(
+    () => () => {
+      stopVictoryMusic();
+    },
+    [stopVictoryMusic],
+  );
 
   useEffect(() => {
     if (!match) return;
@@ -775,6 +787,7 @@ function MatchPageInner() {
         resetActivity(buildInitialLocalActivity(aiDifficulty));
         setWinnerOverlayVisible(false);
         setLastWinnerKey(null);
+        stopVictoryMusic();
       }
     } finally {
       setPendingAction(null);
@@ -821,7 +834,10 @@ function MatchPageInner() {
                 The campaign is decided. Command fleet supremacy confirmed.
               </div>
               <button
-                onClick={() => setWinnerOverlayVisible(false)}
+                onClick={() => {
+                  setWinnerOverlayVisible(false);
+                  stopVictoryMusic();
+                }}
                 className="mt-4 border border-[#996800] bg-[rgba(255,176,0,0.04)] px-5 py-2 text-[10px] uppercase tracking-[0.24em] text-[#ffb000] hover:bg-[rgba(255,176,0,0.08)]"
               >
                 Acknowledge

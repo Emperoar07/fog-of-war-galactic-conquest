@@ -44,6 +44,8 @@ type SoundContextValue = {
   setAudioEnabled: (enabled: boolean) => void;
   toggleAudio: () => void;
   setMusicProfile: (profile: MusicProfile) => void;
+  startVictoryMusic: () => void;
+  stopVictoryMusic: () => void;
   playSound: (cue: SoundCue) => void;
 };
 
@@ -147,6 +149,20 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     engineRef.current.setMusicProfile(profile);
   }, []);
 
+  const startVictoryMusic = useCallback(() => {
+    if (!engineRef.current) {
+      engineRef.current = new TacticalSoundEngine();
+      engineRef.current.setMusicVolume(musicVolume);
+      engineRef.current.setSfxVolume(sfxVolume);
+    }
+    engineRef.current.startVictoryMode();
+  }, [musicVolume, sfxVolume]);
+
+  const stopVictoryMusic = useCallback(() => {
+    if (!engineRef.current) return;
+    engineRef.current.stopVictoryMode();
+  }, []);
+
   const playSound = useCallback((cue: SoundCue) => {
     if (!sfxEnabled) return;
     if (!engineRef.current) {
@@ -171,6 +187,8 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       setAudioEnabled,
       toggleAudio,
       setMusicProfile,
+      startVictoryMusic,
+      stopVictoryMusic,
       playSound,
     }),
     [
@@ -188,6 +206,8 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       setAudioEnabled,
       toggleAudio,
       setMusicProfile,
+      startVictoryMusic,
+      stopVictoryMusic,
       playSound,
     ],
   );

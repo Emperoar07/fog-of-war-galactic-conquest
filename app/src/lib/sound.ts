@@ -61,6 +61,7 @@ export class TacticalSoundEngine {
   private musicBus: GainNode | null = null;
   private victoryTimer: number | null = null;
   private victoryStep = 0;
+  private victoryModeActive = false;
 
   private ensureContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -254,12 +255,32 @@ export class TacticalSoundEngine {
 
       this.victoryStep += 1;
       if (this.victoryStep >= 16) {
-        this.stopVictoryTransmission();
+        if (this.victoryModeActive) {
+          this.victoryStep = 0;
+        } else {
+          this.stopVictoryTransmission();
+        }
       }
     };
 
     tick();
     this.victoryTimer = window.setInterval(tick, stepMs);
+  }
+
+  startVictoryMode(): void {
+    const context = this.ensureContext();
+    if (!context) return;
+    this.victoryModeActive = true;
+    this.stopMusicLoop();
+    this.playVictoryTransmission(context);
+  }
+
+  stopVictoryMode(): void {
+    this.victoryModeActive = false;
+    this.stopVictoryTransmission();
+    if (this.musicEnabled) {
+      this.startMusicLoop();
+    }
   }
 
   private startLandingModule9Music(): void {
@@ -414,16 +435,18 @@ export class TacticalSoundEngine {
   setMusicEnabled(enabled: boolean): void {
     this.musicEnabled = enabled;
     if (enabled) {
+      if (this.victoryModeActive) return;
       this.startMusicLoop();
       return;
     }
     this.stopMusicLoop();
+    this.stopVictoryTransmission();
   }
 
   setMusicProfile(profile: MusicProfile): void {
     if (this.musicProfile === profile) return;
     this.musicProfile = profile;
-    if (!this.musicEnabled) return;
+    if (!this.musicEnabled || this.victoryModeActive) return;
     this.stopMusicLoop();
     this.startMusicLoop();
   }
@@ -432,7 +455,7 @@ export class TacticalSoundEngine {
     const context = this.ensureContext();
     if (!context) return;
     if (cue === "victory") {
-      this.playVictoryTransmission(context);
+      this.startVictoryMode();
       return;
     }
 

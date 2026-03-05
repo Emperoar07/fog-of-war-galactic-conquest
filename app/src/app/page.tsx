@@ -283,7 +283,7 @@ export default function Home() {
             Connect a wallet for live devnet matches
           </p>
           <p className="mt-3 text-xs uppercase tracking-[0.18em] text-[#0c6d1f]">
-            Phantom, Solflare, and compatible Solana wallets supported
+            only compatible Solana wallets supported
           </p>
         </section>
       )}
