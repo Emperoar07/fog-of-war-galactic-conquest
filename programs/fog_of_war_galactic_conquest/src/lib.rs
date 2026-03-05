@@ -120,7 +120,7 @@ pub mod fog_of_war_galactic_conquest {
         Ok(())
     }
 
-    pub fn register_player(ctx: Context<RegisterPlayer>, slot: u8) -> Result<()> {
+    pub fn register_player(ctx: Context<RegisterPlayer>, match_id: u64, slot: u8) -> Result<()> {
         let galaxy_match = &mut ctx.accounts.galaxy_match;
         let slot_index = slot as usize;
 
@@ -151,6 +151,7 @@ pub mod fog_of_war_galactic_conquest {
     pub fn submit_orders(
         ctx: Context<SubmitOrders>,
         computation_offset: u64,
+        match_id: u64,
         player_index: u8,
         unit_slot_ct: [u8; 32],
         action_ct: [u8; 32],
@@ -247,6 +248,7 @@ pub mod fog_of_war_galactic_conquest {
     pub fn visibility_check(
         ctx: Context<VisibilityCheck>,
         computation_offset: u64,
+        match_id: u64,
         viewer_pub_key: [u8; 32],
         viewer_nonce: u128,
     ) -> Result<()> {
@@ -314,6 +316,10 @@ pub mod fog_of_war_galactic_conquest {
         };
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
+        require!(
+            (viewer_index as usize) < galaxy_match.player_count as usize || viewer_index == NO_PLAYER,
+            ErrorCode::InvalidPlayerSlot
+        );
         galaxy_match.last_visibility = report.ciphertexts;
         galaxy_match.last_visibility_nonce = report.nonce;
         galaxy_match.last_visibility_viewer = viewer_index;
@@ -327,7 +333,7 @@ pub mod fog_of_war_galactic_conquest {
         Ok(())
     }
 
-    pub fn resolve_turn(ctx: Context<ResolveTurn>, computation_offset: u64) -> Result<()> {
+    pub fn resolve_turn(ctx: Context<ResolveTurn>, computation_offset: u64, match_id: u64) -> Result<()> {
         let galaxy_match = &ctx.accounts.galaxy_match;
 
         require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
@@ -522,16 +528,21 @@ pub struct InitInitMatchCompDef<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: u64)]
 pub struct RegisterPlayer<'info> {
     #[account(mut)]
     pub player: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
     pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
 #[queue_computation_accounts("submit_orders", payer)]
 #[derive(Accounts)]
-#[instruction(computation_offset: u64)]
+#[instruction(computation_offset: u64, match_id: u64)]
 pub struct SubmitOrders<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -577,7 +588,11 @@ pub struct SubmitOrders<'info> {
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
     pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
@@ -622,7 +637,7 @@ pub struct InitSubmitOrdersCompDef<'info> {
 
 #[queue_computation_accounts("visibility_check", payer)]
 #[derive(Accounts)]
-#[instruction(computation_offset: u64)]
+#[instruction(computation_offset: u64, match_id: u64)]
 pub struct VisibilityCheck<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -668,7 +683,11 @@ pub struct VisibilityCheck<'info> {
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
     pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
@@ -713,7 +732,7 @@ pub struct InitVisibilityCheckCompDef<'info> {
 
 #[queue_computation_accounts("resolve_turn", payer)]
 #[derive(Accounts)]
-#[instruction(computation_offset: u64)]
+#[instruction(computation_offset: u64, match_id: u64)]
 pub struct ResolveTurn<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -759,7 +778,11 @@ pub struct ResolveTurn<'info> {
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
     pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 

@@ -135,6 +135,7 @@ export class GameClient {
   /** Register the connected wallet in a player slot. */
   async registerPlayer(
     matchPDA: PublicKey,
+    matchId: bigint,
     slot: number,
     signer?: Keypair,
   ): Promise<string> {
@@ -142,7 +143,7 @@ export class GameClient {
     const accounts = buildRegisterPlayerAccounts(player, matchPDA);
 
     const builder = (this.program.methods as any)
-      .registerPlayer(slot)
+      .registerPlayer(new BN(matchId.toString()), slot)
       .accounts(accounts);
 
     if (signer) builder.signers([signer]);
@@ -153,6 +154,7 @@ export class GameClient {
   /** Submit encrypted orders for a player. */
   async submitOrders(
     matchPDA: PublicKey,
+    matchId: bigint,
     playerIndex: number,
     order: OrderParams,
     privateKey: Uint8Array,
@@ -175,6 +177,7 @@ export class GameClient {
     const builder = (this.program.methods as any)
       .submitOrders(
         computationOffset,
+        new BN(matchId.toString()),
         playerIndex,
         encrypted.unitSlotCt,
         encrypted.actionCt,
@@ -197,6 +200,7 @@ export class GameClient {
   /** Request a visibility check for the connected wallet. */
   async requestVisibility(
     matchPDA: PublicKey,
+    matchId: bigint,
     privateKey: Uint8Array,
     signer?: Keypair,
   ): Promise<VisibilityRequestResult> {
@@ -220,6 +224,7 @@ export class GameClient {
     const builder = (this.program.methods as any)
       .visibilityCheck(
         computationOffset,
+        new BN(matchId.toString()),
         Array.from(publicKey),
         nonceBN,
       )
@@ -242,6 +247,7 @@ export class GameClient {
   /** Trigger turn resolution (requires all players to have submitted). */
   async resolveTurn(
     matchPDA: PublicKey,
+    matchId: bigint,
     signer?: Keypair,
   ): Promise<QueuedComputationResult> {
     await this.requireMXEKey();
@@ -258,7 +264,7 @@ export class GameClient {
     );
 
     const builder = (this.program.methods as any)
-      .resolveTurn(computationOffset)
+      .resolveTurn(computationOffset, new BN(matchId.toString()))
       .accountsPartial(accounts);
 
     if (signer) builder.signers([signer]);

@@ -401,6 +401,10 @@
       ],
       "args": [
         {
+          "name": "matchId",
+          "type": "u64"
+        },
+        {
           "name": "slot",
           "type": "u8"
         }
@@ -490,6 +494,10 @@
       "args": [
         {
           "name": "computationOffset",
+          "type": "u64"
+        },
+        {
+          "name": "matchId",
           "type": "u64"
         },
         {
@@ -687,6 +695,10 @@
           "type": "u64"
         },
         {
+          "name": "matchId",
+          "type": "u64"
+        },
+        {
           "name": "viewerPubKey",
           "type": {
             "array": [
@@ -838,6 +850,10 @@
       "args": [
         {
           "name": "computationOffset",
+          "type": "u64"
+        },
+        {
+          "name": "matchId",
           "type": "u64"
         }
       ]

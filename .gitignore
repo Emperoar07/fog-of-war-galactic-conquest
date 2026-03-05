@@ -1,4 +1,5 @@
 target/
+*-keypair.json
 node_modules/
 .anchor/
 .tmp-arcium-examples/

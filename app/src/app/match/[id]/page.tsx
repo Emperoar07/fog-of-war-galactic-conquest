@@ -559,7 +559,7 @@ function MatchPageInner() {
       }
       showStatus(`Joining player slot ${emptySlot + 1}...`, "info", true);
       playSound("uplink");
-      await client.registerPlayer(matchPDA, emptySlot);
+      await client.registerPlayer(matchPDA, matchId!, emptySlot);
       updateMatch((current) => {
         const players = [...current.players];
         players[emptySlot] = publicKey;
@@ -609,6 +609,7 @@ function MatchPageInner() {
       playSound("uplink");
       const result = await client.submitOrders(
         matchPDA,
+        matchId!,
         playerSlot,
         order,
         keys.privateKey,
@@ -644,7 +645,7 @@ function MatchPageInner() {
     setPendingAction("resolve");
     try {
       playSound("resolve");
-      const result = await client.resolveTurn(matchPDA);
+      const result = await client.resolveTurn(matchPDA, matchId!);
       showStatus(
         "Turn resolution queued. Waiting for MPC computation...",
         "info",
@@ -691,7 +692,7 @@ function MatchPageInner() {
     try {
       const keys = ensureKeys();
       playSound("reveal");
-      const result = await client.requestVisibility(matchPDA, keys.privateKey);
+      const result = await client.requestVisibility(matchPDA, matchId!, keys.privateKey);
       showStatus(
         "Visibility check queued. Waiting for MPC computation...",
         "info",

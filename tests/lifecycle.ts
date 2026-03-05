@@ -367,7 +367,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
   it("allows player 2 to register in slot 1 and activates the match", async function () {
     if (!mxePublicKey) return this.skip(); // depends on createMatch which needs MXE keys
     await program.methods
-      .registerPlayer(1) // slot 1
+      .registerPlayer(new anchor.BN(matchId.toString()), 1) // slot 1
       .accounts({
         player: player2.publicKey,
         galaxyMatch: galaxyMatchPDA,
@@ -383,7 +383,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
   it("rejects duplicate registration", async function () {
     try {
       await program.methods
-        .registerPlayer(1)
+        .registerPlayer(new anchor.BN(matchId.toString()), 1)
         .accounts({ player: player2.publicKey, galaxyMatch: galaxyMatchPDA })
         .signers([player2])
         .rpc({ commitment: "confirmed" });
@@ -396,7 +396,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
   it("rejects registration from a third player (match full)", async function () {
     try {
       await program.methods
-        .registerPlayer(2)
+        .registerPlayer(new anchor.BN(matchId.toString()), 2)
         .accounts({ player: outsider.publicKey, galaxyMatch: galaxyMatchPDA })
         .signers([outsider])
         .rpc({ commitment: "confirmed" });
@@ -419,6 +419,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
       await program.methods
         .submitOrders(
           computationOffset,
+          new anchor.BN(matchId.toString()),
           0, // player_index
           dummyCt, dummyCt, dummyCt, dummyCt,
           dummyPk,
@@ -456,6 +457,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
       await program.methods
         .submitOrders(
           computationOffset,
+          new anchor.BN(matchId.toString()),
           0, // player 2 attempting to submit as player 1
           dummyCt, dummyCt, dummyCt, dummyCt,
           Array.from(player2PublicKey),
@@ -494,7 +496,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
 
     try {
       await program.methods
-        .resolveTurn(computationOffset)
+        .resolveTurn(computationOffset, new anchor.BN(matchId.toString()))
         .accountsPartial({
           payer: player1.publicKey,
           signPdaAccount,
@@ -549,6 +551,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
     await program.methods
       .submitOrders(
         computationOffset,
+        new anchor.BN(matchId.toString()),
         playerIndex,
         Array.from(unitSlotCt[0]),
         Array.from(actionCt[0]),
@@ -604,7 +607,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
     const turnResolvedPromise = awaitEvent("turnResolved");
 
     await program.methods
-      .resolveTurn(computationOffset)
+      .resolveTurn(computationOffset, new anchor.BN(matchId.toString()))
       .accountsPartial({
         payer: player1.publicKey,
         signPdaAccount,
@@ -657,6 +660,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
     await program.methods
       .visibilityCheck(
         computationOffset,
+        new anchor.BN(matchId.toString()),
         Array.from(player1PublicKey),
         new anchor.BN(deserializeLE(nonce).toString()),
       )
@@ -700,6 +704,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
       await program.methods
         .visibilityCheck(
           computationOffset,
+          new anchor.BN(matchId.toString()),
           new Array(32).fill(0),
           new anchor.BN(0),
         )
@@ -751,7 +756,7 @@ describe("fog_of_war_galactic_conquest lifecycle", function () {
       const turnResolvedPromise = awaitEvent("turnResolved");
 
       await program.methods
-        .resolveTurn(computationOffset)
+        .resolveTurn(computationOffset, new anchor.BN(matchId.toString()))
         .accountsPartial({
           payer: player1.publicKey,
           signPdaAccount,
