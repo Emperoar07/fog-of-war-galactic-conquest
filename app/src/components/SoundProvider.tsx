@@ -19,13 +19,26 @@ import { usePathname } from "next/navigation";
 const STORAGE_AUDIO_KEY = "fog-of-war-audio-enabled";
 const STORAGE_MUSIC_KEY = "fog-of-war-music-enabled";
 const STORAGE_SFX_KEY = "fog-of-war-sfx-enabled";
+const STORAGE_MUSIC_VOLUME_KEY = "fog-of-war-music-volume";
+const STORAGE_SFX_VOLUME_KEY = "fog-of-war-sfx-volume";
+
+function parseStoredVolume(value: string | null, fallback: number): number {
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.min(1, parsed));
+}
 
 type SoundContextValue = {
   musicEnabled: boolean;
   sfxEnabled: boolean;
   audioEnabled: boolean;
+  musicVolume: number;
+  sfxVolume: number;
   setMusicEnabled: (enabled: boolean) => void;
   setSfxEnabled: (enabled: boolean) => void;
+  setMusicVolume: (volume: number) => void;
+  setSfxVolume: (volume: number) => void;
   toggleMusic: () => void;
   toggleSfx: () => void;
   setAudioEnabled: (enabled: boolean) => void;
@@ -53,6 +66,20 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     if (explicit !== null) return explicit === "1";
     return true;
   });
+  const [musicVolume, setMusicVolumeState] = useState(() => {
+    if (typeof window === "undefined") return 0.38;
+    return parseStoredVolume(
+      window.localStorage.getItem(STORAGE_MUSIC_VOLUME_KEY),
+      0.38,
+    );
+  });
+  const [sfxVolume, setSfxVolumeState] = useState(() => {
+    if (typeof window === "undefined") return 0.8;
+    return parseStoredVolume(
+      window.localStorage.getItem(STORAGE_SFX_VOLUME_KEY),
+      0.8,
+    );
+  });
   const audioEnabled = musicEnabled || sfxEnabled;
 
   useEffect(() => {
@@ -71,6 +98,18 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
   const setSfxEnabled = useCallback((enabled: boolean) => {
     setSfxEnabledState(enabled);
     window.localStorage.setItem(STORAGE_SFX_KEY, enabled ? "1" : "0");
+  }, []);
+
+  const setMusicVolume = useCallback((volume: number) => {
+    const next = Math.max(0, Math.min(1, volume));
+    setMusicVolumeState(next);
+    window.localStorage.setItem(STORAGE_MUSIC_VOLUME_KEY, String(next));
+  }, []);
+
+  const setSfxVolume = useCallback((volume: number) => {
+    const next = Math.max(0, Math.min(1, volume));
+    setSfxVolumeState(next);
+    window.localStorage.setItem(STORAGE_SFX_VOLUME_KEY, String(next));
   }, []);
 
   const setAudioEnabled = useCallback((enabled: boolean) => {
@@ -121,8 +160,12 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       musicEnabled,
       sfxEnabled,
       audioEnabled,
+      musicVolume,
+      sfxVolume,
       setMusicEnabled,
       setSfxEnabled,
+      setMusicVolume,
+      setSfxVolume,
       toggleMusic,
       toggleSfx,
       setAudioEnabled,
@@ -134,8 +177,12 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       musicEnabled,
       sfxEnabled,
       audioEnabled,
+      musicVolume,
+      sfxVolume,
       setMusicEnabled,
       setSfxEnabled,
+      setMusicVolume,
+      setSfxVolume,
       toggleMusic,
       toggleSfx,
       setAudioEnabled,
@@ -148,27 +195,44 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!engineRef.current) {
       engineRef.current = new TacticalSoundEngine();
-      engineRef.current.setMusicVolume(0.38);
+      engineRef.current.setMusicVolume(musicVolume);
+      engineRef.current.setSfxVolume(sfxVolume);
     }
     const profile: MusicProfile =
       pathname?.startsWith("/match/") ? "gameplay" : "landing";
     engineRef.current.setMusicProfile(profile);
-  }, [pathname]);
+  }, [musicVolume, pathname, sfxVolume]);
 
   useEffect(() => {
     if (!engineRef.current) {
       engineRef.current = new TacticalSoundEngine();
-      engineRef.current.setMusicVolume(0.38);
+      engineRef.current.setMusicVolume(musicVolume);
+      engineRef.current.setSfxVolume(sfxVolume);
     }
 
     engineRef.current.setMusicEnabled(musicEnabled);
-  }, [musicEnabled]);
+  }, [musicEnabled, musicVolume, sfxVolume]);
+
+  useEffect(() => {
+    if (!engineRef.current) {
+      engineRef.current = new TacticalSoundEngine();
+    }
+    engineRef.current.setMusicVolume(musicVolume);
+  }, [musicVolume]);
+
+  useEffect(() => {
+    if (!engineRef.current) {
+      engineRef.current = new TacticalSoundEngine();
+    }
+    engineRef.current.setSfxVolume(sfxVolume);
+  }, [sfxVolume]);
 
   useEffect(() => {
     const primeAudio = () => {
       if (!engineRef.current) {
         engineRef.current = new TacticalSoundEngine();
-        engineRef.current.setMusicVolume(0.38);
+        engineRef.current.setMusicVolume(musicVolume);
+        engineRef.current.setSfxVolume(sfxVolume);
       }
       engineRef.current.primeMusic();
       engineRef.current.setMusicEnabled(musicEnabledRef.current);
@@ -192,7 +256,7 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     return () => {
       document.removeEventListener("click", handlePointerDown, true);
     };
-  }, []);
+  }, [musicVolume, sfxVolume]);
 
   return (
     <SoundContext.Provider value={value}>{children}</SoundContext.Provider>

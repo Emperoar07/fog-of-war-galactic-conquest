@@ -55,6 +55,7 @@ export class TacticalSoundEngine {
   private musicEnabled = false;
   private musicProfile: MusicProfile = "landing";
   private musicVolume = 0.38;
+  private sfxVolume = 0.8;
   private musicTimer: number | null = null;
   private musicStep = 0;
   private musicBus: GainNode | null = null;
@@ -85,6 +86,7 @@ export class TacticalSoundEngine {
     duration: number,
     volume: number,
     env: "pluck" | "pad" | "stab" = "pluck",
+    gainScale = 1,
   ): void {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -95,14 +97,14 @@ export class TacticalSoundEngine {
     gain.gain.setValueAtTime(0.001, now);
 
     if (env === "pluck") {
-      gain.gain.linearRampToValueAtTime(volume, now + 0.008);
+      gain.gain.linearRampToValueAtTime(volume * gainScale, now + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     } else if (env === "pad") {
-      gain.gain.linearRampToValueAtTime(volume, now + Math.min(0.4, duration * 0.3));
-      gain.gain.setValueAtTime(volume, now + Math.max(0.02, duration - 0.15));
+      gain.gain.linearRampToValueAtTime(volume * gainScale, now + Math.min(0.4, duration * 0.3));
+      gain.gain.setValueAtTime(volume * gainScale, now + Math.max(0.02, duration - 0.15));
       gain.gain.linearRampToValueAtTime(0.001, now + duration);
     } else {
-      gain.gain.linearRampToValueAtTime(volume, now + 0.004);
+      gain.gain.linearRampToValueAtTime(volume * gainScale, now + 0.004);
       gain.gain.exponentialRampToValueAtTime(0.001, now + Math.max(0.03, duration * 0.25));
     }
 
@@ -112,14 +114,19 @@ export class TacticalSoundEngine {
     oscillator.stop(now + duration + 0.05);
   }
 
-  private kick(context: AudioContext, destination: AudioNode, vol = 1.0): void {
+  private kick(
+    context: AudioContext,
+    destination: AudioNode,
+    vol = 1.0,
+    gainScale = 1,
+  ): void {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     const now = context.currentTime;
 
     oscillator.frequency.setValueAtTime(180, now);
     oscillator.frequency.exponentialRampToValueAtTime(28, now + 0.14);
-    gain.gain.setValueAtTime(vol, now);
+    gain.gain.setValueAtTime(vol * gainScale, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
 
     oscillator.connect(gain);
@@ -128,7 +135,11 @@ export class TacticalSoundEngine {
     oscillator.stop(now + 0.18);
   }
 
-  private snare(context: AudioContext, destination: AudioNode): void {
+  private snare(
+    context: AudioContext,
+    destination: AudioNode,
+    gainScale = 1,
+  ): void {
     const size = Math.floor(context.sampleRate * 0.12);
     const buffer = context.createBuffer(1, size, context.sampleRate);
     const data = buffer.getChannelData(0);
@@ -143,7 +154,7 @@ export class TacticalSoundEngine {
     filter.frequency.value = 2200;
     filter.Q.value = 0.7;
     src.buffer = buffer;
-    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.setValueAtTime(0.35 * gainScale, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
     src.connect(filter);
@@ -153,7 +164,12 @@ export class TacticalSoundEngine {
     src.stop(now + 0.13);
   }
 
-  private hat(context: AudioContext, destination: AudioNode, vol = 0.08): void {
+  private hat(
+    context: AudioContext,
+    destination: AudioNode,
+    vol = 0.08,
+    gainScale = 1,
+  ): void {
     const size = Math.floor(context.sampleRate * 0.04);
     const buffer = context.createBuffer(1, size, context.sampleRate);
     const data = buffer.getChannelData(0);
@@ -167,7 +183,7 @@ export class TacticalSoundEngine {
     filter.type = "highpass";
     filter.frequency.value = 7000;
     src.buffer = buffer;
-    gain.gain.setValueAtTime(vol, now);
+    gain.gain.setValueAtTime(vol * gainScale, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
     src.connect(filter);
@@ -200,12 +216,41 @@ export class TacticalSoundEngine {
 
     const tick = () => {
       const idx = this.victoryStep % 16;
-      if (idx % 4 === 0) this.kick(context, context.destination, 0.7);
-      if (idx % 8 === 4) this.snare(context, context.destination);
-      this.hat(context, context.destination, 0.05);
-      this.tone(context, context.destination, MEL[idx], "triangle", 0.28, 0.17, "pluck");
-      this.tone(context, context.destination, MEL[idx] * 1.26, "sine", 0.24, 0.07, "pluck");
-      if (BAS[idx]) this.tone(context, context.destination, BAS[idx], "sine", 0.3, 0.2, "pluck");
+      if (idx % 4 === 0) this.kick(context, context.destination, 0.7, this.sfxVolume);
+      if (idx % 8 === 4) this.snare(context, context.destination, this.sfxVolume);
+      this.hat(context, context.destination, 0.05, this.sfxVolume);
+      this.tone(
+        context,
+        context.destination,
+        MEL[idx],
+        "triangle",
+        0.28,
+        0.17,
+        "pluck",
+        this.sfxVolume,
+      );
+      this.tone(
+        context,
+        context.destination,
+        MEL[idx] * 1.26,
+        "sine",
+        0.24,
+        0.07,
+        "pluck",
+        this.sfxVolume,
+      );
+      if (BAS[idx]) {
+        this.tone(
+          context,
+          context.destination,
+          BAS[idx],
+          "sine",
+          0.3,
+          0.2,
+          "pluck",
+          this.sfxVolume,
+        );
+      }
 
       this.victoryStep += 1;
       if (this.victoryStep >= 16) {
@@ -355,6 +400,10 @@ export class TacticalSoundEngine {
     }
   }
 
+  setSfxVolume(volume: number): void {
+    this.sfxVolume = Math.max(0, Math.min(1, volume));
+  }
+
   primeMusic(): void {
     const context = this.ensureContext();
     if (context && context.state === "suspended") {
@@ -400,7 +449,10 @@ export class TacticalSoundEngine {
       oscillator.type = step.type ?? "square";
       oscillator.frequency.setValueAtTime(step.frequency, start);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(step.gain ?? 0.015, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(
+        (step.gain ?? 0.015) * this.sfxVolume,
+        start + 0.01,
+      );
       gain.gain.exponentialRampToValueAtTime(0.0001, end);
       oscillator.connect(gain);
       gain.connect(context.destination);

@@ -11,9 +11,21 @@ const WalletButton = dynamic(
 );
 
 export default function NavBar() {
-  const { musicEnabled, sfxEnabled, toggleMusic, toggleSfx, playSound } = useSound();
+  const {
+    musicEnabled,
+    sfxEnabled,
+    musicVolume,
+    sfxVolume,
+    setMusicVolume,
+    setSfxVolume,
+    toggleMusic,
+    toggleSfx,
+    playSound,
+  } = useSound();
   const [audioMenuOpen, setAudioMenuOpen] = useState(false);
   const audioMenuRef = useRef<HTMLDivElement | null>(null);
+  const musicPercent = Math.round(musicVolume * 100);
+  const sfxPercent = Math.round(sfxVolume * 100);
 
   const handleMusicToggle = () => {
     const enabling = !musicEnabled;
@@ -143,6 +155,42 @@ export default function NavBar() {
                   {sfxEnabled ? "On" : "Off"}
                 </span>
               </button>
+
+              <div className="mt-2 border border-[#0e2a0e] bg-[#030d03] px-2 py-1.5">
+                <div className="mb-1 flex items-center justify-between text-[8px] uppercase tracking-[0.18em] text-[#00cc33]">
+                  <span>Music Vol</span>
+                  <span className="text-[#00e5cc]">{musicPercent}%</span>
+                </div>
+                <input
+                  data-sound-ignore="true"
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={musicPercent}
+                  onChange={(event) => setMusicVolume(Number(event.target.value) / 100)}
+                  aria-label="Music volume"
+                  className="h-1.5 w-full accent-[#00ff41]"
+                />
+              </div>
+
+              <div className="mt-1.5 border border-[#0e2a0e] bg-[#030d03] px-2 py-1.5">
+                <div className="mb-1 flex items-center justify-between text-[8px] uppercase tracking-[0.18em] text-[#00cc33]">
+                  <span>SFX Vol</span>
+                  <span className="text-[#00e5cc]">{sfxPercent}%</span>
+                </div>
+                <input
+                  data-sound-ignore="true"
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={sfxPercent}
+                  onChange={(event) => setSfxVolume(Number(event.target.value) / 100)}
+                  aria-label="SFX volume"
+                  className="h-1.5 w-full accent-[#00ff41]"
+                />
+              </div>
             </div>
           )}
         </div>
