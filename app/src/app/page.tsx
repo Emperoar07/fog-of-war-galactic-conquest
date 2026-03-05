@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSound } from "@/components/SoundProvider";
 import MXEStatusBanner from "@/components/MXEStatusBanner";
-import { DEMO_MATCH_ID } from "@/lib/demo";
+import { DEMO_MATCH_ID, QUICK_MATCH_IDS } from "@/lib/demo";
 import { GUIDE_CARDS, GUIDE_DETAILS, GUIDE_NOTE } from "@/lib/guide";
 
 const Lobby = dynamic(() => import("@/components/Lobby"), {
@@ -21,6 +21,7 @@ export default function Home() {
   const { connected } = useWallet();
   const { playSound } = useSound();
   const [showGuide, setShowGuide] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const closeGuideButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const closeGuide = useCallback(() => {
@@ -181,7 +182,7 @@ export default function Home() {
               moves concealed, reveal only what the rules allow, and still
               settle the fight on Solana.
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <Link
                 href={`/match/${DEMO_MATCH_ID.toString()}?demo=1`}
                 onClick={() => playSound("uplink")}
@@ -189,6 +190,53 @@ export default function Home() {
               >
                 Launch Demo
               </Link>
+              <div className="relative">
+                <button
+                  data-sound-manual="true"
+                  onClick={() => {
+                    playSound("uiTap");
+                    setQuickOpen((o) => !o);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 border border-[#0c6d1f] bg-[rgba(0,255,65,0.03)] px-5 py-3 text-[10px] uppercase tracking-[0.24em] text-[#00ff41] hover:bg-[rgba(0,255,65,0.08)]"
+                >
+                  Quick Match vs AI
+                  <span
+                    className="text-[8px] transition-transform duration-200"
+                    style={{ transform: quickOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+                  >
+                    ▶
+                  </span>
+                </button>
+                <div
+                  className="mt-1 flex gap-1 overflow-hidden transition-all duration-300"
+                  style={{
+                    maxHeight: quickOpen ? "60px" : "0",
+                    opacity: quickOpen ? 1 : 0,
+                  }}
+                >
+                  <Link
+                    href={`/match/${QUICK_MATCH_IDS.easy.toString()}?quick=easy`}
+                    onClick={() => playSound("uplink")}
+                    className="flex-1 border border-[#0c6d1f] bg-[rgba(0,255,65,0.05)] py-2.5 text-center font-[family-name:var(--font-vt323)] text-sm tracking-[0.14em] text-[#00ff41] transition-[background,transform] duration-150 hover:bg-[rgba(0,255,65,0.12)] hover:-translate-y-0.5"
+                  >
+                    EASY
+                  </Link>
+                  <Link
+                    href={`/match/${QUICK_MATCH_IDS.medium.toString()}?quick=medium`}
+                    onClick={() => playSound("uplink")}
+                    className="flex-1 border border-[#996800] bg-[rgba(255,176,0,0.05)] py-2.5 text-center font-[family-name:var(--font-vt323)] text-sm tracking-[0.14em] text-[#ffb000] transition-[background,transform] duration-150 hover:bg-[rgba(255,176,0,0.12)] hover:-translate-y-0.5"
+                  >
+                    MEDIUM
+                  </Link>
+                  <Link
+                    href={`/match/${QUICK_MATCH_IDS.hard.toString()}?quick=hard`}
+                    onClick={() => playSound("uplink")}
+                    className="flex-1 border border-[#881111] bg-[rgba(255,51,51,0.05)] py-2.5 text-center font-[family-name:var(--font-vt323)] text-sm tracking-[0.14em] text-[#ff3333] transition-[background,transform] duration-150 hover:bg-[rgba(255,51,51,0.12)] hover:-translate-y-0.5"
+                  >
+                    HARD
+                  </Link>
+                </div>
+              </div>
               <button
                 data-sound-manual="true"
                 onClick={() => {
