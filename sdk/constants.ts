@@ -26,6 +26,7 @@ export const HIDDEN_STATE_WORDS = 5;
 export const VISIBILITY_REPORT_WORDS = 2;
 export const NO_WINNER = 255;
 export const NO_PLAYER = 255;
+export const TURN_TIMEOUT_SECONDS = 60;
 
 // ---------------------------------------------------------------------------
 // Enums

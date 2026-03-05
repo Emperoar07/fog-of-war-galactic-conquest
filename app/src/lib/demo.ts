@@ -557,6 +557,7 @@ export function createLocalMatch(
     lastVisibility: Array.from({ length: 2 }, () => [0]),
     lastVisibilityNonce: new BN(0),
     lastVisibilityViewer: 0,
+    lastTurnStart: new BN(Math.floor(Date.now() / 1000)),
   };
 }
 

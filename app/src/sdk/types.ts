@@ -22,6 +22,7 @@ export interface GalaxyMatch {
   lastVisibility: number[][];
   lastVisibilityNonce: BN;
   lastVisibilityViewer: number;
+  lastTurnStart: BN;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,11 @@ export interface VisibilitySnapshotReadyEvent {
   matchId: BN;
   turn: number;
   viewerIndex: number;
+}
+
+export interface MatchForfeitedEvent {
+  matchId: BN;
+  forfeitedAtTurn: number;
 }
 
 export interface VisibleUnit {

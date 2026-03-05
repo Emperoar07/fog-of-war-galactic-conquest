@@ -276,6 +276,22 @@ export class GameClient {
     return { txSig, computationOffset };
   }
 
+  /** Forfeit a match after the turn timeout has expired (60s). */
+  async forfeitMatch(
+    matchPDA: PublicKey,
+    matchId: bigint,
+    signer?: Keypair,
+  ): Promise<string> {
+    const payer = signer?.publicKey ?? this.provider.wallet.publicKey;
+    const builder = (this.program.methods as any)
+      .forfeitMatch(new BN(matchId.toString()))
+      .accounts({ payer, galaxyMatch: matchPDA });
+
+    if (signer) builder.signers([signer]);
+
+    return builder.rpc({ commitment: "confirmed" });
+  }
+
   // -----------------------------------------------------------------------
   // Read state
   // -----------------------------------------------------------------------

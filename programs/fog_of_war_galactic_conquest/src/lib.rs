@@ -13,6 +13,7 @@ const HIDDEN_STATE_WORDS: usize = 5;
 const VISIBILITY_REPORT_WORDS: usize = 2;
 const NO_WINNER: u8 = 255;
 const NO_PLAYER: u8 = 255;
+const TURN_TIMEOUT_SECONDS: i64 = 60;
 
 declare_id!("BSUDUdpFuGJpw68HjJcHmUJ9AHHnr4V9Am75s6meJ9hE");
 
@@ -68,6 +69,7 @@ pub mod fog_of_war_galactic_conquest {
         galaxy_match.last_visibility = [[0; 32]; VISIBILITY_REPORT_WORDS];
         galaxy_match.last_visibility_nonce = 0;
         galaxy_match.last_visibility_viewer = NO_PLAYER;
+        galaxy_match.last_turn_start = 0;
 
         let args = ArgBuilder::new()
             .plaintext_u8(player_count)
@@ -144,6 +146,7 @@ pub mod fog_of_war_galactic_conquest {
 
         if galaxy_match.registered_count() >= galaxy_match.player_count as usize {
             galaxy_match.status = 1;
+            galaxy_match.last_turn_start = Clock::get()?.unix_timestamp;
         }
 
         Ok(())
@@ -419,6 +422,7 @@ pub mod fog_of_war_galactic_conquest {
             next_turn,
         ];
         galaxy_match.submitted_orders = [0; MAX_PLAYERS];
+        galaxy_match.last_turn_start = Clock::get()?.unix_timestamp;
 
         if winner != NO_WINNER {
             galaxy_match.status = 2;
@@ -428,6 +432,33 @@ pub mod fog_of_war_galactic_conquest {
             match_id: galaxy_match.match_id,
             winner,
             next_turn,
+        });
+
+        Ok(())
+    }
+
+    pub fn forfeit_match(ctx: Context<ForfeitMatch>, match_id: u64) -> Result<()> {
+        let galaxy_match = &mut ctx.accounts.galaxy_match;
+
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        require!(
+            galaxy_match.is_registered(&ctx.accounts.payer.key()),
+            ErrorCode::NotAuthorized
+        );
+        require!(galaxy_match.last_turn_start > 0, ErrorCode::TurnNotStarted);
+
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            now >= galaxy_match.last_turn_start + TURN_TIMEOUT_SECONDS,
+            ErrorCode::TurnNotExpired
+        );
+
+        galaxy_match.status = 2;
+        galaxy_match.battle_summary[0] = NO_WINNER;
+
+        emit!(MatchForfeited {
+            match_id: galaxy_match.match_id,
+            forfeited_at_turn: galaxy_match.turn,
         });
 
         Ok(())
@@ -809,6 +840,19 @@ pub struct ResolveTurnCallback<'info> {
     pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
+#[derive(Accounts)]
+#[instruction(match_id: u64)]
+pub struct ForfeitMatch<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
+}
+
 #[init_computation_definition_accounts("resolve_turn", payer)]
 #[derive(Accounts)]
 pub struct InitResolveTurnCompDef<'info> {
@@ -846,10 +890,11 @@ pub struct GalaxyMatch {
     pub last_visibility: [[u8; 32]; VISIBILITY_REPORT_WORDS],
     pub last_visibility_nonce: u128,
     pub last_visibility_viewer: u8,
+    pub last_turn_start: i64,
 }
 
 impl GalaxyMatch {
-    pub const SPACE: usize = 522;
+    pub const SPACE: usize = 530;
     pub const HIDDEN_STATE_OFFSET: usize = 265;
 
     pub fn is_registered(&self, player: &Pubkey) -> bool {
@@ -905,6 +950,12 @@ pub struct TurnResolved {
     pub next_turn: u8,
 }
 
+#[event]
+pub struct MatchForfeited {
+    pub match_id: u64,
+    pub forfeited_at_turn: u8,
+}
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("The computation was aborted")]
@@ -935,4 +986,8 @@ pub enum ErrorCode {
     PlayerIndexMismatch,
     #[msg("Not all players have submitted orders for this turn")]
     PendingOrders,
+    #[msg("Turn has not started yet")]
+    TurnNotStarted,
+    #[msg("Turn timeout has not expired yet")]
+    TurnNotExpired,
 }

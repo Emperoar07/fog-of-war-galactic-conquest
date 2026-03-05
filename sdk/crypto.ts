@@ -137,7 +137,8 @@ export async function checkMXEReady(
       return { ready: true, x25519PubKey: key };
     }
     return { ready: false, x25519PubKey: null };
-  } catch {
+  } catch (err) {
+    console.warn("checkMXEReady: failed to fetch MXE public key:", err);
     return { ready: false, x25519PubKey: null };
   }
 }
