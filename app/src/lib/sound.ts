@@ -58,8 +58,13 @@ export class TacticalSoundEngine {
   private context: AudioContext | null = null;
   private ambientNodes:
     | {
-        oscillators: OscillatorNode[];
-        gains: GainNode[];
+        masterGain: GainNode;
+        pulseTimer: number;
+        leadTimer: number;
+        pulseStep: number;
+        leadStep: number;
+        bassOsc: OscillatorNode;
+        bassGain: GainNode;
       }
     | null = null;
 
@@ -119,32 +124,76 @@ export class TacticalSoundEngine {
 
     if (this.ambientNodes) return;
 
-    const primaryOsc = context.createOscillator();
-    const shimmerOsc = context.createOscillator();
-    const primaryGain = context.createGain();
-    const shimmerGain = context.createGain();
+    const masterGain = context.createGain();
+    masterGain.gain.setValueAtTime(0.0001, context.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.005, context.currentTime + 0.35);
+    masterGain.connect(context.destination);
 
-    primaryOsc.type = "triangle";
-    primaryOsc.frequency.setValueAtTime(92, context.currentTime);
-    shimmerOsc.type = "sine";
-    shimmerOsc.frequency.setValueAtTime(184, context.currentTime);
+    const bassOsc = context.createOscillator();
+    const bassGain = context.createGain();
+    bassOsc.type = "triangle";
+    bassOsc.frequency.setValueAtTime(78, context.currentTime);
+    bassGain.gain.setValueAtTime(0.0027, context.currentTime);
+    bassOsc.connect(bassGain);
+    bassGain.connect(masterGain);
+    bassOsc.start();
 
-    primaryGain.gain.setValueAtTime(0.0001, context.currentTime);
-    primaryGain.gain.linearRampToValueAtTime(0.0045, context.currentTime + 0.4);
-    shimmerGain.gain.setValueAtTime(0.0001, context.currentTime);
-    shimmerGain.gain.linearRampToValueAtTime(0.0025, context.currentTime + 0.45);
+    const pulsePattern = [156, 174, 196, 174, 156, 174, 220, 196];
+    const leadPattern = [392, 440, 392, 330, 349, 392, 440, 523];
 
-    primaryOsc.connect(primaryGain);
-    shimmerOsc.connect(shimmerGain);
-    primaryGain.connect(context.destination);
-    shimmerGain.connect(context.destination);
+    const playPulse = () => {
+      const nodes = this.ambientNodes;
+      if (!nodes || !this.context) return;
+      const now = this.context.currentTime;
+      const frequency = pulsePattern[nodes.pulseStep % pulsePattern.length];
+      nodes.pulseStep += 1;
 
-    primaryOsc.start();
-    shimmerOsc.start();
+      const osc = this.context.createOscillator();
+      const gain = this.context.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(frequency, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.0018, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      osc.connect(gain);
+      gain.connect(nodes.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.24);
+    };
+
+    const playLead = () => {
+      const nodes = this.ambientNodes;
+      if (!nodes || !this.context) return;
+      const now = this.context.currentTime;
+      const frequency = leadPattern[nodes.leadStep % leadPattern.length];
+      nodes.leadStep += 1;
+
+      const osc = this.context.createOscillator();
+      const gain = this.context.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.0014, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+      osc.connect(gain);
+      gain.connect(nodes.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    };
+
+    const pulseTimer = window.setInterval(playPulse, 260);
+    const leadTimer = window.setInterval(playLead, 1040);
+
+    playPulse();
 
     this.ambientNodes = {
-      oscillators: [primaryOsc, shimmerOsc],
-      gains: [primaryGain, shimmerGain],
+      masterGain,
+      pulseTimer,
+      leadTimer,
+      pulseStep: 0,
+      leadStep: 0,
+      bassOsc,
+      bassGain,
     };
   }
 
@@ -152,15 +201,22 @@ export class TacticalSoundEngine {
     if (!this.context || !this.ambientNodes) return;
 
     const now = this.context.currentTime;
-    for (const gain of this.ambientNodes.gains) {
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-    }
+    window.clearInterval(this.ambientNodes.pulseTimer);
+    window.clearInterval(this.ambientNodes.leadTimer);
 
-    for (const oscillator of this.ambientNodes.oscillators) {
-      oscillator.stop(now + 0.2);
-    }
+    this.ambientNodes.masterGain.gain.cancelScheduledValues(now);
+    this.ambientNodes.masterGain.gain.setValueAtTime(
+      Math.max(this.ambientNodes.masterGain.gain.value, 0.0001),
+      now,
+    );
+    this.ambientNodes.masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    this.ambientNodes.bassGain.gain.cancelScheduledValues(now);
+    this.ambientNodes.bassGain.gain.setValueAtTime(
+      Math.max(this.ambientNodes.bassGain.gain.value, 0.0001),
+      now,
+    );
+    this.ambientNodes.bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    this.ambientNodes.bassOsc.stop(now + 0.2);
 
     this.ambientNodes = null;
   }
