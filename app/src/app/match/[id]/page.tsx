@@ -708,6 +708,25 @@ function MatchPageInner() {
     }
   };
 
+  const handleForfeit = async () => {
+    if (!client || !matchPDA || !matchId) return;
+    setPendingAction("resolve");
+    try {
+      await client.forfeitMatch(matchPDA, matchId);
+      playSound("error");
+      showStatus("Match forfeited due to turn timeout.", "error");
+      appendActivity("Match ended by timeout forfeit.", "error");
+    } catch (err: unknown) {
+      showStatus(
+        `Forfeit failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
+        true,
+      );
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
   const handleVisibility = async () => {
     if (localMode) {
       if (!match) return;
@@ -1028,17 +1047,11 @@ function MatchPageInner() {
       )}
 
       <TurnTimer
-        key={pendingAction ?? "idle"}
-        active={pendingAction === "orders" || pendingAction === "resolve" || pendingAction === "visibility"}
-        label={
-          pendingAction === "orders"
-            ? "Submitting Encrypted Orders"
-            : pendingAction === "resolve"
-              ? "Resolving Turn"
-              : pendingAction === "visibility"
-                ? "Requesting Visibility"
-                : "Uplink Active"
-        }
+        turnStartedAt={match && !localMode ? (match.lastTurnStart?.toNumber?.() ?? 0) : 0}
+        active={match?.status === MatchStatus.Active && isPlayer && !localMode}
+        label="Turn Deadline"
+        onForfeit={handleForfeit}
+        forfeitDisabled={isBusy}
       />
 
       <div className="grid grid-cols-1 gap-3 sm:gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,420px)] xl:items-start">

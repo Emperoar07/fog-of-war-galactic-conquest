@@ -1092,6 +1092,11 @@
       "code": 6015,
       "name": "TurnNotExpired",
       "msg": "Turn timeout has not expired yet"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidMapSeed",
+      "msg": "Map seed must be non-zero"
     }
   ],
   "types": [

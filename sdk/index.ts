@@ -15,6 +15,7 @@ export {
   VISIBILITY_REPORT_WORDS,
   NO_WINNER,
   NO_PLAYER,
+  TURN_TIMEOUT_SECONDS,
   MatchStatus,
   OrderAction,
   UnitType,

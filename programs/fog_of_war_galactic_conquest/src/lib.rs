@@ -51,6 +51,7 @@ pub mod fog_of_war_galactic_conquest {
         map_seed: u64,
     ) -> Result<()> {
         require!(player_count == 2, ErrorCode::InvalidPlayerCount);
+        require!(map_seed > 0, ErrorCode::InvalidMapSeed);
 
         let galaxy_match = &mut ctx.accounts.galaxy_match;
         galaxy_match.match_id = match_id;
@@ -406,9 +407,9 @@ pub mod fog_of_war_galactic_conquest {
         let winner = summary.field_0;
         let destroyed_by_player = summary.field_1;
         let command_fleet_alive = summary.field_2;
-        let next_turn = summary.field_3;
+        let next_turn = summary.field_3.min(254);
 
-        galaxy_match.turn = next_turn.min(254);
+        galaxy_match.turn = next_turn;
         galaxy_match.battle_summary = [
             winner,
             destroyed_by_player[0],
@@ -990,4 +991,6 @@ pub enum ErrorCode {
     TurnNotStarted,
     #[msg("Turn timeout has not expired yet")]
     TurnNotExpired,
+    #[msg("Map seed must be non-zero")]
+    InvalidMapSeed,
 }
