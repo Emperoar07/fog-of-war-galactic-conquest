@@ -10,6 +10,8 @@ export type SoundCue =
   | "resolve"
   | "victory";
 
+export type MusicProfile = "landing" | "gameplay";
+
 type CueStep = {
   frequency: number;
   duration: number;
@@ -51,6 +53,7 @@ const CUE_MAP: Record<Exclude<SoundCue, "victory">, CueStep[]> = {
 export class TacticalSoundEngine {
   private context: AudioContext | null = null;
   private musicEnabled = false;
+  private musicProfile: MusicProfile = "landing";
   private musicVolume = 0.38;
   private musicTimer: number | null = null;
   private musicStep = 0;
@@ -214,7 +217,7 @@ export class TacticalSoundEngine {
     this.victoryTimer = window.setInterval(tick, stepMs);
   }
 
-  private startSectorBreachMusic(): void {
+  private startLandingModule9Music(): void {
     const context = this.ensureContext();
     if (!context) return;
     if (this.musicTimer !== null) return;
@@ -262,7 +265,54 @@ export class TacticalSoundEngine {
     this.musicTimer = window.setInterval(tick, stepMs);
   }
 
-  private stopSectorBreachMusic(): void {
+  private startGameplayModule8Music(): void {
+    const context = this.ensureContext();
+    if (!context) return;
+    if (this.musicTimer !== null) return;
+
+    const SP = [
+      174.61, 0, 0, 0, 0, 0, 0, 207.65,
+      0, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    const stepMs = (60000 / 65) / 2; // ms(65,2)
+    this.musicStep = 0;
+
+    const bus = context.createGain();
+    bus.gain.setValueAtTime(0.001, context.currentTime);
+    bus.gain.linearRampToValueAtTime(this.musicVolume, context.currentTime + 0.28);
+    bus.connect(context.destination);
+    this.musicBus = bus;
+
+    this.tone(context, this.musicBus, 87.31, "sine", 5, 0.18, "pad");
+    this.tone(context, this.musicBus, 130.81, "sine", 5, 0.09, "pad");
+
+    const tick = () => {
+      if (!this.musicEnabled || !this.musicBus) return;
+      const activeContext = this.ensureContext();
+      if (!activeContext) return;
+      const idx = this.musicStep % 16;
+
+      if (SP[idx] > 0) {
+        this.tone(activeContext, this.musicBus, SP[idx], "triangle", 0.85, 0.17, "pluck");
+        this.tone(activeContext, this.musicBus, SP[idx] * 2, "sine", 0.6, 0.06, "pluck");
+      }
+      if (idx % 16 === 0) {
+        this.tone(activeContext, this.musicBus, 32.7, "sine", 0.6, 0.35, "pluck");
+      }
+      if (idx % 8 === 0) {
+        this.tone(activeContext, this.musicBus, 87.31, "sine", 2.2, 0.14, "pad");
+      }
+      if (idx % 13 === 5) {
+        this.tone(activeContext, this.musicBus, 1760, "sine", 0.04, 0.04, "stab");
+      }
+      this.musicStep = (this.musicStep + 1) % 16;
+    };
+
+    tick();
+    this.musicTimer = window.setInterval(tick, stepMs);
+  }
+
+  private stopMusicLoop(): void {
     if (this.musicTimer !== null) {
       window.clearInterval(this.musicTimer);
       this.musicTimer = null;
@@ -286,6 +336,14 @@ export class TacticalSoundEngine {
     this.musicStep = 0;
   }
 
+  private startMusicLoop(): void {
+    if (this.musicProfile === "gameplay") {
+      this.startGameplayModule8Music();
+      return;
+    }
+    this.startLandingModule9Music();
+  }
+
   setMusicVolume(volume: number): void {
     const next = Math.max(0, Math.min(1, volume));
     this.musicVolume = next;
@@ -307,10 +365,18 @@ export class TacticalSoundEngine {
   setMusicEnabled(enabled: boolean): void {
     this.musicEnabled = enabled;
     if (enabled) {
-      this.startSectorBreachMusic();
+      this.startMusicLoop();
       return;
     }
-    this.stopSectorBreachMusic();
+    this.stopMusicLoop();
+  }
+
+  setMusicProfile(profile: MusicProfile): void {
+    if (this.musicProfile === profile) return;
+    this.musicProfile = profile;
+    if (!this.musicEnabled) return;
+    this.stopMusicLoop();
+    this.startMusicLoop();
   }
 
   play(cue: SoundCue): void {

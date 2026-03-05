@@ -1,4 +1,4 @@
-import { MatchStatus, NO_WINNER } from "@sdk";
+import { NO_WINNER } from "@sdk";
 
 export function areOrdersReady(
   submittedOrders: readonly number[],
@@ -11,9 +11,8 @@ export function buildWinnerOverlayKey(
   matchId: bigint,
   winner: number,
   turn: number,
-  status: MatchStatus,
 ): string | null {
-  if (winner === NO_WINNER || status !== MatchStatus.Completed) {
+  if (winner === NO_WINNER) {
     return null;
   }
 

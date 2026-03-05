@@ -9,7 +9,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { TacticalSoundEngine, type SoundCue } from "@/lib/sound";
+import {
+  TacticalSoundEngine,
+  type MusicProfile,
+  type SoundCue,
+} from "@/lib/sound";
 
 const STORAGE_AUDIO_KEY = "fog-of-war-audio-enabled";
 const STORAGE_MUSIC_KEY = "fog-of-war-music-enabled";
@@ -25,6 +29,7 @@ type SoundContextValue = {
   toggleSfx: () => void;
   setAudioEnabled: (enabled: boolean) => void;
   toggleAudio: () => void;
+  setMusicProfile: (profile: MusicProfile) => void;
   playSound: (cue: SoundCue) => void;
 };
 
@@ -93,6 +98,14 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     setAudioEnabled(next);
   }, [setAudioEnabled]);
 
+  const setMusicProfile = useCallback((profile: MusicProfile) => {
+    if (!engineRef.current) {
+      engineRef.current = new TacticalSoundEngine();
+      engineRef.current.setMusicVolume(0.38);
+    }
+    engineRef.current.setMusicProfile(profile);
+  }, []);
+
   const playSound = useCallback((cue: SoundCue) => {
     if (!sfxEnabled) return;
     if (!engineRef.current) {
@@ -112,6 +125,7 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       toggleSfx,
       setAudioEnabled,
       toggleAudio,
+      setMusicProfile,
       playSound,
     }),
     [
@@ -124,6 +138,7 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       toggleSfx,
       setAudioEnabled,
       toggleAudio,
+      setMusicProfile,
       playSound,
     ],
   );
