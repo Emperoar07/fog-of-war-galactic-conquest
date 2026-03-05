@@ -131,23 +131,17 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!engineRef.current) {
       engineRef.current = new TacticalSoundEngine();
-      engineRef.current.setMusicVolume(0.46);
+      engineRef.current.setMusicVolume(0.38);
     }
 
     engineRef.current.setMusicEnabled(musicEnabled);
   }, [musicEnabled]);
 
   useEffect(() => {
-    const handleVisibility = () => {
-      if (!engineRef.current) {
-        engineRef.current = new TacticalSoundEngine();
-      }
-      engineRef.current.setMusicEnabled(musicEnabledRef.current);
-    };
-
     const primeAudio = () => {
       if (!engineRef.current) {
         engineRef.current = new TacticalSoundEngine();
+        engineRef.current.setMusicVolume(0.38);
       }
       engineRef.current.primeMusic();
       engineRef.current.setMusicEnabled(musicEnabledRef.current);
@@ -165,12 +159,10 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
       engineRef.current.play("uiTap");
     };
 
-    window.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("pointerdown", primeAudio, { once: true });
     document.addEventListener("click", handlePointerDown, true);
 
     return () => {
-      window.removeEventListener("visibilitychange", handleVisibility);
       document.removeEventListener("click", handlePointerDown, true);
     };
   }, []);

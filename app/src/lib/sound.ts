@@ -57,21 +57,10 @@ const CUE_MAP: Record<SoundCue, CueStep[]> = {
 export class TacticalSoundEngine {
   private context: AudioContext | null = null;
   private musicEnabled = false;
-  private musicVolume = 0.46;
-  private fallbackAudio: HTMLAudioElement | null = null;
-  private fallbackFadeTimer: number | null = null;
-  private contextStateSubscribed = false;
-  private ambientNodes:
-    | {
-        masterGain: GainNode;
-        pulseTimer: number;
-        leadTimer: number;
-        pulseStep: number;
-        leadStep: number;
-        bassOsc: OscillatorNode;
-        bassGain: GainNode;
-      }
-    | null = null;
+  private musicVolume = 0.38;
+  private musicTrack: HTMLAudioElement | null = null;
+  private musicFadeTimer: number | null = null;
+  private pendingMusicRetry = false;
 
   private ensureContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -83,148 +72,134 @@ export class TacticalSoundEngine {
     if (!this.context) {
       this.context = new AudioContextCtor();
     }
-    if (!this.contextStateSubscribed) {
-      this.context.onstatechange = () => {
-        this.syncFallbackPlayback();
-      };
-      this.contextStateSubscribed = true;
-    }
     if (this.context.state === "suspended") {
       void this.context.resume();
     }
     return this.context;
   }
 
-  private ensureFallbackAudio(): HTMLAudioElement | null {
+  private ensureMusicTrack(): HTMLAudioElement | null {
     if (typeof window === "undefined") return null;
-    if (this.fallbackAudio) return this.fallbackAudio;
+    if (this.musicTrack) return this.musicTrack;
     const audio = new Audio("/audio/tactical-loop.wav");
     audio.loop = true;
     audio.preload = "auto";
     audio.volume = 0;
-    this.fallbackAudio = audio;
+    audio.addEventListener("error", () => {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[audio] tactical-loop failed to load.");
+      }
+    });
+    this.musicTrack = audio;
     return audio;
   }
 
-  private clearFallbackFade(): void {
-    if (this.fallbackFadeTimer !== null) {
-      window.clearInterval(this.fallbackFadeTimer);
-      this.fallbackFadeTimer = null;
+  private clearMusicFade(): void {
+    if (this.musicFadeTimer !== null) {
+      window.clearInterval(this.musicFadeTimer);
+      this.musicFadeTimer = null;
     }
   }
 
-  private fadeFallbackTo(target: number): void {
-    const audio = this.ensureFallbackAudio();
+  private fadeMusicTo(target: number, durationMs: number, onDone?: () => void): void {
+    const audio = this.ensureMusicTrack();
     if (!audio) return;
-    this.clearFallbackFade();
+    this.clearMusicFade();
 
     const clampedTarget = Math.max(0, Math.min(1, target));
-    this.fallbackFadeTimer = window.setInterval(() => {
+    const stepMs = 30;
+    const steps = Math.max(1, Math.floor(durationMs / stepMs));
+    const stepDelta = (clampedTarget - audio.volume) / steps;
+    this.musicFadeTimer = window.setInterval(() => {
       const current = audio.volume;
-      const delta = clampedTarget - current;
-      if (Math.abs(delta) < 0.02) {
+      const next = current + stepDelta;
+      const reached = stepDelta >= 0 ? next >= clampedTarget : next <= clampedTarget;
+      if (reached || Math.abs(clampedTarget - current) < 0.01) {
         audio.volume = clampedTarget;
-        this.clearFallbackFade();
-        if (clampedTarget <= 0.001) {
-          audio.pause();
-        }
+        this.clearMusicFade();
+        onDone?.();
         return;
       }
-      audio.volume = Math.max(0, Math.min(1, current + Math.sign(delta) * 0.02));
-    }, 35);
+      audio.volume = Math.max(0, Math.min(1, next));
+    }, stepMs);
   }
 
-  private startFallback(): void {
-    const audio = this.ensureFallbackAudio();
+  private startMusicPlayback(): void {
+    const audio = this.ensureMusicTrack();
     if (!audio) return;
     if (audio.paused) {
-      void audio.play().catch(() => {
-        // autoplay restrictions will block until first user gesture.
-      });
+      void audio.play()
+        .then(() => {
+          this.pendingMusicRetry = false;
+        })
+        .catch(() => {
+          this.pendingMusicRetry = true;
+        });
     }
-    this.fadeFallbackTo(this.musicVolume * 0.9);
+    this.fadeMusicTo(this.musicVolume, 280);
   }
 
-  private stopFallback(hardStop = false): void {
-    const audio = this.fallbackAudio;
+  private stopMusicPlayback(hardStop = false): void {
+    const audio = this.musicTrack;
     if (!audio) return;
     if (hardStop) {
-      this.clearFallbackFade();
+      this.clearMusicFade();
       audio.volume = 0;
       audio.pause();
       audio.currentTime = 0;
       return;
     }
-    this.fadeFallbackTo(0);
-  }
-
-  private syncFallbackPlayback(): void {
-    const shouldUseFallback =
-      this.musicEnabled &&
-      (!this.context || this.context.state !== "running" || !this.ambientNodes);
-
-    if (shouldUseFallback) {
-      this.startFallback();
-      return;
-    }
-    this.stopFallback(false);
+    this.fadeMusicTo(0, 220, () => {
+      audio.pause();
+    });
   }
 
   setMusicVolume(volume: number): void {
     const next = Math.max(0, Math.min(1, volume));
     this.musicVolume = next;
-
-    if (this.ambientNodes && this.context) {
-      const now = this.context.currentTime;
-      this.ambientNodes.masterGain.gain.cancelScheduledValues(now);
-      this.ambientNodes.masterGain.gain.setValueAtTime(
-        Math.max(this.ambientNodes.masterGain.gain.value, 0.0001),
-        now,
-      );
-      this.ambientNodes.masterGain.gain.linearRampToValueAtTime(
-        Math.max(0.0001, 0.014 * this.musicVolume),
-        now + 0.15,
-      );
-    }
-
-    if (this.fallbackAudio && !this.fallbackAudio.paused) {
-      this.fadeFallbackTo(this.musicVolume * 0.9);
+    if (this.musicTrack && !this.musicTrack.paused) {
+      this.fadeMusicTo(this.musicVolume, 180);
     }
   }
 
   primeMusic(): void {
     const context = this.ensureContext();
-    if (context && context.state === "suspended") {
-      void context.resume().catch(() => {
-        // ignore; fallback audio may still work after user gesture.
-      });
-    }
+    if (context && context.state === "suspended") void context.resume();
 
-    const fallback = this.ensureFallbackAudio();
-    if (fallback && fallback.paused) {
-      fallback.muted = true;
-      void fallback.play()
+    const track = this.ensureMusicTrack();
+    if (track && track.paused) {
+      track.muted = true;
+      void track.play()
         .then(() => {
-          fallback.pause();
-          fallback.currentTime = 0;
-          fallback.muted = false;
-          this.syncFallbackPlayback();
+          track.pause();
+          track.currentTime = 0;
+          track.muted = false;
+          if (this.musicEnabled) this.startMusicPlayback();
         })
         .catch(() => {
-          fallback.muted = false;
+          track.muted = false;
         });
     }
   }
 
+  private retryMusicIfNeeded(): void {
+    if (!this.pendingMusicRetry || !this.musicEnabled) return;
+    this.startMusicPlayback();
+  }
+
   setMusicEnabled(enabled: boolean): void {
     this.musicEnabled = enabled;
-    this.setAmbient(enabled);
-    this.syncFallbackPlayback();
+    if (enabled) {
+      this.startMusicPlayback();
+      return;
+    }
+    this.stopMusicPlayback(false);
   }
 
   play(cue: SoundCue): void {
     const context = this.ensureContext();
     if (!context) return;
+    this.retryMusicIfNeeded();
 
     const now = context.currentTime;
     let offset = 0;
@@ -251,121 +226,12 @@ export class TacticalSoundEngine {
     }
   }
 
+  // Backward compatibility for existing call sites.
   setAmbient(enabled: boolean): void {
-    if (!enabled) {
-      this.stopAmbient();
-      this.stopFallback(false);
-      return;
-    }
-    this.musicEnabled = true;
-
-    const context = this.ensureContext();
-    if (!context || context.state !== "running") {
-      this.syncFallbackPlayback();
-      return;
-    }
-
-    if (this.ambientNodes) return;
-
-    const masterGain = context.createGain();
-    masterGain.gain.setValueAtTime(0.0001, context.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.014 * this.musicVolume, context.currentTime + 0.35);
-    masterGain.connect(context.destination);
-
-    const bassOsc = context.createOscillator();
-    const bassGain = context.createGain();
-    bassOsc.type = "triangle";
-    bassOsc.frequency.setValueAtTime(78, context.currentTime);
-    bassGain.gain.setValueAtTime(0.0052, context.currentTime);
-    bassOsc.connect(bassGain);
-    bassGain.connect(masterGain);
-    bassOsc.start();
-
-    // Tactical minor-mode loop with restrained motion to fit strategy gameplay.
-    const pulsePattern = [147, 165, 175, 165, 147, 165, 196, 175];
-    const leadPattern = [294, 330, 349, 330, 294, 262, 294, 392];
-
-    const playPulse = () => {
-      const nodes = this.ambientNodes;
-      if (!nodes || !this.context) return;
-      const now = this.context.currentTime;
-      const frequency = pulsePattern[nodes.pulseStep % pulsePattern.length];
-      nodes.pulseStep += 1;
-
-      const osc = this.context.createOscillator();
-      const gain = this.context.createGain();
-      osc.type = "square";
-      osc.frequency.setValueAtTime(frequency, now);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.0036, now + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-      osc.connect(gain);
-      gain.connect(nodes.masterGain);
-      osc.start(now);
-      osc.stop(now + 0.24);
-    };
-
-    const playLead = () => {
-      const nodes = this.ambientNodes;
-      if (!nodes || !this.context) return;
-      const now = this.context.currentTime;
-      const frequency = leadPattern[nodes.leadStep % leadPattern.length];
-      nodes.leadStep += 1;
-
-      const osc = this.context.createOscillator();
-      const gain = this.context.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(frequency, now);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.0027, now + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-      osc.connect(gain);
-      gain.connect(nodes.masterGain);
-      osc.start(now);
-      osc.stop(now + 0.3);
-    };
-
-    const pulseTimer = window.setInterval(playPulse, 240);
-    const leadTimer = window.setInterval(playLead, 960);
-
-    playPulse();
-
-    this.ambientNodes = {
-      masterGain,
-      pulseTimer,
-      leadTimer,
-      pulseStep: 0,
-      leadStep: 0,
-      bassOsc,
-      bassGain,
-    };
-    this.syncFallbackPlayback();
+    this.setMusicEnabled(enabled);
   }
 
   stopAmbient(): void {
-    if (!this.context || !this.ambientNodes) {
-      return;
-    }
-
-    const now = this.context.currentTime;
-    window.clearInterval(this.ambientNodes.pulseTimer);
-    window.clearInterval(this.ambientNodes.leadTimer);
-
-    this.ambientNodes.masterGain.gain.cancelScheduledValues(now);
-    this.ambientNodes.masterGain.gain.setValueAtTime(
-      Math.max(this.ambientNodes.masterGain.gain.value, 0.0001),
-      now,
-    );
-    this.ambientNodes.masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-    this.ambientNodes.bassGain.gain.cancelScheduledValues(now);
-    this.ambientNodes.bassGain.gain.setValueAtTime(
-      Math.max(this.ambientNodes.bassGain.gain.value, 0.0001),
-      now,
-    );
-    this.ambientNodes.bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-    this.ambientNodes.bassOsc.stop(now + 0.2);
-
-    this.ambientNodes = null;
-    this.syncFallbackPlayback();
+    this.stopMusicPlayback(false);
   }
 }
