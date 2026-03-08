@@ -27,6 +27,9 @@ import { getMatchPDA } from "./pda";
 import { buildQueueComputationAccounts, buildRegisterPlayerAccounts } from "./accounts";
 import { decryptVisibilityReport, encryptOrder, checkMXEReady } from "./crypto";
 import { onMatchReady, onTurnResolved, onVisibilityReady, removeListener } from "./events";
+import { buildLegacyInstruction, sendLegacyInstruction } from "./legacy-abi";
+
+type LegacyAccountMap = Record<string, PublicKey | undefined>;
 
 function randomBytes(length: number): Uint8Array {
   const bytes = new Uint8Array(length);
@@ -43,6 +46,7 @@ export class GameClient {
   public readonly provider: AnchorProvider;
   public readonly programId: PublicKey;
   public readonly clusterOffset: number;
+  public readonly useLegacyDevnetAbi: boolean;
 
   private mxePublicKey: Uint8Array | null = null;
 
@@ -50,10 +54,14 @@ export class GameClient {
     provider: AnchorProvider,
     clusterOffset: number = DEFAULT_CLUSTER_OFFSET,
     programId: PublicKey = PROGRAM_ID,
+    options: { useLegacyDevnetAbi?: boolean } = {},
   ) {
     this.provider = provider;
     this.programId = programId;
     this.clusterOffset = clusterOffset;
+    this.useLegacyDevnetAbi =
+      options.useLegacyDevnetAbi ??
+      process.env.FOG_OF_WAR_USE_LEGACY_DEVNET_ABI === "1";
     const programIdl = {
       ...(idl as any),
       address: programId.toBase58(),
@@ -142,6 +150,16 @@ export class GameClient {
     const player = signer?.publicKey ?? this.provider.wallet.publicKey;
     const accounts = buildRegisterPlayerAccounts(player, matchPDA);
 
+    if (this.useLegacyDevnetAbi) {
+      const ix = buildLegacyInstruction(
+        "registerPlayer",
+        this.programId,
+        accounts as unknown as LegacyAccountMap,
+        { slot },
+      );
+      return sendLegacyInstruction(this.provider, ix, signer ? [signer] : []);
+    }
+
     const builder = (this.program.methods as any)
       .registerPlayer(new BN(matchId.toString()), slot)
       .accounts(accounts);
@@ -173,6 +191,30 @@ export class GameClient {
       matchPDA,
       this.programId,
     );
+
+    if (this.useLegacyDevnetAbi) {
+      const ix = buildLegacyInstruction(
+        "submitOrders",
+        this.programId,
+        accounts as unknown as LegacyAccountMap,
+        {
+          computationOffset,
+          playerIndex,
+          unitSlotCt: encrypted.unitSlotCt,
+          actionCt: encrypted.actionCt,
+          targetXCt: encrypted.targetXCt,
+          targetYCt: encrypted.targetYCt,
+          publicKey: encrypted.publicKey,
+          nonceBN: encrypted.nonceBN,
+        },
+      );
+      const txSig = await sendLegacyInstruction(
+        this.provider,
+        ix,
+        signer ? [signer] : [],
+      );
+      return { txSig, computationOffset };
+    }
 
     const builder = (this.program.methods as any)
       .submitOrders(
@@ -221,6 +263,30 @@ export class GameClient {
       this.programId,
     );
 
+    if (this.useLegacyDevnetAbi) {
+      const ix = buildLegacyInstruction(
+        "visibilityCheck",
+        this.programId,
+        accounts as unknown as LegacyAccountMap,
+        {
+          computationOffset,
+          publicKey: Array.from(publicKey),
+          nonceBN,
+        },
+      );
+      const txSig = await sendLegacyInstruction(
+        this.provider,
+        ix,
+        signer ? [signer] : [],
+      );
+      return {
+        txSig,
+        computationOffset,
+        nonceBN,
+        publicKey: Array.from(publicKey),
+      };
+    }
+
     const builder = (this.program.methods as any)
       .visibilityCheck(
         computationOffset,
@@ -262,6 +328,21 @@ export class GameClient {
       matchPDA,
       this.programId,
     );
+
+    if (this.useLegacyDevnetAbi) {
+      const ix = buildLegacyInstruction(
+        "resolveTurn",
+        this.programId,
+        accounts as unknown as LegacyAccountMap,
+        { computationOffset },
+      );
+      const txSig = await sendLegacyInstruction(
+        this.provider,
+        ix,
+        signer ? [signer] : [],
+      );
+      return { txSig, computationOffset };
+    }
 
     const builder = (this.program.methods as any)
       .resolveTurn(computationOffset, new BN(matchId.toString()))

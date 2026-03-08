@@ -40,7 +40,8 @@ Use the app in one of three ways:
   - Lets you choose `Easy`, `Medium`, or `Hard` so the AI pressure matches the mode you picked.
 - **Live devnet mode**
   - Connects to the deployed Solana program on devnet.
-  - Public flows work normally. Full encrypted gameplay still depends on Arcium MXE readiness.
+  - The current deployment uses a temporary compatibility bridge because the live devnet program binary predates the latest SDK ABI.
+  - Match creation and registration are aligned again, but the encrypted callback path is still waiting on a fresh redeploy from the current source.
 
 The in-app **How To Play** guide is the detailed walkthrough and is kept closest to the live UI.
 
@@ -83,8 +84,8 @@ Quick Match is local and instant, so it is useful for solo practice when you wan
 
 Important:
 
-- If the Arcium devnet MXE cluster is not ready, encrypted actions may be unavailable or may not finalize.
-- In that case, use demo mode for a full walkthrough and use live devnet mainly for public-state testing.
+- Demo mode and Quick Match remain the cleanest showcase paths while the devnet deployment is waiting for a fresh ABI-aligned redeploy.
+- Live devnet currently runs through a temporary compatibility path against the older deployed binary, but encrypted callback resolution is still not fully aligned.
 
 ### Run It Locally
 
@@ -142,6 +143,8 @@ Today, the most reliable fully playable experience is still demo mode.
 
 The live onchain experience is real, but the full encrypted turn loop still depends on Arcium devnet cluster readiness. When MXE is not available, demo mode remains the best way to test and showcase the project.
 
+At the moment there is a second operational constraint as well: the current devnet deployment predates the latest SDK instruction layout. Until the next redeploy, the app uses a temporary compatibility bridge for the drifted public instructions, but the encrypted callback path still needs the fresh binary.
+
 The MVP uses:
 
 - 2 players
@@ -192,6 +195,8 @@ What is in place today:
 Known limitation:
 
 - Full positive-path devnet execution currently depends on MXE cluster readiness on the target Arcium devnet cluster. If MXE keys are unavailable, encrypted actions cannot complete end-to-end.
+- The current deployed devnet binary predates the latest March 5 SDK/program ABI changes. Until that program is redeployed from current source, live devnet uses a temporary compatibility path for `registerPlayer`, `submitOrders`, `visibilityCheck`, and `resolveTurn`.
+- The compatibility path currently fixes the direct instruction ABI but does not fully restore encrypted callback resolution on the older deployed binary. Demo mode and Quick Match are still the most reliable showcase modes until redeploy.
 
 ## Local Development
 
@@ -234,6 +239,8 @@ The Solana program should be built from a Linux environment (native Linux or WSL
 ```bash
 arcium build
 ```
+
+For redeploys, standardize on one Linux/WSL build environment and one Anchor/Solana toolchain family. Mixed Windows and WSL Anchor installs in this repo currently disagree on `Anchor.toml` parsing, which is safe for day-to-day app work but not safe for reproducible program rebuilds.
 
 ### Test
 

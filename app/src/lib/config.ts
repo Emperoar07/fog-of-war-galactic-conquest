@@ -15,3 +15,8 @@ export const NETWORK = (process.env.NEXT_PUBLIC_NETWORK || "devnet") as
   | "mainnet-beta";
 
 export const DEMO_MODE_ENABLED = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
+
+export const USE_LEGACY_DEVNET_ABI =
+  process.env.NEXT_PUBLIC_LEGACY_DEVNET_ABI != null
+    ? process.env.NEXT_PUBLIC_LEGACY_DEVNET_ABI === "1"
+    : NETWORK === "devnet";

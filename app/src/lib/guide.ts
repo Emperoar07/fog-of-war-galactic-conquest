@@ -102,5 +102,5 @@ export const GUIDE_DETAILS: GuideList[] = [
 
 export const GUIDE_NOTE = [
   "Demo mode is the easiest place to learn because it is fully simulated and always available.",
-  "Live devnet mode uses the real program. Encrypted actions still depend on Arcium MXE readiness.",
+  "Live devnet mode uses the real program. The current deployment is running through a temporary compatibility bridge until the next redeploy. Create and join are aligned again, but full encrypted callback resolution still needs the fresh program upgrade, so demo and Quick Match remain the cleanest showcase paths.",
 ];

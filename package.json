@@ -7,6 +7,7 @@
     "build": "anchor build",
     "build:mxe": "arcium build",
     "test": "anchor test",
+    "smoke:devnet:compat": "npx ts-node scripts/devnet-compat-smoke.ts",
     "upload-circuits": "npx ts-node scripts/upload-circuits.ts",
     "upload-circuits:check": "npx ts-node scripts/upload-circuits.ts --check",
     "lint": "prettier */*.js \"*/**/*{.js,.ts,.md}\" --check",
