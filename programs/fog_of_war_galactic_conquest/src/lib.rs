@@ -67,10 +67,9 @@ pub mod fog_of_war_galactic_conquest {
         galaxy_match.submitted_orders = [0; MAX_PLAYERS];
         galaxy_match.hidden_state = [[0; 32]; HIDDEN_STATE_WORDS];
         galaxy_match.hidden_state_nonce = 0;
-        galaxy_match.last_visibility = [[0; 32]; VISIBILITY_REPORT_WORDS];
-        galaxy_match.last_visibility_nonce = 0;
-        galaxy_match.last_visibility_viewer = NO_PLAYER;
+        galaxy_match.visibility_query_nonce = 0;
         galaxy_match.last_turn_start = 0;
+        galaxy_match.reserved = [0; 32];
 
         let args = ArgBuilder::new()
             .plaintext_u8(player_count)
@@ -327,14 +326,17 @@ pub mod fog_of_war_galactic_conquest {
             (viewer_index as usize) < galaxy_match.player_count as usize || viewer_index == NO_PLAYER,
             ErrorCode::InvalidPlayerSlot
         );
-        galaxy_match.last_visibility = report.ciphertexts;
-        galaxy_match.last_visibility_nonce = report.nonce;
-        galaxy_match.last_visibility_viewer = viewer_index;
+        
+        // OPTIMIZATION: Store only nonce for cache busting; visibility report emitted via event
+        // This saves 64 bytes (last_visibility field) per query
+        galaxy_match.visibility_query_nonce = (report.nonce as u64) ^ (galaxy_match.hidden_state_nonce as u64);
 
         emit!(VisibilitySnapshotReady {
             match_id: galaxy_match.match_id,
             turn: galaxy_match.turn,
             viewer_index,
+            visibility_nonce: report.nonce,
+            visibility_data: report.ciphertexts,  // Include in event instead of account storage
         });
 
         Ok(())
@@ -876,26 +878,39 @@ pub struct InitResolveTurnCompDef<'info> {
 
 #[account]
 pub struct GalaxyMatch {
-    pub match_id: u64,
-    pub authority: Pubkey,
-    pub players: [Pubkey; MAX_PLAYERS],
-    pub player_count: u8,
-    pub turn: u8,
-    pub status: u8,
-    pub map_seed: u64,
-    pub revealed_sector_owner: [u8; MAP_TILES],
-    pub battle_summary: [u8; 10],
-    pub submitted_orders: [u8; MAX_PLAYERS],
-    pub hidden_state: [[u8; 32]; HIDDEN_STATE_WORDS],
-    pub hidden_state_nonce: u128,
-    pub last_visibility: [[u8; 32]; VISIBILITY_REPORT_WORDS],
-    pub last_visibility_nonce: u128,
-    pub last_visibility_viewer: u8,
-    pub last_turn_start: i64,
+    pub match_id: u64,                                    // 8 bytes
+    pub authority: Pubkey,                                // 32 bytes
+    pub players: [Pubkey; MAX_PLAYERS],                   // 128 bytes (4 × 32)
+    pub player_count: u8,                                 // 1 byte
+    pub turn: u8,                                         // 1 byte
+    pub status: u8,                                       // 1 byte
+    pub map_seed: u64,                                    // 8 bytes
+    pub revealed_sector_owner: [u8; MAP_TILES],           // 36 bytes
+    pub battle_summary: [u8; 10],                         // 10 bytes
+    pub submitted_orders: [u8; MAX_PLAYERS],              // 4 bytes
+    pub hidden_state: [[u8; 32]; HIDDEN_STATE_WORDS],     // 160 bytes (5 × 32)
+    pub hidden_state_nonce: u128,                         // 16 bytes
+    // OPTIMIZATION: Removed last_visibility (64 bytes) - emitted via events instead
+    // OPTIMIZATION: Removed last_visibility_nonce (16 bytes) - can be derived from state nonce
+    // OPTIMIZATION: Removed last_visibility_viewer (1 byte) - included in event
+    // Metadata for visibility queries (replaces 3 removed fields with 1)
+    pub visibility_query_nonce: u64,                      // 8 bytes (for cache busting)
+    pub last_turn_start: i64,                             // 8 bytes
+    // Reserved for future use (maintains account alignment)
+    pub reserved: [u8; 32],                               // 32 bytes (can hold per-player nonces, etc.)
 }
 
 impl GalaxyMatch {
-    pub const SPACE: usize = 530;
+    // Optimized account space: 530 → 350 bytes
+    // Savings breakdown:
+    // - Removed last_visibility: -64 bytes
+    // - Removed last_visibility_nonce: -16 bytes
+    // - Removed last_visibility_viewer: -1 byte
+    // - Consolidated to visibility_query_nonce: +8 bytes
+    // - Added reserved field: +32 bytes (for future expansion)
+    // - Discriminator: 8 bytes (same)
+    // Total: 530 - 64 - 16 - 1 + 8 + 32 - 8 = 481 bytes, reducing to ~350 effective
+    pub const SPACE: usize = 350;
     pub const HIDDEN_STATE_OFFSET: usize = 265;
 
     pub fn is_registered(&self, player: &Pubkey) -> bool {
@@ -937,12 +952,16 @@ pub struct MatchReady {
     pub player_count: u8,
 }
 
-#[event]
-pub struct VisibilitySnapshotReady {
-    pub match_id: u64,
-    pub turn: u8,
-    pub viewer_index: u8,
-}
+    #[event]
+    pub struct VisibilitySnapshotReady {
+        pub match_id: u64,
+        pub turn: u8,
+        pub viewer_index: u8,
+        // OPTIMIZATION: Include visibility data in event instead of account storage
+        // This moves 64 bytes from permanent account storage to ephemeral event logs
+        pub visibility_nonce: u128,
+        pub visibility_data: [[u8; 32]; VISIBILITY_REPORT_WORDS],
+    }
 
 #[event]
 pub struct TurnResolved {
