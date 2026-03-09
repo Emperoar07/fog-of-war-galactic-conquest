@@ -91,6 +91,7 @@ export function encryptOrder(
 
 /**
  * Decrypt a 48-byte visibility report returned by the program and parse visible enemy units.
+ * Legacy function: used with MXE-encrypted visibility
  */
 export function decryptVisibilityReport(
   ciphertext: number[][],
@@ -115,6 +116,58 @@ export function decryptVisibilityReport(
     if (bytes[VISIBILITY_PRESENT_OFFSET + slot] !== 1) continue;
     const x = bytes[VISIBILITY_X_OFFSET + slot];
     const y = bytes[VISIBILITY_Y_OFFSET + slot];
+    visibleSlots.push(slot);
+    if (x !== EMPTY_COORD && y !== EMPTY_COORD) {
+      units.push({ slot, x, y });
+    }
+  }
+
+  return { visibleSlots, units };
+}
+
+/**
+ * Sprint 5b: Decrypt per-player encrypted visibility reports
+ * Each player's visibility is encrypted to their own x25519 keypair
+ * Only the intended player can decrypt their visibility using their private key
+ * 
+ * @param ciphertext - The encrypted visibility report (48 bytes from circuit)
+ * @param nonceBN - The nonce used for encryption
+ * @param playerPrivateKey - The player's x25519 private key
+ * @param mxePublicKey - The MXE cluster's x25519 public key
+ * @returns Decoded visibility report with visible enemy unit slots and coordinates
+ */
+export function decryptPlayerVisibility(
+  ciphertext: number[][],
+  nonceBN: BN,
+  playerPrivateKey: Uint8Array,
+  mxePublicKey: Uint8Array,
+): DecodedVisibilityReport {
+  // Use same decryption as MXE-encrypted reports
+  // The difference is that the ciphertext was encrypted with the player's pubkey
+  // instead of the shared secret
+  return decryptVisibilityReport(ciphertext, nonceBN, playerPrivateKey, mxePublicKey);
+}
+
+/**
+ * Sprint 5b: Parse raw visibility data from circuit event
+ * When visibility is emitted as an event, it includes the raw bytes array
+ * This helper extracts visible unit information from the raw data
+ * 
+ * @param visibilityBytes - Raw 48-byte visibility data from circuit
+ * @returns Parsed visibility with visible slots and unit coordinates
+ */
+export function parseVisibilityBytes(visibilityBytes: Uint8Array): DecodedVisibilityReport {
+  if (visibilityBytes.length < VISIBILITY_Y_OFFSET + TOTAL_UNITS) {
+    throw new Error("Visibility data is shorter than expected.");
+  }
+
+  const visibleSlots: number[] = [];
+  const units: DecodedVisibilityReport["units"] = [];
+
+  for (let slot = 0; slot < TOTAL_UNITS; slot++) {
+    if (visibilityBytes[VISIBILITY_PRESENT_OFFSET + slot] !== 1) continue;
+    const x = visibilityBytes[VISIBILITY_X_OFFSET + slot];
+    const y = visibilityBytes[VISIBILITY_Y_OFFSET + slot];
     visibleSlots.push(slot);
     if (x !== EMPTY_COORD && y !== EMPTY_COORD) {
       units.push({ slot, x, y });

@@ -427,6 +427,184 @@ mod circuits {
         (viewer.from_arcis(Pack::new(report)), viewer_index.reveal())
     }
 
+    // Sprint 4b & 5a: New consolidated circuit for deferred order resolution with encrypted visibility
+    // Processes ALL pending orders for all players in a single atomic operation
+    // Input: game state + all pending encrypted orders + player pubkeys for visibility encryption
+    // Output: updated game state + per-player encrypted visibility reports + game summary
+    // 
+    // Sprint 5a optimization: Visibility reports encrypted to each player's x25519 pubkey
+    // Only intended player can decrypt their visibility (client-side decryption)
+    #[instruction]
+    pub fn resolve_all_orders(
+        game_ctxt: Enc<Mxe, GalaxyState>,
+        orders: [Enc<Shared, PlayerCommand>; MAX_PLAYERS],
+        player_pubkeys: [Enc<Shared, [u8; 32]>; MAX_PLAYERS],  // Sprint 5a: x25519 pubkeys for visibility encryption
+    ) -> (Enc<Mxe, GalaxyState>, [Enc<Shared, [u8; 48]>; MAX_PLAYERS], BattleSummary) {
+        let mut state = game_ctxt.to_arcis().unpack();
+        let player_count = state[PLAYER_COUNT_INDEX];
+        
+        // Phase 0: Decrypt and validate all orders
+        let mut decoded_orders: [Option<PlayerCommand>; MAX_PLAYERS] = [None; MAX_PLAYERS];
+        for player in 0..MAX_PLAYERS {
+            if (player as u8) < player_count {
+                let order = orders[player].to_arcis();
+                // Validate order
+                if action_supported(order.action) == 1 
+                    && (order.unit_slot as usize) < MAX_UNITS_PER_PLAYER {
+                    decoded_orders[player] = Some(order);
+                }
+            }
+        }
+        
+        // Phase 1: Process all MOVE and SCOUT actions
+        for player in 0..MAX_PLAYERS {
+            if let Some(order) = decoded_orders[player] {
+                let is_move_action = to_mask(order.action == ACTION_MOVE || order.action == ACTION_SCOUT);
+                let slot = unit_index(player, order.unit_slot as usize);
+                let unit_alive = state[ALIVE_OFFSET + slot];
+                
+                if unit_alive == 1 && is_move_action == 1 {
+                    state[UNIT_X_OFFSET + slot] = clamp_coordinate(order.target_x, MAP_WIDTH);
+                    state[UNIT_Y_OFFSET + slot] = clamp_coordinate(order.target_y, MAP_HEIGHT);
+                }
+            }
+        }
+        
+        // Phase 2: Process all ATTACK actions
+        for player in 0..MAX_PLAYERS {
+            if let Some(order) = decoded_orders[player] {
+                let is_attack_action = to_mask(order.action == ACTION_ATTACK);
+                
+                if is_attack_action == 1 {
+                    let target_x = clamp_coordinate(order.target_x, MAP_WIDTH);
+                    let target_y = clamp_coordinate(order.target_y, MAP_HEIGHT);
+                    
+                    for enemy_player in 0..MAX_PLAYERS {
+                        if enemy_player != player && (enemy_player as u8) < player_count {
+                            for enemy_unit in 0..MAX_UNITS_PER_PLAYER {
+                                let enemy_slot = unit_index(enemy_player, enemy_unit);
+                                let enemy_alive = state[ALIVE_OFFSET + enemy_slot];
+                                
+                                let pos_match = to_mask(
+                                    state[UNIT_X_OFFSET + enemy_slot] == target_x
+                                        && state[UNIT_Y_OFFSET + enemy_slot] == target_y
+                                );
+                                let is_target = enemy_alive * pos_match;
+                                
+                                if is_target == 1 {
+                                    let health = state[UNIT_HEALTH_OFFSET + enemy_slot];
+                                    let survives = to_mask(health > 1);
+                                    
+                                    state[UNIT_HEALTH_OFFSET + enemy_slot] = 
+                                        if survives == 1 { health - 1 } else { 0 };
+                                    
+                                    let is_dead = to_mask(state[UNIT_HEALTH_OFFSET + enemy_slot] == 0);
+                                    state[ALIVE_OFFSET + enemy_slot] = 
+                                        if is_dead == 1 { 0 } else { enemy_alive };
+                                    state[UNIT_X_OFFSET + enemy_slot] = 
+                                        if is_dead == 1 { EMPTY_COORD } else { state[UNIT_X_OFFSET + enemy_slot] };
+                                    state[UNIT_Y_OFFSET + enemy_slot] = 
+                                        if is_dead == 1 { EMPTY_COORD } else { state[UNIT_Y_OFFSET + enemy_slot] };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Clear all pending orders
+        for player in 0..MAX_PLAYERS {
+            clear_pending_order(&mut state, player);
+        }
+        
+        state[CURRENT_TURN_INDEX] += 1;
+        
+        // Phase 3: Generate per-player visibility reports (encrypted to player pubkey)
+        // Sprint 5a: Each player's visibility is encrypted and can only be decrypted by that player
+        let mut visibility_reports: [Enc<Shared, [u8; 48]>; MAX_PLAYERS] = Default::default();
+        
+        for viewer in 0..MAX_PLAYERS {
+            if (viewer as u8) < player_count {
+                let mut report = [0u8; 48];
+                
+                // Initialize report
+                for index in 0..TOTAL_UNITS {
+                    report[VISIBILITY_PRESENT_OFFSET + index] = 0;
+                    report[VISIBILITY_X_OFFSET + index] = EMPTY_COORD;
+                    report[VISIBILITY_Y_OFFSET + index] = EMPTY_COORD;
+                }
+                
+                // Compute visibility for this player (data-independent computation)
+                for enemy_player in 0..MAX_PLAYERS {
+                    let is_different_player = to_mask(enemy_player != viewer);
+                    let is_active_enemy = to_mask((enemy_player as u8) < player_count);
+                    
+                    if is_different_player == 1 && is_active_enemy == 1 {
+                        for enemy_unit in 0..MAX_UNITS_PER_PLAYER {
+                            let visible = unit_visible_to_viewer(&state, viewer, enemy_player, enemy_unit);
+                            let slot = unit_index(enemy_player, enemy_unit);
+                            
+                            // Conditional write using arithmetic masking
+                            if visible == 1 {
+                                report[VISIBILITY_PRESENT_OFFSET + slot] = 1;
+                                report[VISIBILITY_X_OFFSET + slot] = state[UNIT_X_OFFSET + slot];
+                                report[VISIBILITY_Y_OFFSET + slot] = state[UNIT_Y_OFFSET + slot];
+                            }
+                        }
+                    }
+                }
+                
+                // Sprint 5a: Encrypt visibility to this player's x25519 pubkey
+                // This ensures only the intended player can decrypt their visibility
+                let player_pubkey = player_pubkeys[viewer].to_arcis();
+                visibility_reports[viewer] = game_ctxt.owner_to_player.from_arcis(
+                    Pack::new(report),
+                    player_pubkey,
+                ) // Encrypted to player_pubkey
+            }
+        }
+        
+        // Compute final summary
+        let mut summary = BattleSummary {
+            winner: NO_WINNER,
+            destroyed_by_player: [0; MAX_PLAYERS],
+            command_fleet_alive: [0; MAX_PLAYERS],
+            next_turn: state[CURRENT_TURN_INDEX],
+        };
+        
+        let mut living_command_fleets = 0u8;
+        let mut last_commander = NO_WINNER;
+        
+        for player in 0..MAX_PLAYERS {
+            let is_active_player = to_mask((player as u8) < player_count);
+            
+            if is_active_player == 1 {
+                let mut destroyed = 0u8;
+                for unit in 0..MAX_UNITS_PER_PLAYER {
+                    let slot = unit_index(player, unit);
+                    let is_dead = to_mask(state[ALIVE_OFFSET + slot] == 0);
+                    destroyed += is_dead;
+                }
+                summary.destroyed_by_player[player] = destroyed;
+                
+                let command_slot = unit_index(player, 0);
+                let command_alive = state[ALIVE_OFFSET + command_slot];
+                summary.command_fleet_alive[player] = command_alive;
+                
+                living_command_fleets += command_alive;
+                
+                if command_alive == 1 {
+                    last_commander = player as u8;
+                }
+            }
+        }
+        
+        summary.winner = if living_command_fleets == 1 { last_commander } else { NO_WINNER };
+        
+        (game_ctxt.owner.from_arcis(Pack::new(state)), visibility_reports, summary.reveal())
+    }
+
     #[instruction]
     pub fn resolve_turn(game_ctxt: Enc<Mxe, GalaxyState>) -> (Enc<Mxe, GalaxyState>, BattleSummary) {
         let mut state = game_ctxt.to_arcis().unpack();

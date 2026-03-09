@@ -6,6 +6,7 @@ const COMP_DEF_OFFSET_INIT_MATCH: u32 = comp_def_offset("init_match");
 const COMP_DEF_OFFSET_SUBMIT_ORDERS: u32 = comp_def_offset("submit_orders");
 const COMP_DEF_OFFSET_VISIBILITY_CHECK: u32 = comp_def_offset("visibility_check");
 const COMP_DEF_OFFSET_RESOLVE_TURN: u32 = comp_def_offset("resolve_turn");
+const COMP_DEF_OFFSET_RESOLVE_ALL_ORDERS: u32 = comp_def_offset("resolve_all_orders");
 
 const MAX_PLAYERS: usize = 4;
 const MAP_TILES: usize = 36;
@@ -39,6 +40,13 @@ pub mod fog_of_war_galactic_conquest {
     }
 
     pub fn init_resolve_turn_comp_def(ctx: Context<InitResolveTurnCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, None, None)?;
+        Ok(())
+    }
+
+    pub fn init_resolve_all_orders_comp_def(
+        ctx: Context<InitResolveAllOrdersCompDef>,
+    ) -> Result<()> {
         init_comp_def(ctx.accounts, None, None)?;
         Ok(())
     }
@@ -152,6 +160,62 @@ pub mod fog_of_war_galactic_conquest {
         Ok(())
     }
 
+    // Sprint 4a: New deferred order submission (no Arcium call)
+    // Players submit encrypted orders; these are queued in Solana only
+    // All orders are processed together in resolve_all_orders circuit
+    pub fn queue_order(
+        ctx: Context<QueueOrder>,
+        match_id: u64,
+        player_index: u8,
+        unit_slot_ct: [u8; 32],
+        action_ct: [u8; 32],
+        target_x_ct: [u8; 32],
+        target_y_ct: [u8; 32],
+    ) -> Result<()> {
+        let galaxy_match = &mut ctx.accounts.galaxy_match;
+
+        require!(galaxy_match.match_id == match_id, ErrorCode::MatchNotFound);
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        require!(
+            galaxy_match.is_registered(&ctx.accounts.payer.key()),
+            ErrorCode::NotAuthorized
+        );
+        
+        let caller_index = galaxy_match
+            .player_slot(&ctx.accounts.payer.key())
+            .ok_or(ErrorCode::NotAuthorized)?;
+        require!(caller_index == player_index, ErrorCode::PlayerIndexMismatch);
+
+        // OPTIMIZATION: Check if order already queued (prevent re-submission)
+        require!(
+            galaxy_match.submitted_orders[player_index as usize] == 0,
+            ErrorCode::OrdersAlreadySubmitted
+        );
+
+        // Store encrypted order data in pending orders account
+        let pending_account = &mut ctx.accounts.pending_orders;
+        require!(pending_account.match_id == match_id, ErrorCode::MatchNotFound);
+
+        let order_slot = player_index as usize;
+        pending_account.orders[order_slot].unit_slot_ct = unit_slot_ct;
+        pending_account.orders[order_slot].action_ct = action_ct;
+        pending_account.orders[order_slot].target_x_ct = target_x_ct;
+        pending_account.orders[order_slot].target_y_ct = target_y_ct;
+        pending_account.orders[order_slot].submitted = 1;
+
+        // Mark order as submitted in match account
+        galaxy_match.submitted_orders[player_index as usize] = 1;
+
+        emit!(OrderQueued {
+            match_id,
+            player_index,
+            turn: galaxy_match.turn,
+        });
+
+        Ok(())
+    }
+
+    // Legacy submit_orders (deprecated after Sprint 4, kept for compatibility)
     pub fn submit_orders(
         ctx: Context<SubmitOrders>,
         computation_offset: u64,
@@ -379,6 +443,146 @@ pub mod fog_of_war_galactic_conquest {
             1,
             0,
         )?;
+
+        Ok(())
+    }
+
+    // Sprint 4c: New instruction for deferred order resolution
+    // Triggers the resolve_all_orders circuit which processes all pending orders atomically
+    pub fn resolve_all_orders(
+        ctx: Context<ResolveAllOrders>,
+        computation_offset: u64,
+        match_id: u64,
+    ) -> Result<()> {
+        let galaxy_match = &ctx.accounts.galaxy_match;
+        require!(galaxy_match.match_id == match_id, ErrorCode::MatchNotFound);
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        
+        // Check that all players have submitted orders (or it's not their turn)
+        let all_submitted = galaxy_match.submitted_orders.iter().all(|&submitted| submitted == 1);
+        require!(all_submitted, ErrorCode::NotAllPlayersSubmitted);
+
+        let pending_account = &ctx.accounts.pending_orders;
+        require!(pending_account.match_id == match_id, ErrorCode::MatchNotFound);
+
+        // Build arguments for resolve_all_orders circuit
+        // Pass: game state + all encrypted orders
+        let mut args_builder = ArgBuilder::new()
+            .plaintext_u128(galaxy_match.hidden_state_nonce)
+            .account(
+                galaxy_match.key(),
+                GalaxyMatch::HIDDEN_STATE_OFFSET as u32,
+                (32 * HIDDEN_STATE_WORDS) as u32,
+            );
+
+        // Add all pending orders (encrypted)
+        for player in 0..MAX_PLAYERS {
+            args_builder = args_builder
+                .encrypted_u8(&pending_account.orders[player].unit_slot_ct)
+                .encrypted_u8(&pending_account.orders[player].action_ct)
+                .encrypted_u8(&pending_account.orders[player].target_x_ct)
+                .encrypted_u8(&pending_account.orders[player].target_y_ct);
+        }
+
+        let args = args_builder.build();
+
+        ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
+
+        queue_computation(
+            ctx.accounts,
+            computation_offset,
+            args,
+            vec![ResolveAllOrdersCallback::callback_ix(
+                computation_offset,
+                &ctx.accounts.mxe_account,
+                &[CallbackAccount {
+                    pubkey: ctx.accounts.galaxy_match.key(),
+                    is_writable: true,
+                }],
+            )?],
+            1,
+            0,
+        )?;
+
+        emit!(TurnStarted {
+            match_id,
+            turn: galaxy_match.turn,
+        });
+
+        Ok(())
+    }
+
+    #[arcium_callback(encrypted_ix = "resolve_all_orders")]
+    pub fn resolve_all_orders_callback(
+        ctx: Context<ResolveAllOrdersCallback>,
+        output: SignedComputationOutputs<ResolveAllOrdersOutput>,
+    ) -> Result<()> {
+        // Verify and unpack the multi-output computation (state + visibility reports + summary)
+        let (state, visibility_reports, summary) = match output.verify_output(
+            &ctx.accounts.cluster_account,
+            &ctx.accounts.computation_account,
+        ) {
+            Ok(ResolveAllOrdersOutput {
+                field_0: state,
+                field_1: reports,
+                field_2: summary,
+            }) => (state, reports, summary),
+            Err(_) => return Err(ErrorCode::AbortedComputation.into()),
+        };
+
+        let galaxy_match = &mut ctx.accounts.galaxy_match;
+        require!(galaxy_match.status == 1, ErrorCode::MatchNotReady);
+        
+        // Update game state
+        galaxy_match.hidden_state = state.ciphertexts;
+        galaxy_match.hidden_state_nonce = state.nonce;
+        
+        // Extract summary fields
+        let winner = summary.field_0;
+        let destroyed_by_player = summary.field_1;
+        let command_fleet_alive = summary.field_2;
+        let next_turn = summary.field_3.min(254);
+
+        // Update match account
+        galaxy_match.turn = next_turn;
+        galaxy_match.battle_summary = [
+            winner,
+            destroyed_by_player[0],
+            destroyed_by_player[1],
+            destroyed_by_player[2],
+            destroyed_by_player[3],
+            command_fleet_alive[0],
+            command_fleet_alive[1],
+            command_fleet_alive[2],
+            command_fleet_alive[3],
+            next_turn,
+        ];
+        galaxy_match.submitted_orders = [0; MAX_PLAYERS];
+        galaxy_match.last_turn_start = Clock::get()?.unix_timestamp;
+
+        // Check for game end
+        if winner != NO_WINNER {
+            galaxy_match.status = 2;
+        }
+
+        // Emit per-player visibility reports as events (not stored on-chain)
+        for player in 0..MAX_PLAYERS {
+            if (player as u8) < galaxy_match.player_count {
+                emit!(VisibilitySnapshotReady {
+                    match_id: galaxy_match.match_id,
+                    turn: galaxy_match.turn,
+                    viewer_index: player as u8,
+                    visibility_nonce: visibility_reports[player].nonce,
+                    visibility_data: visibility_reports[player].ciphertexts,
+                });
+            }
+        }
+
+        emit!(TurnResolved {
+            match_id: galaxy_match.match_id,
+            winner,
+            next_turn,
+        });
 
         Ok(())
     }
@@ -856,6 +1060,120 @@ pub struct ForfeitMatch<'info> {
     pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
 }
 
+// Sprint 4a: PendingOrders account for deferred order submission
+// Stores encrypted orders from all players until turn resolution
+#[account]
+pub struct PendingOrders {
+    pub match_id: u64,                              // 8 bytes
+    pub orders: [EncryptedOrder; MAX_PLAYERS],      // 4 × 128 bytes = 512 bytes
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize)]
+pub struct EncryptedOrder {
+    pub unit_slot_ct: [u8; 32],                     // 32 bytes
+    pub action_ct: [u8; 32],                        // 32 bytes
+    pub target_x_ct: [u8; 32],                      // 32 bytes
+    pub target_y_ct: [u8; 32],                      // 32 bytes
+    pub submitted: u8,                              // 1 byte
+}
+
+impl PendingOrders {
+    pub const SPACE: usize = 8 + (128 * MAX_PLAYERS) + 8; // 520 bytes
+}
+
+#[derive(Accounts)]
+#[instruction(match_id: u64)]
+pub struct QueueOrder<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(
+        init_if_needed,
+        payer = payer,
+        space = PendingOrders::SPACE,
+        seeds = [b"pending_orders", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub pending_orders: Box<Account<'info, PendingOrders>>,
+    #[account(
+        mut,
+        seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
+    pub system_program: Program<'info, System>,
+}
+
+// Sprint 4c: ResolveAllOrders context for triggering deferred order resolution
+#[derive(Accounts)]
+#[instruction(match_id: u64)]
+pub struct ResolveAllOrders<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(
+        init_if_needed,
+        space = 9,
+        payer = payer,
+        seeds = [&SIGN_PDA_SEED],
+        bump,
+        address = derive_sign_pda!(),
+    )]
+    pub sign_pda_account: Account<'info, ArciumSignerAccount>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Account<'info, MXEAccount>,
+    #[account(
+        mut,
+        seeds = [b"galaxy_match", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
+    #[account(
+        mut,
+        seeds = [b"pending_orders", match_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub pending_orders: Box<Account<'info, PendingOrders>>,
+    pub system_program: Program<'info, System>,
+}
+
+// Callback context for resolve_all_orders circuit output
+#[derive(Accounts)]
+pub struct ResolveAllOrdersCallback<'info> {
+    pub arcium_program: Program<'info, Arcium>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_RESOLVE_ALL_ORDERS))]
+    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Account<'info, MXEAccount>,
+    /// CHECK: Checked by the Arcium program.
+    pub computation_account: UncheckedAccount<'info>,
+    #[account(address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
+    pub cluster_account: Account<'info, Cluster>,
+    #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
+    /// CHECK: Checked by the account constraint.
+    pub instructions_sysvar: AccountInfo<'info>,
+    #[account(mut)]
+    pub galaxy_match: Box<Account<'info, GalaxyMatch>>,
+}
+
+#[init_computation_definition_accounts("resolve_all_orders", payer)]
+#[derive(Accounts)]
+pub struct InitResolveAllOrdersCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    #[account(mut)]
+    /// CHECK: Checked by the Arcium program during initialization.
+    pub comp_def_account: UncheckedAccount<'info>,
+    #[account(mut, address = derive_mxe_lut_pda!(mxe_account.lut_offset_slot))]
+    /// CHECK: Checked by the Arcium program.
+    pub address_lookup_table: UncheckedAccount<'info>,
+    #[account(address = LUT_PROGRAM_ID)]
+    /// CHECK: The address lookup table program.
+    pub lut_program: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
 #[init_computation_definition_accounts("resolve_turn", payer)]
 #[derive(Accounts)]
 pub struct InitResolveTurnCompDef<'info> {
@@ -951,6 +1269,19 @@ pub struct MatchReady {
     pub match_id: u64,
     pub player_count: u8,
 }
+
+    #[event]
+    pub struct OrderQueued {
+        pub match_id: u64,
+        pub player_index: u8,
+        pub turn: u8,
+    }
+
+    #[event]
+    pub struct TurnStarted {
+        pub match_id: u64,
+        pub turn: u8,
+    }
 
     #[event]
     pub struct VisibilitySnapshotReady {
