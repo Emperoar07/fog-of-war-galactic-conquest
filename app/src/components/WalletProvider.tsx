@@ -6,7 +6,6 @@ import {
   WalletProvider as SolanaWalletProvider,
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { RPC_URL } from "@/lib/config";
 
@@ -14,7 +13,9 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 export default function WalletProvider({ children }: { children: ReactNode }) {
   const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
+    // Note: Phantom is automatically registered via Standard Wallet protocol
+    // Remove PhantomWalletAdapter to avoid double-registration
+    () => [new SolflareWalletAdapter()],
     [],
   );
 
