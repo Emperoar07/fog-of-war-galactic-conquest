@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
 # Native Linux anchor wrapper for WSL
 
+set -euo pipefail
+
+if [ -z "${HOME:-}" ]; then
+    export HOME
+    HOME="$(eval echo ~"$(whoami)")"
+fi
+
 # Ensure native Linux node/npx is on PATH before Windows versions
 export PATH="$HOME/.local/node-v20.20.0-linux-x64/bin:$HOME/.cargo/bin:$HOME/.local/share/solana/install/active_release/bin:$PATH"
+export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
+export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
 
 # Log all invocations for debugging
 echo "[anchor-wrapper] $(date): $*" >> /tmp/anchor-wrapper.log
@@ -14,7 +27,12 @@ case "$1" in
         PT="$HOME/.cache/solana/v1.53/platform-tools"
         export CC_sbpf_solana_solana="$PT/llvm/bin/clang"
         export CFLAGS_sbpf_solana_solana="--sysroot=$PT/llvm/sbpfv2 -isystem $PT/llvm/include"
-        exec cargo-build-sbf --tools-version v1.53 -- -p fog_of_war_galactic_conquest "$@"
+        exec env \
+            HOME="$HOME" \
+            CARGO_HOME="$CARGO_HOME" \
+            RUSTUP_HOME="$RUSTUP_HOME" \
+            PATH="$PATH" \
+            cargo-build-sbf --tools-version v1.53 -- -p fog_of_war_galactic_conquest "$@"
         ;;
     keys)
         if [ "$2" = "sync" ]; then

@@ -4,8 +4,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "anchor build",
-    "build:mxe": "arcium build",
+    "build": "node scripts/build-mxe.js",
+    "build:mxe": "node scripts/build-mxe.js",
     "test": "anchor test",
     "smoke:devnet:compat": "npx ts-node scripts/devnet-compat-smoke.ts",
     "upload-circuits": "npx ts-node scripts/upload-circuits.ts",

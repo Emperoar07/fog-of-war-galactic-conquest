@@ -234,13 +234,26 @@ npm run dev
 
 Use a Solana wallet such as Phantom or Solflare when testing the frontend.
 
-The Solana program should be built from a Linux environment (native Linux or WSL):
+The canonical Solana build path for this repo is the root build script. On Windows it dispatches into WSL automatically; on Linux it runs the same wrapper directly:
 
 ```bash
-arcium build
+npm run build
 ```
 
-For redeploys, standardize on one Linux/WSL build environment and one Anchor/Solana toolchain family. Mixed Windows and WSL Anchor installs in this repo currently disagree on `Anchor.toml` parsing, which is safe for day-to-day app work but not safe for reproducible program rebuilds.
+That wrapper:
+
+- standardizes on one Linux/WSL entrypoint
+- builds Arcium circuits first
+- then builds the Anchor program through the repo wrapper
+- fails early if the WSL toolchain is outside the repo's expected family
+
+Expected WSL toolchain family:
+
+- Anchor CLI `0.32.1`
+- Arcium CLI `0.8.x`
+- Solana CLI `2.1.x` or `2.3.x`
+
+Avoid using raw Windows `anchor build` for redeploys. Mixed Windows and WSL Anchor installs in this repo disagree on `Anchor.toml` parsing, which is fine for day-to-day app work but not safe for reproducible program rebuilds.
 
 ### Test
 
