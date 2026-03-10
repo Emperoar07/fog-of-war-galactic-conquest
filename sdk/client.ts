@@ -169,7 +169,55 @@ export class GameClient {
     return builder.rpc({ commitment: "confirmed" });
   }
 
-  /** Submit encrypted orders for a player. */
+  /** Phase 1: Queue encrypted orders for deferred batch resolution (no Arcium call).
+   * This is the new optimized flow that avoids immediate circuit execution.
+   */
+  async queueOrder(
+    matchPDA: PublicKey,
+    matchId: bigint,
+    playerIndex: number,
+    order: OrderParams,
+    privateKey: Uint8Array,
+    signer?: Keypair,
+  ): Promise<string> {
+    const mxeKey = await this.requireMXEKey();
+    const encrypted = encryptOrder(order, privateKey, mxeKey);
+    const payer = signer?.publicKey ?? this.provider.wallet.publicKey;
+
+    // Get or derive PendingOrders account
+    const [pendingOrdersPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("pending_orders"), new BN(matchId).toArrayLike(Buffer, "le", 8)],
+      this.programId,
+    );
+
+    const builder = (this.program.methods as any)
+      .queueOrder(
+        new BN(matchId.toString()),
+        playerIndex,
+        encrypted.unitSlotCt,
+        encrypted.actionCt,
+        encrypted.targetXCt,
+        encrypted.targetYCt,
+      )
+      .accounts({
+        payer,
+        pendingOrders: pendingOrdersPDA,
+        galaxyMatch: matchPDA,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      });
+
+    if (signer) builder.signers([signer]);
+
+    const txSig = await builder.rpc({
+      commitment: "confirmed",
+      preflightCommitment: "confirmed",
+    });
+    return txSig;
+  }
+
+  /** Legacy submit_orders (deprecated after deferred resolution is deployed).
+   * Kept for backward compatibility during migration.
+   */
   async submitOrders(
     matchPDA: PublicKey,
     matchId: bigint,
@@ -310,7 +358,57 @@ export class GameClient {
     };
   }
 
-  /** Trigger turn resolution (requires all players to have submitted). */
+  /** Phase 1: New batch order resolution (Sprint 4 deferred resolution).
+   * Processes all pending queued orders in a single atomic Arcium circuit call.
+   * This replaces the old per-turn resolution with a more efficient model.
+   */
+  async resolveAllOrders(
+    matchPDA: PublicKey,
+    matchId: bigint,
+    signer?: Keypair,
+  ): Promise<QueuedComputationResult> {
+    await this.requireMXEKey();
+    const computationOffset = new BN(randomBytes(8));
+
+    const payer = signer?.publicKey ?? this.provider.wallet.publicKey;
+
+    // Get PendingOrders account
+    const [pendingOrdersPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("pending_orders"), new BN(matchId).toArrayLike(Buffer, "le", 8)],
+      this.programId,
+    );
+
+    const accounts = buildQueueComputationAccounts(
+      payer,
+      "resolve_all_orders",
+      computationOffset,
+      this.clusterOffset,
+      matchPDA,
+      this.programId,
+    );
+
+    const builder = (this.program.methods as any)
+      .resolveAllOrders(
+        computationOffset,
+        new BN(matchId.toString()),
+      )
+      .accounts({
+        ...accounts,
+        pendingOrders: pendingOrdersPDA,
+      });
+
+    if (signer) builder.signers([signer]);
+
+    const txSig = await builder.rpc({
+      commitment: "confirmed",
+      preflightCommitment: "confirmed",
+    });
+    return { txSig, computationOffset };
+  }
+
+  /** Legacy turn resolution (deprecated after deferred resolution is deployed).
+   * Kept for backward compatibility during migration.
+   */
   async resolveTurn(
     matchPDA: PublicKey,
     matchId: bigint,

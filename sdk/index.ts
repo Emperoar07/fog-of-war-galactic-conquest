@@ -69,6 +69,8 @@ export {
   deriveSharedSecret,
   encryptOrder,
   decryptVisibilityReport,
+  decryptPlayerVisibility,
+  parseVisibilityBytes,
   checkMXEReady,
   getMXEPublicKeyWithRetry,
 } from "./crypto";
