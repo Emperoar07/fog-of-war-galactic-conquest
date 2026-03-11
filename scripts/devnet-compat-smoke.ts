@@ -5,14 +5,20 @@ import { GameClient } from "../sdk/client";
 import { OrderAction } from "../sdk/constants";
 import { generatePlayerKeys } from "../sdk/crypto";
 
-const DEFAULT_HELIUS_RPC =
-  "https://devnet.helius-rpc.com/?api-key=19fa005b-7776-4f39-892a-bc9a64f96a79";
-const DEFAULT_WALLET_PATH = "C:\\Users\\bolaj\\.config\\solana\\id.json";
-
 function readKeypair(path: string): Keypair {
   return Keypair.fromSecretKey(
     new Uint8Array(JSON.parse(readFileSync(path, "utf8"))),
   );
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `${name} must be set explicitly before running scripts/devnet-compat-smoke.ts`,
+    );
+  }
+  return value;
 }
 
 async function fundSigner(
@@ -34,8 +40,9 @@ async function fundSigner(
 }
 
 async function main() {
-  const rpcUrl = process.env.ANCHOR_PROVIDER_URL || DEFAULT_HELIUS_RPC;
-  const walletPath = process.env.ANCHOR_WALLET || DEFAULT_WALLET_PATH;
+  const rpcUrl = requireEnv("ANCHOR_PROVIDER_URL");
+  const walletPath = requireEnv("ANCHOR_WALLET");
+  const useLegacyDevnetAbi = process.env.USE_LEGACY_DEVNET_ABI === "1";
   const wallet = readKeypair(walletPath);
 
   const provider = new anchor.AnchorProvider(
@@ -49,7 +56,7 @@ async function main() {
   anchor.setProvider(provider);
 
   const client = new GameClient(provider, undefined, undefined, {
-    useLegacyDevnetAbi: true,
+    useLegacyDevnetAbi,
   });
   const playerTwo = Keypair.generate();
   const playerOneKeys = generatePlayerKeys();
@@ -58,6 +65,7 @@ async function main() {
 
   console.log("rpc", rpcUrl);
   console.log("wallet", wallet.publicKey.toBase58());
+  console.log("useLegacyDevnetAbi", useLegacyDevnetAbi);
   console.log("playerTwo", playerTwo.publicKey.toBase58());
   console.log("matchId", matchId.toString());
 
