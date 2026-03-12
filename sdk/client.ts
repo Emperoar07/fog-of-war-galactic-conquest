@@ -28,6 +28,7 @@ import { buildQueueComputationAccounts, buildRegisterPlayerAccounts } from "./ac
 import { decryptVisibilityReport, encryptOrder, checkMXEReady } from "./crypto";
 import { onMatchReady, onTurnResolved, onVisibilityReady, removeListener } from "./events";
 import { buildLegacyInstruction, sendLegacyInstruction } from "./legacy-abi";
+import { describeArciumError, isRetriableArciumError, sleep } from "./errors";
 
 type LegacyAccountMap = Record<string, PublicKey | undefined>;
 
@@ -132,11 +133,32 @@ export class GameClient {
 
   /** Wait for an MPC computation to finalize on-chain. */
   async awaitComputation(computationOffset: BN): Promise<void> {
-    await awaitComputationFinalization(
-      this.provider,
-      computationOffset,
-      this.programId,
-      "confirmed",
+    const maxRetries = 5;
+    let lastError: unknown = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await awaitComputationFinalization(
+          this.provider,
+          computationOffset,
+          this.programId,
+          "confirmed",
+        );
+        return;
+      } catch (err: unknown) {
+        lastError = err;
+        if (attempt < maxRetries && isRetriableArciumError(err)) {
+          await sleep(1500 * attempt);
+          continue;
+        }
+        throw new Error(
+          describeArciumError(err, "Arcium callback wait failed."),
+        );
+      }
+    }
+
+    throw new Error(
+      describeArciumError(lastError, "Arcium callback wait failed."),
     );
   }
 

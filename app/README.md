@@ -31,3 +31,4 @@ The app expects devnet by default and uses:
 
 - Encrypted flows depend on MXE readiness on the target Arcium cluster.
 - The UI waits for queued computations to finalize before refreshing match state.
+- The SDK now retries transient Arcium/RPC wait failures and surfaces clearer callback error messages.

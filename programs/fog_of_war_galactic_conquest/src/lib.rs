@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
-use arcium_client::idl::arcium::types::CallbackAccount;
+use arcium_client::idl::arcium::types::{
+    CallbackAccount, CircuitSource, OffChainCircuitSource,
+};
+use arcium_macros::circuit_hash;
 
 const COMP_DEF_OFFSET_INIT_MATCH: u32 = comp_def_offset("init_match");
 const COMP_DEF_OFFSET_SUBMIT_ORDERS: u32 = comp_def_offset("submit_orders");
@@ -14,32 +17,61 @@ const VISIBILITY_REPORT_WORDS: usize = 2;
 const NO_WINNER: u8 = 255;
 const NO_PLAYER: u8 = 255;
 const TURN_TIMEOUT_SECONDS: i64 = 60;
+const OFFCHAIN_CIRCUIT_BASE_URL: Option<&str> = option_env!("FOG_OF_WAR_CIRCUIT_BASE_URL");
 
 declare_id!("BSUDUdpFuGJpw68HjJcHmUJ9AHHnr4V9Am75s6meJ9hE");
+
+fn offchain_circuit_source(circuit_name: &str, hash: [u8; 32]) -> Option<CircuitSource> {
+    let base = OFFCHAIN_CIRCUIT_BASE_URL?;
+    let base = base.trim_end_matches('/');
+    Some(CircuitSource::OffChain(OffChainCircuitSource {
+        source: format!("{base}/{circuit_name}.arcis"),
+        hash,
+    }))
+}
 
 #[arcium_program]
 pub mod fog_of_war_galactic_conquest {
     use super::*;
 
     pub fn init_init_match_comp_def(ctx: Context<InitInitMatchCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, None, None)?;
+        init_comp_def(
+            ctx.accounts,
+            offchain_circuit_source("init_match", circuit_hash!("init_match")),
+            None,
+        )?;
         Ok(())
     }
 
     pub fn init_submit_orders_comp_def(ctx: Context<InitSubmitOrdersCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, None, None)?;
+        init_comp_def(
+            ctx.accounts,
+            offchain_circuit_source("submit_orders", circuit_hash!("submit_orders")),
+            None,
+        )?;
         Ok(())
     }
 
     pub fn init_visibility_check_comp_def(
         ctx: Context<InitVisibilityCheckCompDef>,
     ) -> Result<()> {
-        init_comp_def(ctx.accounts, None, None)?;
+        init_comp_def(
+            ctx.accounts,
+            offchain_circuit_source(
+                "visibility_check",
+                circuit_hash!("visibility_check"),
+            ),
+            None,
+        )?;
         Ok(())
     }
 
     pub fn init_resolve_turn_comp_def(ctx: Context<InitResolveTurnCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, None, None)?;
+        init_comp_def(
+            ctx.accounts,
+            offchain_circuit_source("resolve_turn", circuit_hash!("resolve_turn")),
+            None,
+        )?;
         Ok(())
     }
 

@@ -187,7 +187,7 @@ This repository is a working prototype, not a finished game.
 What is in place today:
 
 - Devnet deployment for the game program
-- Uploaded Arcium circuits and initialized computation definitions
+- Arcium computation definition scaffolding for all encrypted game actions
 - A browser client and TypeScript SDK
 - Public match flow, account reads, and transaction assembly
 - Lifecycle tests for both guard-rail behavior and positive encrypted flow
@@ -195,8 +195,8 @@ What is in place today:
 Known limitation:
 
 - Full positive-path devnet execution currently depends on MXE cluster readiness on the target Arcium devnet cluster. If MXE keys are unavailable, encrypted actions cannot complete end-to-end.
-- The current deployed devnet binary predates the latest March 5 SDK/program ABI changes. Until that program is redeployed from current source, live devnet uses a temporary compatibility path for `registerPlayer`, `submitOrders`, `visibilityCheck`, and `resolveTurn`.
-- The compatibility path currently fixes the direct instruction ABI but does not fully restore encrypted callback resolution on the older deployed binary. Demo mode and Quick Match are still the most reliable showcase modes until redeploy.
+- The current deployed devnet program id is paired with stale finalized Arcium circuits from an older build. The fresh recovery path is a new program id + fresh MXE + fresh computation definitions.
+- The repo now supports an offchain-circuit deployment path so future devnet cycles do not depend on replacing finalized on-chain raw circuits under the same compDef PDAs.
 
 ## Local Development
 
@@ -246,6 +246,7 @@ That wrapper:
 - builds Arcium circuits first
 - then builds the Anchor program through the repo wrapper
 - fails early if the WSL toolchain is outside the repo's expected family
+- forwards `FOG_OF_WAR_CIRCUIT_BASE_URL` into the Rust build when you want offchain compDefs
 
 Expected WSL toolchain family:
 
@@ -254,6 +255,40 @@ Expected WSL toolchain family:
 - Solana CLI `2.1.x` or `2.3.x`
 
 Avoid using raw Windows `anchor build` for redeploys. Mixed Windows and WSL Anchor installs in this repo disagree on `Anchor.toml` parsing, which is fine for day-to-day app work but not safe for reproducible program rebuilds.
+
+### Fresh Offchain Devnet Deployment
+
+For the next clean devnet cycle, use a fresh program id and offchain circuit sources.
+
+1. Host the compiled `.arcis` files publicly under one base URL.
+   Example layout:
+   - `https://your-host.example/fog-of-war/init_match.arcis`
+   - `https://your-host.example/fog-of-war/submit_orders.arcis`
+   - `https://your-host.example/fog-of-war/visibility_check.arcis`
+   - `https://your-host.example/fog-of-war/resolve_turn.arcis`
+
+2. Build with the public base URL set:
+
+```bash
+FOG_OF_WAR_CIRCUIT_BASE_URL=https://your-host.example/fog-of-war npm run build
+```
+
+3. Deploy with a fresh program keypair / program id.
+
+4. Initialize a fresh MXE for that program id.
+
+5. Initialize fresh computation definitions.
+   The program will embed:
+   - the offchain URL for each circuit
+   - the compile-time `circuit_hash!(...)` for each circuit
+
+6. Verify compDef status:
+
+```bash
+npm run upload-circuits:check
+```
+
+For an offchain deployment, the script should report `circuit=offchain` rather than trying to upload raw circuits on chain.
 
 ### Test
 

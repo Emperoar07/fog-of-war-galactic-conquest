@@ -23,8 +23,9 @@ echo "[anchor-wrapper] $(date): $*" >> /tmp/anchor-wrapper.log
 case "$1" in
     build)
         shift
-        # Use platform-tools v1.53 for edition2024 support, with proper sysroot
-        PT="$HOME/.cache/solana/v1.53/platform-tools"
+        # This repo is edition 2021 and currently builds against the sbf target
+        # family. The validated local toolchain path is platform-tools v1.48.
+        PT="$HOME/.cache/solana/v1.48/platform-tools"
         export CC_sbpf_solana_solana="$PT/llvm/bin/clang"
         export CFLAGS_sbpf_solana_solana="--sysroot=$PT/llvm/sbpfv2 -isystem $PT/llvm/include"
         exec env \
@@ -32,7 +33,8 @@ case "$1" in
             CARGO_HOME="$CARGO_HOME" \
             RUSTUP_HOME="$RUSTUP_HOME" \
             PATH="$PATH" \
-            cargo-build-sbf --tools-version v1.53 -- -p fog_of_war_galactic_conquest "$@"
+            FOG_OF_WAR_CIRCUIT_BASE_URL="${FOG_OF_WAR_CIRCUIT_BASE_URL:-}" \
+            cargo-build-sbf --tools-version v1.48 -- -p fog_of_war_galactic_conquest "$@"
         ;;
     keys)
         if [ "$2" = "sync" ]; then

@@ -69,6 +69,10 @@ COMMON_ENV=(
     "PATH=$PATH"
 )
 
+if [[ -n "${FOG_OF_WAR_CIRCUIT_BASE_URL:-}" ]]; then
+    COMMON_ENV+=("FOG_OF_WAR_CIRCUIT_BASE_URL=$FOG_OF_WAR_CIRCUIT_BASE_URL")
+fi
+
 echo "[wsl-arcium-build] step 1/2: arcium build --skip-program $*"
 env "${COMMON_ENV[@]}" arcium build --skip-program "$@"
 

@@ -23,12 +23,10 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 
 import {
-  getArciumEnv,
   getCompDefAccOffset,
   getArciumProgramId,
   uploadCircuit,
   getMXEAccAddress,
-  getCompDefAccAddress,
   getArciumAccountBaseSeed,
   getLookupTableAddress,
   getArciumProgram,
@@ -49,6 +47,8 @@ const CIRCUITS = [
   { name: "visibility_check", initMethod: "initVisibilityCheckCompDef" },
   { name: "resolve_turn", initMethod: "initResolveTurnCompDef" },
 ] as const;
+
+type CircuitLocation = "missing" | "offchain" | "onchain_pending" | "onchain_finalized";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -80,16 +80,31 @@ async function isCompDefInitialized(
   }
 }
 
-async function isCircuitUploaded(
+function getCircuitLocation(compDef: any): CircuitLocation {
+  const circuitSource = compDef?.circuitSource;
+  if (!circuitSource) return "missing";
+
+  if (circuitSource.offChain) {
+    return "offchain";
+  }
+
+  const onChain =
+    circuitSource.onChain?.[0]
+    ?? circuitSource.onChain?.["0"]
+    ?? null;
+  if (!onChain) return "missing";
+  return onChain.isCompleted ? "onchain_finalized" : "onchain_pending";
+}
+
+async function getOnchainCircuitLocation(
   arciumProgram: any,
   compDefPDA: PublicKey,
-): Promise<boolean> {
+): Promise<CircuitLocation> {
   try {
     const compDef = await arciumProgram.account.computationDefinitionAccount.fetch(compDefPDA);
-    // A compDef with a non-zero rawCircuit field means the circuit has been uploaded
-    return compDef.rawCircuit && !compDef.rawCircuit.equals?.(PublicKey.default);
+    return getCircuitLocation(compDef);
   } catch {
-    return false;
+    return "missing";
   }
 }
 
@@ -153,24 +168,42 @@ async function main() {
 
   // Status check
   console.log("=== Circuit Status ===");
-  const statuses: { name: string; compDefInit: boolean; circuitUploaded: boolean }[] = [];
+  const statuses: {
+    name: string;
+    compDefInit: boolean;
+    circuitLocation: CircuitLocation;
+  }[] = [];
 
   for (const circuit of circuits) {
     const compDefPDA = getCompDefPDA(PROGRAM_ID, circuit.name);
     const initialized = await isCompDefInitialized(arciumProgram, compDefPDA);
-    const uploaded = initialized ? await isCircuitUploaded(arciumProgram, compDefPDA) : false;
+    const circuitLocation = initialized
+      ? await getOnchainCircuitLocation(arciumProgram, compDefPDA)
+      : "missing";
 
-    statuses.push({ name: circuit.name, compDefInit: initialized, circuitUploaded: uploaded });
+    statuses.push({ name: circuit.name, compDefInit: initialized, circuitLocation });
     const initStatus = initialized ? "YES" : "NO";
-    const uploadStatus = uploaded ? "YES" : (initialized ? "NO" : "N/A");
-    console.log(`  ${circuit.name}: compDef=${initStatus} circuit=${uploadStatus}`);
+    console.log(
+      `  ${circuit.name}: compDef=${initStatus} circuit=${circuitLocation}`,
+    );
   }
 
   const needsInit = statuses.filter((s) => !s.compDefInit);
-  const needsUpload = statuses.filter((s) => s.compDefInit && !s.circuitUploaded);
-  const done = statuses.filter((s) => s.compDefInit && s.circuitUploaded);
+  const needsUpload = statuses.filter(
+    (s) => s.compDefInit && s.circuitLocation === "onchain_pending",
+  );
+  const done = statuses.filter(
+    (s) =>
+      s.compDefInit
+      && (s.circuitLocation === "offchain" || s.circuitLocation === "onchain_finalized"),
+  );
 
   console.log(`\nSummary: ${done.length} complete, ${needsInit.length} need compDef init, ${needsUpload.length} need circuit upload`);
+
+  if (process.env.FOG_OF_WAR_CIRCUIT_BASE_URL) {
+    const baseUrl = process.env.FOG_OF_WAR_CIRCUIT_BASE_URL.replace(/\/+$/, "");
+    console.log(`Offchain circuit base URL: ${baseUrl}`);
+  }
 
   if (checkOnly) {
     const estimatedCost = (needsInit.length * 0.01) + (needsUpload.length * 2);
@@ -210,9 +243,11 @@ async function main() {
   }
 
   // Phase 2: Upload circuits one at a time
-  const toUpload = statuses.filter((s) => s.compDefInit && !s.circuitUploaded);
+  const toUpload = statuses.filter(
+    (s) => s.compDefInit && s.circuitLocation === "onchain_pending",
+  );
   if (toUpload.length === 0) {
-    console.log("\nAll circuits are uploaded. Nothing to do.");
+    console.log("\nNo on-chain circuit upload required.");
     process.exit(0);
   }
 
@@ -241,7 +276,7 @@ async function main() {
       const rawCircuit = fs.readFileSync(arcisPath);
       await uploadCircuit(provider, circuit.name, PROGRAM_ID, rawCircuit, true);
       console.log(`  Circuit ${circuit.name} uploaded successfully!`);
-      status.circuitUploaded = true;
+      status.circuitLocation = "onchain_finalized";
     } catch (err: any) {
       console.error(`  Failed to upload circuit ${circuit.name}:`, err.message || err);
       console.error(`  Re-run this script to retry.`);
@@ -253,7 +288,11 @@ async function main() {
   const finalBalance = await connection.getBalance(wallet.publicKey);
   console.log(`\n=== Done ===`);
   console.log(`Balance: ${(finalBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
-  const finalDone = statuses.filter((s) => s.compDefInit && s.circuitUploaded).length;
+  const finalDone = statuses.filter(
+    (s) =>
+      s.compDefInit
+      && (s.circuitLocation === "offchain" || s.circuitLocation === "onchain_finalized"),
+  ).length;
   console.log(`Circuits uploaded: ${finalDone}/${statuses.length}`);
 }
 
