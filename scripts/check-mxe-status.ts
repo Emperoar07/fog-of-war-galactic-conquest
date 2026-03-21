@@ -19,7 +19,10 @@ import {
 
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
-const PROGRAM_ID = new PublicKey("BSUDUdpFuGJpw68HjJcHmUJ9AHHnr4V9Am75s6meJ9hE");
+const PROGRAM_ID = new PublicKey(
+  process.env.FOG_OF_WAR_PROGRAM_ID ||
+    "BSUDUdpFuGJpw68HjJcHmUJ9AHHnr4V9Am75s6meJ9hE"
+);
 
 async function main() {
   const rpcUrl =
@@ -32,13 +35,13 @@ async function main() {
     path.join(os.homedir(), ".config", "solana", "id.json");
 
   const wallet = anchor.web3.Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8"))),
+    new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8")))
   );
   const connection = new anchor.web3.Connection(rpcUrl, "confirmed");
   const provider = new anchor.AnchorProvider(
     connection,
     new anchor.Wallet(wallet),
-    { commitment: "confirmed" },
+    { commitment: "confirmed" }
   );
   anchor.setProvider(provider);
 
@@ -53,13 +56,15 @@ async function main() {
 
   const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAddr);
   console.log(`MXE status: ${JSON.stringify(mxeAcc.status)}`);
-  console.log(`MXE cluster field: ${mxeAcc.cluster ? mxeAcc.cluster.toString() : "none"}`);
+  console.log(
+    `MXE cluster field: ${mxeAcc.cluster ? mxeAcc.cluster.toString() : "none"}`
+  );
 
   const upKeys = mxeAcc.utilityPubkeys as any;
   if (upKeys.set) {
     console.log("utilityPubkeys: SET (keys are ready!)");
     console.log(
-      `  x25519: ${Buffer.from(upKeys.set[0].x25519Pubkey).toString("hex")}`,
+      `  x25519: ${Buffer.from(upKeys.set[0].x25519Pubkey).toString("hex")}`
     );
   } else if (upKeys.unset) {
     console.log("utilityPubkeys: UNSET (key exchange incomplete)");
@@ -68,7 +73,9 @@ async function main() {
     console.log(`  all contributed? ${flags.every(Boolean)}`);
     const partial = Buffer.from(upKeys.unset[0].x25519Pubkey);
     const isZero = partial.every((b: number) => b === 0);
-    console.log(`  x25519 (partial): ${isZero ? "(all zeros)" : partial.toString("hex")}`);
+    console.log(
+      `  x25519 (partial): ${isZero ? "(all zeros)" : partial.toString("hex")}`
+    );
   } else {
     console.log("utilityPubkeys: unknown variant", Object.keys(upKeys));
   }
@@ -77,9 +84,15 @@ async function main() {
   try {
     const pubKey = await getMXEPublicKey(provider, PROGRAM_ID);
     if (pubKey && pubKey.length === 32) {
-      console.log(`\ngetMXEPublicKey: SUCCESS (${Buffer.from(pubKey).toString("hex")})`);
+      console.log(
+        `\ngetMXEPublicKey: SUCCESS (${Buffer.from(pubKey).toString("hex")})`
+      );
     } else {
-      console.log(`\ngetMXEPublicKey: returned ${pubKey ? `length=${pubKey.length}` : "null"}`);
+      console.log(
+        `\ngetMXEPublicKey: returned ${
+          pubKey ? `length=${pubKey.length}` : "null"
+        }`
+      );
     }
   } catch (e: any) {
     console.log(`\ngetMXEPublicKey: error — ${e.message}`);
@@ -90,23 +103,36 @@ async function main() {
   const clusterAddr = getClusterAccAddress(456);
   console.log(`Address: ${clusterAddr.toBase58()}`);
   try {
-    const cluster = await arciumProgram.account.cluster.fetch(clusterAddr) as any;
+    const cluster = (await arciumProgram.account.cluster.fetch(
+      clusterAddr
+    )) as any;
     console.log(`Cluster size: ${cluster.clusterSize}`);
     console.log(`Activation: ${JSON.stringify(cluster.activation)}`);
-    console.log(`Authority: ${cluster.authority ? cluster.authority.toBase58() : "none"}`);
-    console.log(`All fields: ${Object.keys(cluster).filter(k => !k.startsWith("_")).join(", ")}`);
+    console.log(
+      `Authority: ${cluster.authority ? cluster.authority.toBase58() : "none"}`
+    );
+    console.log(
+      `All fields: ${Object.keys(cluster)
+        .filter((k) => !k.startsWith("_"))
+        .join(", ")}`
+    );
   } catch (e: any) {
     console.log(`Fetch error: ${e.message}`);
   }
 
   // Scan a range of cluster offsets for active ones
   console.log(`\n--- Scanning cluster offsets ---`);
-  const offsets = [0, 1, 2, 3, 4, 5, 10, 50, 100, 200, 300, 400, 450, 455, 456, 457, 458, 459, 460, 500];
+  const offsets = [
+    0, 1, 2, 3, 4, 5, 10, 50, 100, 200, 300, 400, 450, 455, 456, 457, 458, 459,
+    460, 500,
+  ];
   for (const offset of offsets) {
     try {
       const addr = getClusterAccAddress(offset);
-      const c = await arciumProgram.account.cluster.fetch(addr) as any;
-      console.log(`  Cluster ${offset}: size=${c.clusterSize} addr=${addr.toBase58()}`);
+      const c = (await arciumProgram.account.cluster.fetch(addr)) as any;
+      console.log(
+        `  Cluster ${offset}: size=${c.clusterSize} addr=${addr.toBase58()}`
+      );
     } catch {
       // not found — skip silently
     }

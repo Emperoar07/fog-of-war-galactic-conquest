@@ -8,13 +8,17 @@
     "build:mxe": "node scripts/build-mxe.js",
     "test": "anchor test",
     "smoke:devnet:compat": "npx ts-node scripts/devnet-compat-smoke.ts",
+    "repro:init-match": "npx ts-node scripts/repro-init-match.ts",
+    "bootstrap:mxe": "npx ts-node scripts/bootstrap-mxe.ts",
+    "check:cluster": "npx ts-node scripts/check-cluster-health.ts",
+    "debug:computation": "npx ts-node scripts/debug-computation.ts",
     "upload-circuits": "npx ts-node scripts/upload-circuits.ts",
     "upload-circuits:check": "npx ts-node scripts/upload-circuits.ts --check",
     "lint": "prettier */*.js \"*/**/*{.js,.ts,.md}\" --check",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts,.md}\" -w"
   },
   "dependencies": {
-    "@arcium-hq/client": "0.8.5",
+    "@arcium-hq/client": "0.9.2",
     "@coral-xyz/anchor": "^0.32.1"
   },
   "devDependencies": {

@@ -25,11 +25,19 @@ import type {
   VisibilitySnapshotReadyEvent,
 } from "./types";
 import { getMatchPDA } from "./pda";
-import { buildQueueComputationAccounts, buildRegisterPlayerAccounts } from "./accounts";
+import {
+  buildQueueComputationAccounts,
+  buildRegisterPlayerAccounts,
+} from "./accounts";
 import { decryptVisibilityReport, encryptOrder, checkMXEReady } from "./crypto";
-import { onMatchReady, onTurnResolved, onVisibilityReady, removeListener } from "./events";
+import {
+  onMatchReady,
+  onTurnResolved,
+  onVisibilityReady,
+  removeListener,
+} from "./events";
 import { buildLegacyInstruction, sendLegacyInstruction } from "./legacy-abi";
-import { describeArciumError, isRetriableArciumError, sleep } from "./errors";
+import { retryArciumOperation } from "./errors";
 
 type LegacyAccountMap = Record<string, PublicKey | undefined>;
 
@@ -56,7 +64,7 @@ export class GameClient {
     provider: AnchorProvider,
     clusterOffset: number = DEFAULT_CLUSTER_OFFSET,
     programId: PublicKey = PROGRAM_ID,
-    options: { useLegacyDevnetAbi?: boolean } = {},
+    options: { useLegacyDevnetAbi?: boolean } = {}
   ) {
     this.provider = provider;
     this.programId = programId;
@@ -89,7 +97,7 @@ export class GameClient {
     const status = await this.isReady();
     if (!status.ready || !status.x25519PubKey) {
       throw new Error(
-        "MXE cluster keys not set. Encrypted operations are unavailable.",
+        "MXE cluster keys not set. Encrypted operations are unavailable."
       );
     }
     return status.x25519PubKey;
@@ -103,7 +111,7 @@ export class GameClient {
   async createMatch(
     matchId: bigint,
     playerCount: number = 2,
-    mapSeed: bigint = BigInt(42),
+    mapSeed: bigint = BigInt(42)
   ): Promise<CreateMatchResult> {
     await this.requireMXEKey();
     const computationOffset = new BN(randomBytes(8));
@@ -114,7 +122,7 @@ export class GameClient {
       computationOffset,
       this.clusterOffset,
       matchPDA,
-      this.programId,
+      this.programId
     );
 
     const txSig = await (this.program.methods as any)
@@ -122,7 +130,7 @@ export class GameClient {
         computationOffset,
         new BN(matchId.toString()),
         playerCount,
-        new BN(mapSeed.toString()),
+        new BN(mapSeed.toString())
       )
       .accountsPartial(accounts)
       .rpc({ commitment: "confirmed", preflightCommitment: "confirmed" });
@@ -132,32 +140,20 @@ export class GameClient {
 
   /** Wait for an MPC computation to finalize on-chain. */
   async awaitComputation(computationOffset: BN): Promise<void> {
-    const maxRetries = 5;
-    let lastError: unknown = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
+    await retryArciumOperation(
+      async () => {
         await awaitComputationFinalization(
           this.provider,
           computationOffset,
           this.programId,
-          "confirmed",
+          "confirmed"
         );
-        return;
-      } catch (err: unknown) {
-        lastError = err;
-        if (attempt < maxRetries && isRetriableArciumError(err)) {
-          await sleep(1500 * attempt);
-          continue;
-        }
-        throw new Error(
-          describeArciumError(err, "Arcium callback wait failed."),
-        );
+      },
+      {
+        maxRetries: 5,
+        retryDelayMs: 1500,
+        label: "Arcium callback wait failed.",
       }
-    }
-
-    throw new Error(
-      describeArciumError(lastError, "Arcium callback wait failed."),
     );
   }
 
@@ -166,7 +162,7 @@ export class GameClient {
     matchPDA: PublicKey,
     matchId: bigint,
     slot: number,
-    signer?: Keypair,
+    signer?: Keypair
   ): Promise<string> {
     const player = signer?.publicKey ?? this.provider.wallet.publicKey;
     const accounts = buildRegisterPlayerAccounts(player, matchPDA);
@@ -176,7 +172,7 @@ export class GameClient {
         "registerPlayer",
         this.programId,
         accounts as unknown as LegacyAccountMap,
-        { slot },
+        { slot }
       );
       return sendLegacyInstruction(this.provider, ix, signer ? [signer] : []);
     }
@@ -197,7 +193,7 @@ export class GameClient {
     playerIndex: number,
     order: OrderParams,
     privateKey: Uint8Array,
-    signer?: Keypair,
+    signer?: Keypair
   ): Promise<QueuedComputationResult> {
     const mxeKey = await this.requireMXEKey();
     const encrypted = encryptOrder(order, privateKey, mxeKey);
@@ -210,7 +206,7 @@ export class GameClient {
       computationOffset,
       this.clusterOffset,
       matchPDA,
-      this.programId,
+      this.programId
     );
 
     if (this.useLegacyDevnetAbi) {
@@ -227,12 +223,12 @@ export class GameClient {
           targetYCt: encrypted.targetYCt,
           publicKey: encrypted.publicKey,
           nonceBN: encrypted.nonceBN,
-        },
+        }
       );
       const txSig = await sendLegacyInstruction(
         this.provider,
         ix,
-        signer ? [signer] : [],
+        signer ? [signer] : []
       );
       return { txSig, computationOffset };
     }
@@ -247,7 +243,7 @@ export class GameClient {
         encrypted.targetXCt,
         encrypted.targetYCt,
         encrypted.publicKey,
-        encrypted.nonceBN,
+        encrypted.nonceBN
       )
       .accountsPartial(accounts);
 
@@ -265,7 +261,7 @@ export class GameClient {
     matchPDA: PublicKey,
     matchId: bigint,
     privateKey: Uint8Array,
-    signer?: Keypair,
+    signer?: Keypair
   ): Promise<VisibilityRequestResult> {
     await this.requireMXEKey();
     const computationOffset = new BN(randomBytes(8));
@@ -281,7 +277,7 @@ export class GameClient {
       computationOffset,
       this.clusterOffset,
       matchPDA,
-      this.programId,
+      this.programId
     );
 
     if (this.useLegacyDevnetAbi) {
@@ -293,12 +289,12 @@ export class GameClient {
           computationOffset,
           publicKey: Array.from(publicKey),
           nonceBN,
-        },
+        }
       );
       const txSig = await sendLegacyInstruction(
         this.provider,
         ix,
-        signer ? [signer] : [],
+        signer ? [signer] : []
       );
       return {
         txSig,
@@ -313,7 +309,7 @@ export class GameClient {
         computationOffset,
         new BN(matchId.toString()),
         Array.from(publicKey),
-        nonceBN,
+        nonceBN
       )
       .accountsPartial(accounts);
 
@@ -335,7 +331,7 @@ export class GameClient {
   async resolveTurn(
     matchPDA: PublicKey,
     matchId: bigint,
-    signer?: Keypair,
+    signer?: Keypair
   ): Promise<QueuedComputationResult> {
     await this.requireMXEKey();
     const computationOffset = new BN(randomBytes(8));
@@ -347,7 +343,7 @@ export class GameClient {
       computationOffset,
       this.clusterOffset,
       matchPDA,
-      this.programId,
+      this.programId
     );
 
     if (this.useLegacyDevnetAbi) {
@@ -355,12 +351,12 @@ export class GameClient {
         "resolveTurn",
         this.programId,
         accounts as unknown as LegacyAccountMap,
-        { computationOffset },
+        { computationOffset }
       );
       const txSig = await sendLegacyInstruction(
         this.provider,
         ix,
-        signer ? [signer] : [],
+        signer ? [signer] : []
       );
       return { txSig, computationOffset };
     }
@@ -382,7 +378,7 @@ export class GameClient {
   async forfeitMatch(
     matchPDA: PublicKey,
     matchId: bigint,
-    signer?: Keypair,
+    signer?: Keypair
   ): Promise<string> {
     const payer = signer?.publicKey ?? this.provider.wallet.publicKey;
     const builder = (this.program.methods as any)
@@ -434,7 +430,7 @@ export class GameClient {
   /** Get the player slot index for a wallet, or null if not registered. */
   getPlayerSlot(match: GalaxyMatch, wallet: PublicKey): number | null {
     const idx = match.players.findIndex(
-      (p) => p.toBase58() === wallet.toBase58(),
+      (p) => p.toBase58() === wallet.toBase58()
     );
     return idx >= 0 ? idx : null;
   }
@@ -471,14 +467,14 @@ export class GameClient {
   /** Decrypt and parse the latest visibility report stored on the match account. */
   async decryptLatestVisibility(
     match: GalaxyMatch,
-    privateKey: Uint8Array,
+    privateKey: Uint8Array
   ): Promise<DecodedVisibilityReport> {
     const mxeKey = await this.requireMXEKey();
     return decryptVisibilityReport(
       match.lastVisibility,
       match.lastVisibilityNonce,
       privateKey,
-      mxeKey,
+      mxeKey
     );
   }
 
@@ -495,7 +491,7 @@ export class GameClient {
   }
 
   onVisibilityReady(
-    callback: (event: VisibilitySnapshotReadyEvent) => void,
+    callback: (event: VisibilitySnapshotReadyEvent) => void
   ): number {
     return onVisibilityReady(this.program, callback);
   }
@@ -503,7 +499,7 @@ export class GameClient {
   /** Subscribe to account changes on a match PDA. */
   onMatchAccountChange(
     matchPDA: PublicKey,
-    callback: (match: GalaxyMatch) => void,
+    callback: (match: GalaxyMatch) => void
   ): number {
     return this.provider.connection.onAccountChange(matchPDA, async () => {
       try {
@@ -520,6 +516,8 @@ export class GameClient {
   }
 
   removeAccountChangeListener(id: number): Promise<void> {
-    return this.provider.connection.removeAccountChangeListener(id).then(() => {});
+    return this.provider.connection
+      .removeAccountChangeListener(id)
+      .then(() => {});
   }
 }

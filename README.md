@@ -206,7 +206,7 @@ Known limitation:
 - Rust
 - Solana CLI
 - Anchor 0.32.x
-- Arcium CLI
+- Arcium CLI managed with `arcup`
 
 ### Install
 
@@ -251,8 +251,20 @@ That wrapper:
 Expected WSL toolchain family:
 
 - Anchor CLI `0.32.1`
-- Arcium CLI `0.8.x`
+- Arcium CLI `0.9.x`
 - Solana CLI `2.1.x` or `2.3.x`
+
+For Arcium tooling, prefer `arcup` over ad hoc binary replacement:
+
+```bash
+arcup install
+arcup update
+arcup version
+```
+
+`arcup` is the official version manager for the Arcium CLI and Arx Node tooling:
+
+- https://docs.arcium.com/developers/installation/arcup
 
 Avoid using raw Windows `anchor build` for redeploys. Mixed Windows and WSL Anchor installs in this repo disagree on `Anchor.toml` parsing, which is fine for day-to-day app work but not safe for reproducible program rebuilds.
 
@@ -262,6 +274,7 @@ For the next clean devnet cycle, use a fresh program id and offchain circuit sou
 
 1. Host the compiled `.arcis` files publicly under one base URL.
    Example layout:
+
    - `https://your-host.example/fog-of-war/init_match.arcis`
    - `https://your-host.example/fog-of-war/submit_orders.arcis`
    - `https://your-host.example/fog-of-war/visibility_check.arcis`
@@ -273,22 +286,92 @@ For the next clean devnet cycle, use a fresh program id and offchain circuit sou
 FOG_OF_WAR_CIRCUIT_BASE_URL=https://your-host.example/fog-of-war npm run build
 ```
 
-3. Deploy with a fresh program keypair / program id.
+3. Deploy the Solana program with a fresh program keypair / program id.
 
-4. Initialize a fresh MXE for that program id.
+```bash
+solana program deploy target/deploy/fog_of_war_galactic_conquest.so \
+  --program-id target/deploy/fog_of_war_galactic_conquest-keypair.json \
+  --url <YOUR_RPC_URL> \
+  --keypair ~/.config/solana/id.json
+```
 
-5. Initialize fresh computation definitions.
+4. Initialize a fresh MXE explicitly for that program id.
+
+This repo now prefers split deploys with `init-mxe` rather than relying on `arcium deploy --skip-deploy`.
+
+```bash
+PROGRAM_ID=$(solana-keygen pubkey target/deploy/fog_of_war_galactic_conquest-keypair.json)
+
+arcium init-mxe \
+  --callback-program "$PROGRAM_ID" \
+  --cluster-offset 456 \
+  --keypair-path ~/.config/solana/id.json \
+  --rpc-url <YOUR_RPC_URL>
+```
+
+5. Finalize the MXE utility keys.
+
+```bash
+arcium finalize-mxe-keys "$PROGRAM_ID" \
+  --cluster-offset 456 \
+  --keypair-path ~/.config/solana/id.json \
+  --rpc-url <YOUR_RPC_URL>
+```
+
+6. Initialize fresh computation definitions.
    The program will embed:
+
    - the offchain URL for each circuit
    - the compile-time `circuit_hash!(...)` for each circuit
 
-6. Verify compDef status:
+7. Verify compDef status:
 
 ```bash
 npm run upload-circuits:check
 ```
 
 For an offchain deployment, the script should report `circuit=offchain` rather than trying to upload raw circuits on chain.
+
+The official deployment docs still document `arcium deploy` as the all-in-one path. We keep supporting that, but for this repo the safer operational pattern is:
+
+- `solana program deploy`
+- `arcium init-mxe`
+- `arcium finalize-mxe-keys`
+- compDef initialization
+
+You can also inspect and bootstrap MXE state with the helper scripts added in this repo:
+
+```bash
+npm run check:cluster -- --rpc <YOUR_RPC_URL> --program <PROGRAM_ID>
+npx ts-node scripts/check-mxe-status.ts
+npm run debug:computation -- --rpc <YOUR_RPC_URL> --program <PROGRAM_ID> --offset <COMPUTATION_OFFSET>
+```
+
+Reference:
+
+- https://docs.arcium.com/developers/deployment
+
+### Minimal Callback Repro
+
+When we need the smallest failing case for Arcium support, use the `init_match`-only repro. It does not depend on player registration or order submission.
+
+```bash
+npm run repro:init-match
+```
+
+Required environment:
+
+- `ANCHOR_PROVIDER_URL`
+- `ANCHOR_WALLET`
+- `FOG_OF_WAR_PROGRAM_ID`
+
+This script:
+
+- creates one match
+- waits for the `init_match` computation to finalize
+- fetches the match account
+- scans recent callback transactions for `InitMatchCallback`
+- prints whether the callback applied hidden state or returned the failure/abort variant
 
 ### Test
 

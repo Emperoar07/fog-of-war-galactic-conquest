@@ -73,6 +73,25 @@ export {
   getMXEPublicKeyWithRetry,
 } from "./crypto";
 
+// Error handling & resilience
+export {
+  classifyArciumError,
+  isRetriableArciumError,
+  describeArciumError,
+  retryArciumOperation,
+  simulateWithRetry,
+  confirmWithPolling,
+  waitForMatchCondition,
+  sleep,
+} from "./errors";
+export type {
+  ArciumErrorCategory,
+  ArciumErrorInfo,
+  SimulateWithRetryOptions,
+  ConfirmWithPollingOptions,
+  WaitForCallbackOptions,
+} from "./errors";
+
 // Events
 export {
   onMatchReady,
